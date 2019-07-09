@@ -1,0 +1,21 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/default/index.theme</file>
+        <file>icons/default/48x48/ic_more_vert.svg</file>
+        <file>icons/default/48x48/ic_arrow_back.svg</file>
+        <file>icons/default/48x48/ic_fiber_new.svg</file>
+        <file>icons/default/48x48/ic_refresh.svg</file>
+        <file>icons/default/48x48/ic_settings.svg</file>
+        <file>icons/default/48x48/ic_warning.svg</file>
+        <file>icons/default/48x48/ic_add.svg</file>
+        <file>icons/default/48x48/ic_chevron_right.svg</file>
+        <file>icons/default/48x48/ic_video_library.svg</file>
+        <file>icons/default/48x48/ic_linked_camera.svg</file>
+        <file>icons/default/48x48/ic_cast_connected.svg</file>
+        <file>icons/default/48x48/ic_settings_applications.svg</file>
+        <file>icons/default/48x48/ic_play_arrow.svg</file>
+        <file>icons/default/48x48/ic_appbar_speakerphone.svg</file>
+        <file>icons/default/48x48/ic_appbar_link.svg</file>
+        <file>icons/default/48x48/ic_close.svg</file>
+    </qresource>
+</RCC>
