@@ -1,14 +1,41 @@
-How to build and install Archivist binaries
-===========================================
+How to build and install ONVIFMonitor binaries
+==============================================
 
-To help CMake find dependencies add a system variable with the name "CMAKE_HINT" which points to a directory where the libraries are located.
-CMake will automatically search for the subdirectories "asdcpmodlib" and "xercescpp". Also you can add the directory of a library directly to "CMAKE_HINT".
+This projects uses CMake (see www.cmake.org). Make sure that cmake is properly installed.
 
-Windows
--------
+------- build dependencies (optional) -------
 
-Using cmake (see www.cmake.org). A out-out-source build is strongly recommended!
+You may want to use conan.io (https://conan.io/) to build the dependencies (Qt5, QtAV, libONVIF). This step is optional: You can build the dependencies via conan yourself (recommended for Windows) or obtain them using a package manager (like apt or yum).
+To build the dependencies yourself you have to add two conan repositories first:
 
-Type:
-cd <project_root>/build
-cmake ../
+    conan remote add tereius https://api.bintray.com/conan/tereius/public-conan
+    conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
+    
+After that just run following command in the git root dir (where the conanfile.py is located):
+
+    conan install ./ -s build_type=Debug --build missing
+
+------- build app -------
+    
+Create a (build) directory (preferably outside the git root dir). To compile the app the minimal project setup for "Unix Makefiles" would be:
+
+    cd <build_dir>
+    cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE:STRING=Debug <git_root_dir>
+    cmake --build ./
+    cmake --build ./ --target install
+
+If CMake is missing a dependency you have to set the variable (pointing to a path) manually e.g. for Qt5:
+
+    cmake -G "Unix Makefiles" -Qt5_DIR:PATH="/usr/lib/cmake/Qt5" <git_root_dir>
+
+To print the relevant variables you may want to change use:
+
+    cd <git_root_dir>
+    cmake -LH
+
+For Windows use a CMake generator like "NMake Makefiles" or "Visual Studio [...]" e.g.:
+
+    cd <build_dir>
+    cmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE:STRING=Debug <git_root_dir>
+    cmake --build ./
+    cmake --build ./ --target install
