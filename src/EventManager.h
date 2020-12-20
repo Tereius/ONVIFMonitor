@@ -8,6 +8,8 @@
 #include <QMutex>
 #include <QObject>
 #include <QSharedPointer>
+#include <QMetaObject>
+#include <QMetaProperty>
 
 
 #define EventM EventManager::getGlobal()

@@ -1,9 +1,11 @@
 find_package(CommonLibs QUIET)
-find_package(libONVIF REQUIRED)
+if(NOT TARGET onvifcommon)
+    find_package(libONVIF REQUIRED)
+endif()
 find_package(Qt5 COMPONENTS Core Svg Quick Concurrent QuickControls2 REQUIRED)
 find_path(Qt5_qml_DIR NAMES QtQml/qmldir PATH_SUFFIXES "lib" "lib/qml" "qml")
 find_path(Qt5_plugin_DIR NAMES platforms/qminimald.dll platforms/qminimal.dll PATH_SUFFIXES "plugins")
-find_library(QtAvLib_PATH NAMES QtAV QtAVd QtAV1 QtAVd1 PATH_SUFFIXES "lib")
+find_library(QtAvLib_PATH NAMES QtAV QtAV QtAVd QtAV1 QtAVd1 PATH_SUFFIXES "lib")
 find_path(QtAvLib_include_DIR NAMES QtAV/QtAV.h PATH_SUFFIXES "include")
 find_path(QtAvLib_qml_DIR NAMES QtAV/qmldir PATH_SUFFIXES "lib" "lib/qml" "qml")
 
@@ -18,6 +20,8 @@ set(QT5_ROOT_PATH "${Qt5_DIR}/../../..")
 set(QTAV_ROOT_PATH "${Qt5_DIR}/../../..")
 # Configure a header file to pass some of the CMake settings to the source code.
 configure_file("${PROJECT_SOURCE_DIR}/src/info.in" "${PROJECT_BINARY_DIR}/src/info.h")
+
+message(STATUS "-------- ${INCLUDE_DIRECTORIES}")
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" "${QtAvLib_include_DIR}")
 
@@ -101,16 +105,24 @@ set(header_files
 	OnvifMessageFilterItems.h
 )
 
+#set(ENV{LD_LIBRARY_PATH} "/home/bjoern/.conan/data/ffmpeg/4.0/tereius/stable/package/8446ea3f47151abe755d00523046f28d6549a514/lib")
+
 source_group("Resource Files" FILES ${qt_rcc_resources})
 
 qt5_add_resources(resSources ${qt_rcc_resources})
-add_executable(HomeSpy WIN32 ${src_files} ${header_files} ${resSources})
-target_link_libraries(HomeSpy onvifcommon onvifdiscovery onvifdevice onvifevent onvifmedia ${QtAvLib_PATH} Qt5::Core Qt5::Svg Qt5::Quick Qt5::Concurrent Qt5::QuickControls2)
+add_executable(ONVIFMonitor WIN32 ${src_files} ${header_files} ${resSources})
+target_link_libraries(ONVIFMonitor PRIVATE onvifcommon PRIVATE onvifdiscovery PRIVATE onvifdevice PRIVATE onvifevent PRIVATE onvifmedia
+		PRIVATE ${QtAvLib_PATH} PRIVATE Qt5::Core PRIVATE Qt5::Svg PRIVATE Qt5::Quick PRIVATE Qt5::Concurrent PRIVATE Qt5::QuickControls2)
+
+add_custom_target(Run-ONVIFMonitor COMMAND export LD_LIBRARY_PATH="/home/bjoern/.conan/data/ffmpeg/4.0/tereius/stable/package/8446ea3f47151abe755d00523046f28d6549a514/lib")
+add_dependencies(Run-ONVIFMonitor ONVIFMonitor)
 
 # add the install target
-install(TARGETS HomeSpy RUNTIME DESTINATION bin ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include)
+install(TARGETS ONVIFMonitor RUNTIME DESTINATION bin ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include)
 
 #include(DeployQt5)
-#fixup_qt5_target(HomeSpy)
-include(Windeployqt)
-windeployqt(HomeSpy "bin")
+#fixup_qt5_target(ONVIFMonitor)
+if(WIN32)
+    include(Windeployqt)
+    windeployqt(ONVIFMonitor "bin")
+endif()

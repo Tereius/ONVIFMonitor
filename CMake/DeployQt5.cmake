@@ -41,7 +41,7 @@
 # <request_qt_conf> will force a qt.conf file to be written even if not needed.
 #
 #  INSTALL_QT5_PLUGIN_PATH(plugin executable copy installed_plugin_path_var <plugins_dir> <component> <configurations>)
-# Install (or copy) a resolved <plugin> to the default plugins directory
+# Install (or copy) a resolved <plugin> to the onvif plugins directory
 # (or <plugins_dir>) relative to <executable> and store the result in
 # <installed_plugin_path_var>.
 #
@@ -52,7 +52,7 @@
 # If <component> is set then anything installed will use this COMPONENT.
 #
 #  INSTALL_QT5_PLUGIN(plugin executable copy installed_plugin_path_var <plugins_dir> <component>)
-# Install (or copy) an unresolved <plugin> to the default plugins directory
+# Install (or copy) an unresolved <plugin> to the onvif plugins directory
 # (or <plugins_dir>) relative to <executable> and store the result in
 # <installed_plugin_path_var>. See documentation of INSTALL_QT5_PLUGIN_PATH.
 #

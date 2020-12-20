@@ -4,12 +4,12 @@
         "minor": 0,
         "patch": 0
     },
-    "projectName": "HomeSpy",
+    "projectName": "ONVIFMonitor",
     "projectDescription": "ONVIF client app",
     "vendor": "Björn Stresing",
     "contact": "bjoern.stresing@gmx.de",
     "domain": "com.github.Tereius",
-    "copyrightYear": "2018",
+    "copyrightYear": "2020",
     "license": "GPLv3",
-    "repository": "https://github.com/Tereius/HomeSpy"
+    "repository": "https://github.com/Tereius/ONVIFMonitor"
 }

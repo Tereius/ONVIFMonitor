@@ -259,11 +259,6 @@ QUrl Device::getStreamUrl(const QString &rProfileToken) const {
 	return ret;
 }
 
-void Device::watchEvent() {
-
-
-}
-
 Result Device::initDeviceDateTime() {
 
 	Result result;
@@ -461,4 +456,8 @@ Result Device::initDeviceInfo() {
 		result = Result::fromResponse(infoResponse);
 	}
 	return result;
+}
+
+void Device::watchEvent() {
+
 }

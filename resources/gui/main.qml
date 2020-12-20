@@ -13,7 +13,7 @@ ApplicationWindow {
 	width: 360
 	height: 520
 	visible: true
-	title: "HomeSpy"
+	title: "ONVIFMonitor"
 
 	signal credentialsProvided(var deviceId)
 	property bool busy: false

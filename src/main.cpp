@@ -23,12 +23,11 @@
 #include "Uuid.h"
 #include "Window.h"
 #include "info.h"
-#include "qt_windows.h"
 #include <QCommandLineParser>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
-#include <QFileInfo >
+#include <QFileInfo>
 #include <QGlobalStatic>
 #include <QGuiApplication>
 #include <QIcon>
@@ -39,6 +38,10 @@
 #include <QString>
 #include <QTextStream>
 #include <QtAV/QtAV>
+
+#ifdef QT_OS_WINDOWS
+#include "qt_windows.h"
+#endif
 
 namespace {
 static QFile log_file;
@@ -163,7 +166,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	QQuickStyle::setStyle("universal");
-	QIcon::setThemeName("default");
+	QIcon::setThemeName("onvif");
 
 	// open log file
 	if(log_file.size() > 5000) {
