@@ -48,5 +48,6 @@
         <file>gui/OnvifMessageFilterBuilder.qml</file>
         <file>gui/FilterBuilder/BaseFilterComponent.qml</file>
         <file>gui/FilterBuilder/DropLine.qml</file>
+        <file>fonts/LiberationSans-Regular.ttf</file>
     </qresource>
 </RCC>

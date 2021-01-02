@@ -32,6 +32,7 @@
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
+#include <QFontDatabase>
 #include <QQuickStyle>
 #include <QSettings>
 #include <QStandardPaths>
@@ -167,6 +168,18 @@ int main(int argc, char *argv[]) {
 
 	QQuickStyle::setStyle("universal");
 	QIcon::setThemeName("onvif");
+
+	QFontDatabase fontDb;
+	if(fontDb.families().isEmpty()) {
+		auto fontId = QFontDatabase::addApplicationFont(":/fonts/LiberationSans-Regular.ttf");
+		if(fontId >= 0) {
+			qInfo() << "Fallback font registered:" << QFontDatabase::applicationFontFamilies(fontId);
+			QFont font(QFontDatabase::applicationFontFamilies(fontId).first());
+			QGuiApplication::setFont(font);
+		} else {
+			qWarning() << "Couldn't install fallback font.";
+		}
+	}
 
 	// open log file
 	if(log_file.size() > 5000) {
