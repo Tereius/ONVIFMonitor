@@ -11,7 +11,7 @@ class ONVIFMonitorConan(ConanFile):
     description = jsonInfo["projectDescription"]
     author = jsonInfo["vendor"]
     homepage = jsonInfo["repository"]
-    requires = "Qt/[>=5.10 <6.0]@tereius/stable", "libONVIF/1.1.0-SNAPSHOT@tereius/stable", "QtAV/1.13.0-SNAPSHOT@tereius/stable"
+    requires = "Qt/[>=5.10 <6.0]@tereius/stable", "libONVIF/2.0.0-SNAPSHOT@tereius/stable", "QtAV/1.13.0-SNAPSHOT@tereius/stable"
     settings = "os", "compiler", "build_type", "arch"
     default_options = "Qt:shared=True", "Qt:openssl=True", "Qt:qtbase=True", "Qt:qtsvg=True", "Qt:qtdeclarative=True", "Qt:qttools=True", "Qt:qttranslations=True", "Qt:qtrepotools=True", "Qt:qtqa=True", "Qt:qtgraphicaleffects=True", "Qt:qtquickcontrols=True", "Qt:qtquickcontrols2=True"
     generators = "cmake"
