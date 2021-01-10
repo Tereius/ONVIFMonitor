@@ -75,6 +75,7 @@ set(src_files
 
 # private header
 set(header_files
+        Promise.h
         DeviceInfo.h
         IconImageProvider.h
         DeviceDiscoveryModel.h

@@ -268,6 +268,10 @@ int main(int argc, char *argv[]) {
 	qmlRegisterUncreatableType<PropertyInfo>("org.onvif.event", 1, 0, "PropertyInfo", "Can't be created in QML");
 	qmlRegisterUncreatableType<FutureResult>("org.onvif.common", 1, 0, "FutureResult", "Can't be created in QML");
 
+	qRegisterMetaType<PromiseBase>();
+	qRegisterMetaType<Promise<QString>>();
+	qRegisterMetaType<Promise<bool>>();
+
 	engine.load(QUrl(QLatin1String("qrc:///gui/main.qml")));
 	if(engine.rootObjects().isEmpty()) return -1;
 

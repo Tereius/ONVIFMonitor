@@ -1,6 +1,8 @@
 #pragma once
 #include "EventHandler.h"
 #include "EventSource.h"
+#include "FutureResult.h"
+#include "Promise.h"
 #include "Uuid.h"
 #include <QHash>
 #include <QList>
@@ -48,6 +50,9 @@ public:
 
 	Q_INVOKABLE void initialize();
 	Q_INVOKABLE FutureResult *getDeviceTopics(const Uuid &rDeviceId);
+
+	Q_INVOKABLE Promise<QString> testFuture(const QString &rDeviceId);
+	Q_INVOKABLE Promise<bool> testFutureTwo(const QString &rDeviceId);
 
 	const QHash<Uuid, QSharedPointer<EventBinding>> &getEventBindings() const { return mInstalledEventBindings; }
 	QSharedPointer<EventBinding> getEventBinding(const Uuid &rBindingId) const { return mInstalledEventBindings.value(rBindingId); }

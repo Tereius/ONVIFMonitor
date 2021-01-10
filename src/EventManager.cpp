@@ -2,7 +2,6 @@
 #include "Device.h"
 #include "DeviceManager.h"
 #include "EventBinding.h"
-#include "FutureResult.h"
 #include "OnvifPullPoint.h"
 #include "Window.h"
 #include <QSettings>
@@ -219,6 +218,30 @@ FutureResult *EventManager::getDeviceTopics(const Uuid &rDeviceId) {
 	return pResult;
 }
 
+Promise<QString> EventManager::testFuture(const QString &rDeviceId) {
+
+	Promise<QString> result;
+
+	QtConcurrent::run([result, rDeviceId]() {
+		QThread::msleep(2000);
+		result.resolve("testFuture resolved for device " + rDeviceId);
+	});
+
+	return result;
+}
+
+Promise<bool> EventManager::testFutureTwo(const QString &rDeviceId) {
+
+	Promise<bool> result;
+
+	QtConcurrent::run([result, rDeviceId]() {
+		QThread::msleep(2000);
+		result.resolve(true);
+	});
+
+	return result;
+}
+
 void EventManager::initPullPoint(const Uuid &rDeviceId) {
 
 	auto info = DeviceM->getDeviceInfo(rDeviceId);
@@ -241,11 +264,12 @@ void EventManager::initPullPoint(const Uuid &rDeviceId) {
 						if(!mPullPoints.value(deviceId)) {
 							// Create new pull point
 							auto pullPoint = new OnvifPullPoint(info.getEventService().getServiceEndpoint(), this);
-							connect(pullPoint, &OnvifPullPoint::UnsuccessfulPull, this,
-							        [this, deviceId](int unsuccessfulPullcount, const SimpleResponse &rCause) {
-								        if(unsuccessfulPullcount == 5) emit lostPullPoint(deviceId);
-							        },
-							        Qt::QueuedConnection);
+							connect(
+							 pullPoint, &OnvifPullPoint::UnsuccessfulPull, this,
+							 [this, deviceId](int unsuccessfulPullcount, const SimpleResponse &rCause) {
+								 if(unsuccessfulPullcount == 5) emit lostPullPoint(deviceId);
+							 },
+							 Qt::QueuedConnection);
 							pullPoint->Start();
 							mPullPoints.insert(deviceId, pullPoint);
 						} else {
