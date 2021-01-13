@@ -408,11 +408,11 @@ Result Device::initMediaCapab() {
 					service.setMaximumNumberOfProfiles(*profileCapa->MaximumNumberOfProfiles);
 				}
 				if(auto streamingCapa = capa->StreamingCapabilities) {
-					if(streamingCapa) service.setNonAggregateControl(*streamingCapa->NonAggregateControl);
-					if(streamingCapa) service.setNoRTSPStreaming(*streamingCapa->NoRTSPStreaming);
-					if(streamingCapa) service.setRTPRtspTcp(*streamingCapa->RTP_USCORERTSP_USCORETCP);
-					if(streamingCapa) service.setRTPTcp(*streamingCapa->RTP_USCORETCP);
-					if(streamingCapa) service.setRTPMulticast(*streamingCapa->RTPMulticast);
+					if(streamingCapa->NonAggregateControl) service.setNonAggregateControl(*streamingCapa->NonAggregateControl);
+					if(streamingCapa->NoRTSPStreaming) service.setNoRTSPStreaming(*streamingCapa->NoRTSPStreaming);
+					if(streamingCapa->RTP_USCORERTSP_USCORETCP) service.setRTPRtspTcp(*streamingCapa->RTP_USCORERTSP_USCORETCP);
+					if(streamingCapa->RTP_USCORETCP) service.setRTPTcp(*streamingCapa->RTP_USCORETCP);
+					if(streamingCapa->RTPMulticast) service.setRTPMulticast(*streamingCapa->RTPMulticast);
 				}
 				service.setInitialized(true);
 				mDeviceInfo.setMediaService(service);
