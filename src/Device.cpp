@@ -9,14 +9,15 @@
 
 #define shortId mDeviceInfo.getDeviceId().toShortString().toLocal8Bit().constData()
 
-Device::Device(const QUrl &rDeviceEndpoint, const Uuid &rDeviceId, const QString &rDeviceName /*= QString()*/, QObject *pParent /*= nullptr*/) :
-	QObject(pParent),
-	mDeviceEndpoint(rDeviceEndpoint),
-	mpDeviceClient(new OnvifDeviceClient(rDeviceEndpoint, QSharedPointer<SoapCtx>::create(), this)),
-	mpEventClient(new OnvifEventClient(rDeviceEndpoint, mpDeviceClient->GetCtx(), this)), // Initialize with wrong url. Use a shared soap ctx
-	mpMediaClient(new OnvifMediaClient(rDeviceEndpoint, mpDeviceClient->GetCtx(), this)), // Initialize with wrong url. Use a shared soap ctx
-	mDeviceInfo(),
-	mMutex(QMutex::Recursive) {
+Device::Device(const QUrl &rDeviceEndpoint, const Uuid &rDeviceId, const QString &rDeviceName /*= QString()*/,
+               QObject *pParent /*= nullptr*/) :
+ QObject(pParent),
+ mDeviceEndpoint(rDeviceEndpoint),
+ mpDeviceClient(new OnvifDeviceClient(rDeviceEndpoint, QSharedPointer<SoapCtx>::create(), this)),
+ mpEventClient(new OnvifEventClient(rDeviceEndpoint, mpDeviceClient->GetCtx(), this)), // Initialize with wrong url. Use a shared soap ctx
+ mpMediaClient(new OnvifMediaClient(rDeviceEndpoint, mpDeviceClient->GetCtx(), this)), // Initialize with wrong url. Use a shared soap ctx
+ mDeviceInfo(),
+ mMutex(QMutex::Recursive) {
 
 	mDeviceInfo.setDeviceId(rDeviceId);
 	mDeviceInfo.setEndpoint(rDeviceEndpoint);
@@ -24,9 +25,7 @@ Device::Device(const QUrl &rDeviceEndpoint, const Uuid &rDeviceId, const QString
 	mDeviceInfo.setInitialized(false);
 }
 
-Device::~Device() {
-
-}
+Device::~Device() {}
 
 Result Device::initialize() {
 
@@ -46,18 +45,19 @@ Result Device::initialize() {
 			if(auto sysDateTime = dateTimeResponse.GetResultObject()->SystemDateAndTime) {
 				bool daylightSaving = sysDateTime->DaylightSavings;
 				if(sysDateTime->UTCDateTime && sysDateTime->UTCDateTime->Time && sysDateTime->UTCDateTime->Date) {
-					auto deviceTime = QTime(sysDateTime->UTCDateTime->Time->Hour, sysDateTime->UTCDateTime->Time->Minute, sysDateTime->UTCDateTime->Time->Second);
-					auto deviceDate = QDate(sysDateTime->UTCDateTime->Date->Year, sysDateTime->UTCDateTime->Date->Month, sysDateTime->UTCDateTime->Date->Day);
+					auto deviceTime =
+					 QTime(sysDateTime->UTCDateTime->Time->Hour, sysDateTime->UTCDateTime->Time->Minute, sysDateTime->UTCDateTime->Time->Second);
+					auto deviceDate =
+					 QDate(sysDateTime->UTCDateTime->Date->Year, sysDateTime->UTCDateTime->Date->Month, sysDateTime->UTCDateTime->Date->Day);
 					auto rtt = QDateTime::currentMSecsSinceEpoch() - timestamp;
 					mMutex.lock();
-					mDeviceInfo.setDateTimeOffset(QDateTime::currentMSecsSinceEpoch() - timestamp - QDateTime(deviceDate, deviceTime, Qt::UTC).toMSecsSinceEpoch() - rtt / 2);
+					mDeviceInfo.setDateTimeOffset(QDateTime::currentMSecsSinceEpoch() - timestamp -
+					                              QDateTime(deviceDate, deviceTime, Qt::UTC).toMSecsSinceEpoch() - rtt / 2);
 					mMutex.unlock();
-				}
-				else {
+				} else {
 					qWarning() << shortId << "Couldn't extract device UTC date time";
 				}
-			}
-			else {
+			} else {
 				qWarning() << shortId << "Couldn't extract device date time";
 			}
 
@@ -68,25 +68,21 @@ Result Device::initialize() {
 					mMutex.lock();
 					mDeviceInfo.setEndpointReference(endpointRef->GUID);
 					mMutex.unlock();
-				}
-				else {
+				} else {
 					qWarning() << shortId << "Couldn't extract the device endpoint reference";
 				}
-			}
-			else {
+			} else {
 				qWarning() << shortId << "Couldn't get the device endpoint reference";
 			}
 			result = initServices();
 			if(result) {
 				result = initDeviceInfo();
 			}
-		}
-		else {
+		} else {
 			qWarning() << shortId << "Couldn't get device date and time:" << dateTimeResponse.GetCompleteFault();
 			result = Result::fromResponse(dateTimeResponse, tr("Couldn't initialize device"));
 		}
-	}
-	else {
+	} else {
 		qWarning() << shortId << "Couldn't init device - invalid endpoint: " << mpDeviceClient->GetEndpoint();
 		result = Result(Result::FAULT, tr("Invalid Endpoint: %1").arg(mpDeviceClient->GetEndpoint().toString()));
 	}
@@ -165,8 +161,7 @@ Result Device::setHost(const QUrl &rHost) {
 		mDeviceInfo.setEndpoint(oldEndpoint);
 		mMutex.unlock();
 		mpDeviceClient->SetEndpoint(oldEndpoint);
-	}
-	else {
+	} else {
 		qWarning() << shortId << "The url is invalid. Couldn't change the endpoint: " << oldEndpoint.errorString();
 		result = Result(Result::FAULT, tr("Url is invalid"));
 		result.setDetails(oldEndpoint.errorString());
@@ -191,8 +186,7 @@ DetailedResult<QList<MediaProfile>> Device::getMediaProfiles() {
 			profiles << retProfile;
 		}
 		result.setResultObject(profiles);
-	}
-	else {
+	} else {
 		qWarning() << shortId << "Couldn't get media profiles:" << profilesResponse.GetCompleteFault();
 		result = DetailedResult<QList<MediaProfile>>::fromResponse(profilesResponse, tr("Couldn't load profiles"));
 	}
@@ -212,8 +206,7 @@ DetailedResult<MediaProfile> Device::getMediaProfile(const QString &rProfileToke
 		retProfile.setToken(profile->token);
 		retProfile.setFixed(profile->fixed);
 		result.setResultObject(retProfile);
-	}
-	else {
+	} else {
 		qWarning() << shortId << "Couldn't get media profile:" << profileResponse.GetCompleteFault();
 		result = DetailedResult<MediaProfile>::fromResponse(profileResponse, tr("Couldn't load profile"));
 	}
@@ -227,8 +220,7 @@ DetailedResult<QList<Topic>> Device::getTopics() const {
 	auto response = mpEventClient->GetParsedEventProperties(request);
 	if(response) {
 		result.setResultObject(response.GetResultObject().GetTopics());
-	}
-	else {
+	} else {
 		qWarning() << shortId << "Couldn't get topics:" << response.GetCompleteFault();
 		result = DetailedResult<QList<Topic>>::fromResponse(response, tr("Couldn't load topics"));
 	}
@@ -248,12 +240,10 @@ QUrl Device::getStreamUrl(const QString &rProfileToken) const {
 	if(streamUriResponse) {
 		if(auto streamUri = streamUriResponse.GetResultObject()->MediaUri) {
 			ret = QUrl(streamUri->Uri);
-		}
-		else {
+		} else {
 			qWarning() << shortId << "Couldn't extract streaming Uri";
 		}
-	}
-	else {
+	} else {
 		qWarning() << shortId << "Couldn't get media profiles:" << streamUriResponse.GetCompleteFault();
 	}
 	return ret;
@@ -269,22 +259,22 @@ Result Device::initDeviceDateTime() {
 		if(auto sysDateTime = dateTimeResponse.GetResultObject()->SystemDateAndTime) {
 			bool daylightSaving = sysDateTime->DaylightSavings;
 			if(sysDateTime->UTCDateTime && sysDateTime->UTCDateTime->Time && sysDateTime->UTCDateTime->Date) {
-				auto deviceTime = QTime(sysDateTime->UTCDateTime->Time->Hour, sysDateTime->UTCDateTime->Time->Minute, sysDateTime->UTCDateTime->Time->Second);
-				auto deviceDate = QDate(sysDateTime->UTCDateTime->Date->Year, sysDateTime->UTCDateTime->Date->Month, sysDateTime->UTCDateTime->Date->Day);
+				auto deviceTime =
+				 QTime(sysDateTime->UTCDateTime->Time->Hour, sysDateTime->UTCDateTime->Time->Minute, sysDateTime->UTCDateTime->Time->Second);
+				auto deviceDate =
+				 QDate(sysDateTime->UTCDateTime->Date->Year, sysDateTime->UTCDateTime->Date->Month, sysDateTime->UTCDateTime->Date->Day);
 				auto rtt = QDateTime::currentMSecsSinceEpoch() - timestamp;
 				mMutex.lock();
-				mDeviceInfo.setDateTimeOffset(QDateTime::currentMSecsSinceEpoch() - timestamp - QDateTime(deviceDate, deviceTime, Qt::UTC).toMSecsSinceEpoch() - rtt / 2);
+				mDeviceInfo.setDateTimeOffset(QDateTime::currentMSecsSinceEpoch() - timestamp -
+				                              QDateTime(deviceDate, deviceTime, Qt::UTC).toMSecsSinceEpoch() - rtt / 2);
 				mMutex.unlock();
-			}
-			else {
+			} else {
 				qWarning() << shortId << "Couldn't extract device UTC date time";
 			}
-		}
-		else {
+		} else {
 			qWarning() << shortId << "Couldn't extract device date time";
 		}
-	}
-	else {
+	} else {
 		qWarning() << shortId << "Couldn't get device date and time:" << dateTimeResponse.GetCompleteFault();
 		result = Result::fromResponse(dateTimeResponse, tr("Couldn't initialize device"));
 	}
@@ -306,33 +296,31 @@ Result Device::initServices() {
 			if(service->Namespace == OnvifDeviceClient::GetServiceNamespace()) {
 				qInfo() << shortId << "Found device service:" << service->XAddr;
 				// Device Service
-			}
-			else if(service->Namespace == OnvifEventClient::GetServiceNamespace()) {
+			} else if(service->Namespace == OnvifEventClient::GetServiceNamespace()) {
 				// Event Service
 				qInfo() << shortId << "Found event service:" << service->XAddr;
 				auto eventService = EventService();
+				mpEventClient->SetEndpoint(QUrl(service->XAddr));
 				eventService.setServiceEndpoint(QUrl(service->XAddr));
 				mMutex.lock();
 				mDeviceInfo.setEventService(eventService);
 				mMutex.unlock();
 				result = initEventCapab();
-			}
-			else if(service->Namespace == OnvifMediaClient::GetServiceNamespace()) {
+			} else if(service->Namespace == OnvifMediaClient::GetServiceNamespace()) {
 				// Media Service
 				qInfo() << shortId << "Found media service:" << service->XAddr;
 				auto mediaService = MediaService();
+				mpMediaClient->SetEndpoint(QUrl(service->XAddr));
 				mediaService.setServiceEndpoint(QUrl(service->XAddr));
 				mMutex.lock();
 				mDeviceInfo.setMediaService(mediaService);
 				mMutex.unlock();
 				result = initMediaCapab();
-			}
-			else {
+			} else {
 				qInfo() << shortId << "Skipping service:" << service->Namespace;
 			}
 		}
-	}
-	else {
+	} else {
 		qWarning() << shortId << "Couldn't get device services:" << response.GetCompleteFault();
 		result = Result::fromResponse(response);
 	}
@@ -344,8 +332,7 @@ Result Device::initDeviceCapab() {
 	Result result;
 	if(mpDeviceClient) {
 
-	}
-	else {
+	} else {
 		result = Result(Result::FAULT, "Device service not initialized");
 	}
 	return result;
@@ -365,23 +352,21 @@ Result Device::initEventCapab() {
 				if(capa->MaxNotificationProducers) service.setMaxNotificationProducers(*capa->MaxNotificationProducers);
 				if(capa->MaxPullPoints) service.setMaxPullPoints(*capa->MaxPullPoints);
 				if(capa->PersistentNotificationStorage) service.setPersistentNotificationStorage(*capa->PersistentNotificationStorage);
-				if(capa->WSPausableSubscriptionManagerInterfaceSupport) service.setWSPausableSubscriptionManagerInterfaceSupport(*capa->WSPausableSubscriptionManagerInterfaceSupport);
+				if(capa->WSPausableSubscriptionManagerInterfaceSupport)
+					service.setWSPausableSubscriptionManagerInterfaceSupport(*capa->WSPausableSubscriptionManagerInterfaceSupport);
 				if(capa->WSPullPointSupport) service.setWSPullPointSupport(*capa->WSPullPointSupport);
 				if(capa->WSSubscriptionPolicySupport) service.setWSSubscriptionPolicySupport(*capa->WSSubscriptionPolicySupport);
 				service.setInitialized(true);
 				mDeviceInfo.setEventService(service);
 				mMutex.unlock();
-			}
-			else {
+			} else {
 				qWarning() << shortId << "Couldn't get event service capabilities";
 			}
-		}
-		else {
+		} else {
 			qWarning() << shortId << "Couldn't get event service capabilities:" << response.GetCompleteFault();
 			result = Result::fromResponse(response);
 		}
-	}
-	else {
+	} else {
 		result = Result(Result::FAULT, "Event service not initialized");
 	}
 	return result;
@@ -417,17 +402,14 @@ Result Device::initMediaCapab() {
 				service.setInitialized(true);
 				mDeviceInfo.setMediaService(service);
 				mMutex.unlock();
-			}
-			else {
+			} else {
 				qWarning() << shortId << "Couldn't get media service capabilities";
 			}
-		}
-		else {
+		} else {
 			qWarning() << shortId << "Couldn't get media service capabilities:" << response.GetCompleteFault();
 			result = Result::fromResponse(response);
 		}
-	}
-	else {
+	} else {
 		result = Result(Result::FAULT, "Media service not initialized");
 	}
 	return result;
@@ -450,14 +432,11 @@ Result Device::initDeviceInfo() {
 			mDeviceInfo.setDeviceName(mDeviceInfo.getModel());
 		}
 		mMutex.unlock();
-	}
-	else {
+	} else {
 		qWarning() << shortId << "Couldn't get device info:" << infoResponse.GetCompleteFault();
 		result = Result::fromResponse(infoResponse);
 	}
 	return result;
 }
 
-void Device::watchEvent() {
-
-}
+void Device::watchEvent() {}
