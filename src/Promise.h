@@ -15,7 +15,7 @@ class PromiseBase {
 	Q_GADGET
 	Q_PROPERTY(QUuid id MEMBER mId)
 
-public:
+ public:
 	PromiseBase() : mId(), mCurrentDepth(0), mChainCount(0) {}
 	explicit PromiseBase(const QUuid &id) : mId(id), mCurrentDepth(0), mChainCount(0) {}
 
@@ -35,22 +35,29 @@ public:
 		return *this;
 	};
 
-	Q_INVOKABLE PromiseBase then(QJSValue onFulfilledCallback, QJSValue onRejectedCallback = {QJSValue::UndefinedValue}) {
+	Q_INVOKABLE PromiseBase then(QJSValue onFulfilledCallback = {QJSValue::UndefinedValue},
+	                             QJSValue onRejectedCallback = {QJSValue::UndefinedValue}) {
 		Q_ASSERT(QThread::currentThread() == qApp->thread());
 		//	mOnRejectedCallback = onRejectedCallback;
 		//	mOnFulfilledCallback = onFulfilledCallback;
 		auto engine = qjsEngine(Window::getGlobal());
 		auto globalObject = engine->globalObject();
 		// Save the js value in the global object so the garbage collection won't delete it
-		globalObject.setProperty("FutureResult_reject_" + mId.toString(QUuid::WithoutBraces) + "_" + mChainCount, onRejectedCallback);
-		globalObject.setProperty("FutureResult_fulfill_" + mId.toString(QUuid::WithoutBraces) + "_" + mChainCount, onFulfilledCallback);
-		mChainCount++;
-		return *this;
+		globalObject.setProperty("FutureResult_reject_" + mId.toString(QUuid::WithoutBraces) + "_" + mCurrentDepth, onRejectedCallback);
+		globalObject.setProperty("FutureResult_fulfill_" + mId.toString(QUuid::WithoutBraces) + "_" + mCurrentDepth, onFulfilledCallback);
+
+		auto childId = QUuid::createUuid();
+		globalObject.setProperty("FutureResult_child_" + mId.toString(QUuid::WithoutBraces) + "_" + mCurrentDepth,
+		                         childId.toString(QUuid::WithoutBraces));
+		globalObject.setProperty("FutureResult_depth_" + mId.toString(QUuid::WithoutBraces), mCurrentDepth + 1);
+
+		mCurrentDepth++;
+		return PromiseBase(childId);
 	};
 
 	Q_INVOKABLE PromiseBase error(QJSValue onRejectedCallback) { return then(QJSValue::NullValue, onRejectedCallback); };
 
-public:
+ public:
 	QUuid mId;
 	qint32 mCurrentDepth;
 	qint32 mChainCount;
@@ -59,7 +66,7 @@ public:
 template<class T>
 class Promise : public PromiseBase {
 
-public:
+ public:
 	Promise() : PromiseBase(QUuid::createUuid()) {}
 	//! Creates a Promise that is resolved immediately
 	explicit Promise(T result) : PromiseBase(QUuid::createUuid()) { resolve(result); }
@@ -77,6 +84,51 @@ public:
 		return *this;
 	};
 
+	static void _resolve(const QUuid &id, const QJSValue &result) {
+
+		auto engine = qjsEngine(Window::getGlobal());
+		auto globalObject = engine->globalObject();
+
+		if(globalObject.hasProperty("FutureResult_depth_" + id.toString(QUuid::WithoutBraces))) {
+			auto depth = globalObject.property("FutureResult_depth_" + id.toString(QUuid::WithoutBraces)).toInt();
+			for(auto i = 0; i < depth; i++) {
+				auto callback = globalObject.property("FutureResult_fulfill_" + id.toString(QUuid::WithoutBraces) + "_" + i);
+				if(callback.isCallable()) {
+					auto returnValue = callback.call({result});
+					if(!returnValue.isError()) {
+						auto promise2 =
+						 QUuid::fromString(globalObject.property("FutureResult_child_" + id.toString(QUuid::WithoutBraces) + "_" + i).toString());
+						if(returnValue.hasProperty("then")) {
+							// A thenable was returned
+							auto x = QUuid(returnValue.property("id").toString());
+							if(promise2 != x) {
+
+							} else {
+								engine->throwError(
+								 QJSValue::TypeError,
+								 QObject::tr("The Promise Resolution Procedure failed because the returned promises refers the same object"));
+							}
+						} else {
+							_resolve(promise2, returnValue);
+						}
+					} else {
+						// An exception was thrown
+						qWarning() << "Uncaught exception at line" << returnValue.property("lineNumber").toInt() << ":" << returnValue.toString();
+						auto promise2 =
+						 QUuid::fromString(globalObject.property("FutureResult_child_" + id.toString(QUuid::WithoutBraces) + "_" + i).toString());
+						_reject(promise2, returnValue.toString());
+					}
+				} else {
+					auto promise2 =
+					 QUuid::fromString(globalObject.property("FutureResult_child_" + id.toString(QUuid::WithoutBraces) + "_" + i).toString());
+					_resolve(promise2, result);
+				}
+				globalObject.deleteProperty("FutureResult_fulfill_" + id.toString(QUuid::WithoutBraces) + "_" + i);
+				globalObject.deleteProperty("FutureResult_reject_" + id.toString(QUuid::WithoutBraces) + "_" + i);
+			}
+		}
+	}
+
 	/*!
 	 * Notify the receiver that the task finished successful. Once this method is called all following calls of resolve or reject have no
 	 * effect.
@@ -87,37 +139,22 @@ public:
 		auto id = mId;
 		auto depth = mCurrentDepth;
 		// Will always be called by main thread
-		QTimer::singleShot(0, qApp, [id, depth, result]() {
+		QTimer::singleShot(0, qApp, [id, result, this]() {
 			auto engine = qjsEngine(Window::getGlobal());
-			auto globalObject = engine->globalObject();
-			auto usedId = id;
-			auto usedDepth = depth;
-			if(globalObject.hasProperty("FutureResult_forward_" + id.toString(QUuid::WithoutBraces))) {
-				usedId = QUuid(globalObject.property("FutureResult_forward_" + id.toString(QUuid::WithoutBraces)).toString());
-				globalObject.deleteProperty("FutureResult_forward_" + id.toString(QUuid::WithoutBraces));
-			}
-			if(globalObject.hasProperty("FutureResult_forwardDepth_" + id.toString(QUuid::WithoutBraces))) {
-				usedDepth = globalObject.property("FutureResult_forwardDepth_" + id.toString(QUuid::WithoutBraces)).toInt();
-				globalObject.deleteProperty("FutureResult_forwardDepth_" + id.toString(QUuid::WithoutBraces));
-			}
-			auto callback = globalObject.property("FutureResult_fulfill_" + usedId.toString(QUuid::WithoutBraces) + "_" + usedDepth);
-			if(callback.isCallable()) {
-				auto returnValue = callback.call({engine->toScriptValue<T>(result)});
-				if(!returnValue.isError()) {
-					auto chainedId = QUuid(returnValue.property("id").toString());
-					// TODO: Detect the base class my the property is discouraged.
-					if(!chainedId.isNull()) {
-						globalObject.setProperty("FutureResult_forward_" + chainedId.toString(QUuid::WithoutBraces), usedId.toString(QUuid::WithoutBraces));
-						globalObject.setProperty("FutureResult_forwardDepth_" + chainedId.toString(QUuid::WithoutBraces), usedDepth + 1);
-					}
-				} else {
-					qWarning() << "Uncaught exception at line" << returnValue.property("lineNumber").toInt() << ":" << returnValue.toString();
-					PromiseBase error(QUuid::createUuid());
-				}
-			}
-			globalObject.deleteProperty("FutureResult_fulfill_" + usedId.toString(QUuid::WithoutBraces) + "_" + usedDepth);
-			globalObject.deleteProperty("FutureResult_reject_" + usedId.toString(QUuid::WithoutBraces) + "_" + usedDepth);
+			_resolve(id, engine->toScriptValue<T>(result));
 		});
+	}
+
+	static void _reject(const QUuid &id, const QString &cause) {
+
+		auto engine = qjsEngine(Window::getGlobal());
+		auto globalObject = engine->globalObject();
+		auto callback = globalObject.property("FutureResult_reject_" + id.toString(QUuid::WithoutBraces) + "_");
+		if(callback.isCallable()) {
+			callback.call({QJSValue(cause)});
+		}
+		globalObject.deleteProperty("FutureResult_reject_" + id.toString(QUuid::WithoutBraces) + "_");
+		globalObject.deleteProperty("FutureResult_fulfill_" + id.toString(QUuid::WithoutBraces) + "_");
 	}
 
 	/*!
