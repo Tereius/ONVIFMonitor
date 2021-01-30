@@ -1,5 +1,4 @@
 #pragma once
-#include "SafeBool.h"
 #include "Response.h"
 #include <QString>
 #include <QDebug>
@@ -12,25 +11,26 @@
 #define RESULT_RPC 3
 #define RESULT_UNAUTHORIZED 4
 
-class Result : public SafeBool<Result> {
+class Result {
 
 	Q_GADGET
 
-public:
+ public:
 	Result();
 	Result(const Result &rType, const QString &rDetails);
 	~Result() {}
-	inline bool BooleanTest() const { return isSuccess(); }
 	Q_INVOKABLE inline bool isSuccess() const { return !isFault(); }
 	Q_INVOKABLE inline bool isFault() const { return mValue > 0; }
 	inline bool operator==(const Result &rOther) const { return mValue == rOther.mValue; }
 	inline bool operator!=(const Result &rOther) const { return mValue != rOther.mValue; }
 	inline int getErrorCode() const { return mValue; }
-	inline const QString& getLabel() const { return mLabel; }
-	inline const QString& getDetails() const { return mDetails; }
+	inline const QString &getLabel() const { return mLabel; }
+	inline const QString &getDetails() const { return mDetails; }
 	QString toString() const;
 	void setLabel(const QString &rLabel);
 	void setDetails(const QString &rDetails);
+	//! Safe bool
+	explicit operator bool() const { return isSuccess(); }
 
 	const static Result OK;
 	const static Result UNKNOWN;
@@ -39,7 +39,7 @@ public:
 	const static Result UNAUTHORIZED;
 	static Result fromResponse(const SimpleResponse &rResponse, const QString &rDescription = QString());
 
-private:
+ private:
 	Result(int value, const QString &rLabel);
 
 	int mValue;
@@ -50,14 +50,12 @@ private:
 QDebug operator<<(QDebug debug, const Result &rRestult);
 
 
-template <typename T>
+template<typename T>
 class DetailedResult : public Result {
 
-public:
-	DetailedResult() :
-		Result(){}
-	DetailedResult(const Result &rType, const QString &rDetails) :
-		Result(rType, rDetails){}
+ public:
+	DetailedResult() : Result() {}
+	DetailedResult(const Result &rType, const QString &rDetails) : Result(rType, rDetails) {}
 	void setResultObject(T resultObj) { mResultObject = resultObj; }
 	T GetResultObject() const { return mResultObject; }
 	static DetailedResult fromResponse(const SimpleResponse &rResponse, const QString &rDescription = QString()) {
@@ -65,8 +63,7 @@ public:
 		if(rResponse.IsFault()) {
 			if(rResponse.IsAuthFault()) {
 				res = DetailedResult(Result::UNAUTHORIZED, rResponse.GetSoapFault());
-			}
-			else {
+			} else {
 				res = DetailedResult(Result::RPC, rResponse.GetSoapFault());
 			}
 			res.setDetails(rResponse.GetCompleteFault());
@@ -77,6 +74,6 @@ public:
 		return res;
 	}
 
-private:
-		T mResultObject;
+ private:
+	T mResultObject;
 };

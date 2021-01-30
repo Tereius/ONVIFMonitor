@@ -117,6 +117,7 @@ source_group("Resource Files" FILES ${qt_rcc_resources})
 
 qt5_add_resources(resSources ${qt_rcc_resources})
 add_executable(ONVIFMonitor WIN32 ${src_files} ${header_files} ${resSources})
+target_compile_features(ONVIFMonitor PUBLIC cxx_strong_enums cxx_auto_type cxx_nullptr cxx_long_long_type cxx_explicit_conversions)
 target_link_libraries(ONVIFMonitor PUBLIC onvifcommon PRIVATE onvifdiscovery PRIVATE onvifdevice PRIVATE onvifevent PRIVATE onvifmedia
         PRIVATE ${QtAvLib_PATH} PRIVATE Qt5::Core PRIVATE Qt5::Svg PRIVATE Qt5::Quick PRIVATE Qt5::Concurrent PRIVATE Qt5::QuickControls2
         PRIVATE Qt5::QuickTemplates2

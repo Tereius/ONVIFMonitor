@@ -19,9 +19,7 @@ Device::Device(const QUrl &rDeviceEndpoint, const Uuid &rDeviceId, const QString
  mDeviceInfo(),
  mMutex(QMutex::Recursive) {
 
-	connect(mpDeviceClient, &OnvifDeviceClient::Unauthorized, this, &Device::unauthorized, Qt::DirectConnection);
-	connect(mpEventClient, &OnvifDeviceClient::Unauthorized, this, &Device::unauthorized, Qt::DirectConnection);
-	connect(mpMediaClient, &OnvifDeviceClient::Unauthorized, this, &Device::unauthorized, Qt::DirectConnection);
+	connect(mpDeviceClient->GetCtx().data(), &SoapCtx::Unauthorized, this, &Device::unauthorized, Qt::DirectConnection);
 	mDeviceInfo.setDeviceId(rDeviceId);
 	mDeviceInfo.setEndpoint(rDeviceEndpoint);
 	mDeviceInfo.setDeviceName(rDeviceName);
@@ -121,9 +119,7 @@ void Device::setDeviceName(const QString &rDeviceName) {
 
 void Device::setCredentials(const QString &rUser, const QString &rPassword) {
 
-	mpDeviceClient->SetAuth(rUser, rPassword);
-	mpMediaClient->SetAuth(rUser, rPassword);
-	mpEventClient->SetAuth(rUser, rPassword);
+	mpDeviceClient->GetCtx()->SetAuth(rUser, rPassword);
 }
 
 Result Device::setHost(const QUrl &rHost) {
