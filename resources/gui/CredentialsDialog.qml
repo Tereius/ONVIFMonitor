@@ -1,87 +1,89 @@
-import QtQuick 2.10
-import QtQuick.Controls 2.3
-import QtQuick.Controls.Material 2.3
-import QtQuick.Controls.Universal 2.3
-import QtQuick.Layouts 1.3
+import QtQuick 2.12
+import QtQuick.Controls 2.12
+import QtQuick.Controls.Material 2.12
+import QtQuick.Controls.Universal 2.12
+import QtQuick.Layouts 1.12
+import org.kde.kirigami 2.16 as Kirigami
 
-Dialog {
+Kirigami.OverlayDrawer {
 
-	property alias user: userTextField.text
-	property alias pwd: pwdTextField.text
-	property alias save: saveCheckBox.checked
-	property url endpoint
-	property var deviceId
+    id: credentialsDialog
+    property alias user: userTextField.text
+    property alias pwd: pwdTextField.text
+    property alias save: saveCheckBox.checked
+    property url endpoint
+    property var deviceId
 
-	id: credentialsDialog
+    edge: Qt.BottomEdge
 
-	x: Math.round((window.width - width) / 2)
-	y: Math.round(window.height / 6)
-	width: Math.round(Math.min(window.width, window.height) / 3 * 2)
-	modal: true
-	focus: true
-	title: qsTr("Authentification required")
+    signal accepted
+    signal rejected
 
-	standardButtons: Dialog.Ok | Dialog.Cancel
+    onAboutToShow: {
 
-	onAccepted: {
+        userTextField.clear()
+        pwdTextField.clear()
+        save = false
+    }
 
-		credentialsDialog.close()
-	}
+    contentItem: GridLayout {
 
-	onRejected: {
+        columns: 2
 
-		credentialsDialog.close()
-	}
+        Label {
+            text: qsTr("User")
+        }
+        TextField {
 
-	onAboutToShow: {
+            id: userTextField
 
-		userTextField.clear()
-		pwdTextField.clear()
-		save = false
-	}
+            activeFocusOnTab: true
+            placeholderText: "Name"
+            Layout.fillWidth: true
+        }
 
-	contentItem: GridLayout {
+        Label {
+            text: qsTr("Password")
+        }
+        TextField {
 
-		columns: 2
+            id: pwdTextField
 
-		Label {
-			text: qsTr("User")
-		}
-		TextField {
+            echoMode: TextInput.PasswordEchoOnEdit
 
-			id: userTextField
+            activeFocusOnTab: true
+            placeholderText: "*********"
+            Layout.fillWidth: true
+        }
 
-			activeFocusOnTab: true
-			placeholderText: "Name"
-			Layout.fillWidth: true
-		}
+        Label {
+            text: qsTr("Remember")
+        }
+        CheckBox {
 
-		Label {
-			text: qsTr("Password")
-		}
-		TextField {
+            id: saveCheckBox
 
-			id: pwdTextField
+            checked: false
+            ToolTip.delay: 1000
+            ToolTip.timeout: 5000
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("Save the credentials")
+        }
 
-			echoMode: TextInput.PasswordEchoOnEdit
+        DialogButtonBox {
 
-			activeFocusOnTab: true
-			placeholderText: "*********"
-			Layout.fillWidth: true
-		}
+            Layout.columnSpan: 2
+            standardButtons: Dialog.Ok | Dialog.Cancel
 
-		Label {
-			text: qsTr("Remember")
-		}
-		CheckBox {
+            onAccepted: {
+                credentialsDialog.close()
+                credentialsDialog.accepted()
+            }
 
-			id: saveCheckBox
-
-			checked: false
-			ToolTip.delay: 1000
-			ToolTip.timeout: 5000
-			ToolTip.visible: hovered
-			ToolTip.text: qsTr("Save the credentials")
-		}
-	}
+            onRejected: {
+                credentialsDialog.close()
+                credentialsDialog.rejected()
+            }
+        }
+    }
 }

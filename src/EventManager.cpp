@@ -3,7 +3,9 @@
 #include "DeviceManager.h"
 #include "EventBinding.h"
 #include "OnvifPullPoint.h"
+#include "FutureResult.h"
 #include "Window.h"
+#include "asyncfuture.h"
 #include <QSettings>
 #include <QtConcurrent>
 
@@ -218,28 +220,28 @@ FutureResult *EventManager::getDeviceTopics(const Uuid &rDeviceId) {
 	return pResult;
 }
 
-Promise<QString> EventManager::testFuture(const QString &rDeviceId) {
+QFuture<QString> EventManager::testFuture(const QString &rDeviceId) {
 
-	Promise<QString> result;
+	auto result = AsyncFuture::deferred<QString>();
 
-	QtConcurrent::run([result, rDeviceId]() {
+	result.complete(QtConcurrent::run([rDeviceId]() {
 		QThread::msleep(2000);
-		result.resolve("testFuture resolved for device " + rDeviceId);
-	});
+		return QString("testFuture returns ") + rDeviceId;
+	}));
 
-	return result;
+	return result.future();
 }
 
-Promise<bool> EventManager::testFutureTwo(const QString &rDeviceId) {
+QFuture<bool> EventManager::testFutureTwo(const QString &rDeviceId) {
 
-	Promise<bool> result;
+	auto result = AsyncFuture::deferred<bool>();
 
-	QtConcurrent::run([result, rDeviceId]() {
+	result.complete(QtConcurrent::run([rDeviceId]() {
 		QThread::msleep(2000);
-		result.resolve(true);
-	});
+		return true;
+	}));
 
-	return result;
+	return result.future();
 }
 
 void EventManager::initPullPoint(const Uuid &rDeviceId) {

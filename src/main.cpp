@@ -24,12 +24,16 @@
 #include "Window.h"
 #include "info.h"
 #include <QCommandLineParser>
+#include <QtPlugin>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
-#include <QFileInfo>
 #include <QGlobalStatic>
+#ifdef Q_OS_ANDROID
 #include <QGuiApplication>
+#else
+#include <QApplication>
+#endif
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QFontDatabase>
@@ -154,7 +158,16 @@ int main(int argc, char *argv[]) {
 	writeSettings();
 	//#endif
 
+#ifdef Q_OS_ANDROID
 	QGuiApplication app(argc, argv);
+	QQuickStyle::setStyle(QStringLiteral("Material"));
+#else
+	// Default to org.kde.desktop style unless the user forces another style
+	QApplication app(argc, argv);
+#endif
+
+	// QQuickStyle::setStyle("Kirigami.BasicThemeDefinition");
+	QIcon::setThemeName("onvif");
 
 	QCommandLineParser parser;
 	parser.addOption({"u", "Uninstall persistent data."});
@@ -165,9 +178,6 @@ int main(int argc, char *argv[]) {
 		// Delete the persistence
 		exit(storagePath.removeRecursively() ? 0 : 1);
 	}
-
-	QQuickStyle::setStyle("universal");
-	QIcon::setThemeName("onvif");
 
 	QFontDatabase fontDb;
 	if(fontDb.families().isEmpty()) {
@@ -197,12 +207,19 @@ int main(int argc, char *argv[]) {
 	}
 
 	QQmlApplicationEngine engine;
+	// Q_IMPORT_PLUGIN(QuickFutureQmlPlugin);
 	engine.addImageProvider("icons", new IconImageProvider(qApp));
 	engine.addImageProvider("profile", new ImageProvider(qApp));
 	engine.addPluginPath(QT5_QML_PATH);
 	engine.addPluginPath(QTAV_QML_PATH);
+	engine.addImportPath("qrc:///");
 	engine.addImportPath(QT5_QML_PATH);
 	engine.addImportPath(QTAV_QML_PATH);
+	engine.addImportPath(QUICKFUTURE_QML_PATH);
+	engine.addImportPath(KF5_QML_PATH);
+
+	qDebug() << "Used QML import paths" << engine.importPathList();
+	qDebug() << "Used QT plugin paths" << engine.pluginPathList();
 
 	// QML Singletons
 	qmlRegisterSingletonType<Window>("org.global", 1, 0, "Window", [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
@@ -268,12 +285,11 @@ int main(int argc, char *argv[]) {
 	qmlRegisterUncreatableType<PropertyInfo>("org.onvif.event", 1, 0, "PropertyInfo", "Can't be created in QML");
 	qmlRegisterUncreatableType<FutureResult>("org.onvif.common", 1, 0, "FutureResult", "Can't be created in QML");
 
-	qRegisterMetaType<PromiseBase>();
-	qRegisterMetaType<Promise<QString>>();
-	qRegisterMetaType<Promise<bool>>();
-
 	engine.load(QUrl(QLatin1String("qrc:///gui/main.qml")));
-	if(engine.rootObjects().isEmpty()) return -1;
+	if(engine.rootObjects().isEmpty()) {
+		qWarning() << "Couldn't create GUI";
+		return -1;
+	}
 
 	// Event handler
 	EventManager::registerEventHandler<LogEventHandler>();

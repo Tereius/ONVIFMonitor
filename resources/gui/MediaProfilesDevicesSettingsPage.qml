@@ -4,46 +4,40 @@ import QtQuick.Controls.Material 2.3
 import QtQuick.Controls.Universal 2.3
 import QtQuick.Layouts 1.3
 import org.onvif.device 1.0
+import org.kde.kirigami 2.14 as Kirigami
 
-Page {
+Kirigami.ScrollablePage {
 
-	title: "Devices"
+    title: "Devices"
 
-	ScrollView {
+    ListView {
 
-		anchors.fill: parent
+        model: devicesModel
 
-		ListView {
+        delegate: ItemDelegate {
 
-			anchors.fill: parent
+            width: parent.width
 
-			model: devicesModel
+            text: name
 
-			delegate: ItemDelegate {
+            onClicked: {
+                window.push("MediaProfilesListPage.qml", {
+                                "deviceId": deviceId
+                            })
+            }
 
-				width: parent.width
+            rightPadding: moreIcon.width
 
-				text: name
+            Icon {
+                id: moreIcon
+                name: "ic_chevron_right"
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+    }
 
-				onClicked: {
-					window.push("MediaProfilesListPage.qml", {
-									deviceId: deviceId
-								})
-				}
-
-				rightPadding: moreIcon.width
-
-				Icon {
-					id: moreIcon
-					name: "ic_chevron_right"
-					anchors.right: parent.right
-					anchors.verticalCenter: parent.verticalCenter
-				}
-			}
-		}
-	}
-
-	DeviceModel {
-		id: devicesModel
-	}
+    DeviceModel {
+        id: devicesModel
+    }
 }

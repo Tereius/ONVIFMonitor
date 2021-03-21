@@ -3,8 +3,10 @@
 #include "OnvifDeviceClient.h"
 #include "OnvifEventClient.h"
 #include "OnvifMediaClient.h"
+#include "asyncfuture.h"
 #include <QDateTime>
 #include <QMutexLocker>
+#include <QtConcurrent>
 
 
 #define shortId mDeviceInfo.getDeviceId().toShortString().toLocal8Bit().constData()

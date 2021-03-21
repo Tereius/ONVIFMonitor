@@ -1,8 +1,6 @@
 #pragma once
 #include "EventHandler.h"
 #include "EventSource.h"
-#include "FutureResult.h"
-#include "Promise.h"
 #include "Uuid.h"
 #include <QHash>
 #include <QList>
@@ -12,6 +10,7 @@
 #include <QSharedPointer>
 #include <QMetaObject>
 #include <QMetaProperty>
+#include <QFuture>
 
 
 #define EventM EventManager::getGlobal()
@@ -24,7 +23,7 @@ class EventManager : public QObject {
 
 	Q_OBJECT
 
-public:
+ public:
 	EventManager(QObject *pParent = nullptr);
 	static EventManager *getGlobal();
 	template<typename T>
@@ -51,13 +50,13 @@ public:
 	Q_INVOKABLE void initialize();
 	Q_INVOKABLE FutureResult *getDeviceTopics(const Uuid &rDeviceId);
 
-	Q_INVOKABLE Promise<QString> testFuture(const QString &rDeviceId);
-	Q_INVOKABLE Promise<bool> testFutureTwo(const QString &rDeviceId);
+	Q_INVOKABLE QFuture<QString> testFuture(const QString &rDeviceId);
+	Q_INVOKABLE QFuture<bool> testFutureTwo(const QString &rDeviceId);
 
 	const QHash<Uuid, QSharedPointer<EventBinding>> &getEventBindings() const { return mInstalledEventBindings; }
 	QSharedPointer<EventBinding> getEventBinding(const Uuid &rBindingId) const { return mInstalledEventBindings.value(rBindingId); }
 
-signals:
+ signals:
 	//! Emitted if a pull point vanishes unexpectedly
 	void lostPullPoint(const Uuid &rDeviceId);
 	void eventBindingAdded(const Uuid &rBindingId);
@@ -65,11 +64,11 @@ signals:
 	void eventBindingChanged(const Uuid &rBindingId);
 	void eventOccured(const Uuid &rBindingId);
 
-private slots:
+ private slots:
 	//! (re)initialize a pull point for a device
 	void initPullPoint(const Uuid &rDeviceId);
 
-private:
+ private:
 	Q_DISABLE_COPY(EventManager);
 
 	void initEvents();
