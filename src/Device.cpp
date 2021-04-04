@@ -323,6 +323,7 @@ Result Device::initServices() {
 		qWarning() << shortId << "Couldn't get device services:" << response.GetCompleteFault();
 		result = Result::fromResponse(response);
 	}
+
 	return result;
 }
 

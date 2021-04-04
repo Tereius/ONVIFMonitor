@@ -46,6 +46,8 @@ set(src_files
 		DeviceDiscoveryModel.cpp
 		DeviceManager.cpp
 		Device.cpp
+		OnvifDevice.cpp
+		AbstractDevice.cpp
 		Result.cpp
 		DevicesModel.cpp
 		Cryptography.cpp
@@ -82,6 +84,8 @@ set(header_files
 		DeviceDiscoveryModel.h
 		DeviceManager.h
 		Device.h
+		AbstractDevice.h
+		OnvifDevice.h
 		Result.h
 		DevicesModel.h
 		Roles.h
