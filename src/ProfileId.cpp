@@ -1,17 +1,14 @@
 #include "ProfileId.h"
 
 
-ProfileId::ProfileId(const Uuid &rDeviceId /*= Uuid()*/, const QString &rProfileToken /*= QString()*/) :
-	mDeviceId(rDeviceId),
-	mProfileToken(rProfileToken) {
+ProfileId::ProfileId(const QUuid &rDeviceId /*= Uuid()*/, const QString &rProfileToken /*= QString()*/) :
+ mDeviceId(rDeviceId), mProfileToken(rProfileToken) {}
 
-}
-
-Uuid ProfileId::getDeviceId() const {
+QUuid ProfileId::getDeviceId() const {
 	return mDeviceId;
 }
 
-void ProfileId::setDeviceId(const Uuid &rVal) {
+void ProfileId::setDeviceId(const QUuid &rVal) {
 	mDeviceId = rVal;
 }
 

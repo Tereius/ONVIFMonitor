@@ -1,11 +1,11 @@
 #pragma once
 #include "EventHandler.h"
 #include "EventSource.h"
-#include "Uuid.h"
 #include <QHash>
 #include <QList>
 #include <QMap>
 #include <QMutex>
+#include <QUuid>
 #include <QObject>
 #include <QSharedPointer>
 #include <QMetaObject>
@@ -32,41 +32,41 @@ class EventManager : public QObject {
 	static void registerEventSource();
 	static const QHash<QString, EventHandlerInfo> getRegisteredEventHandler() { return mRegisteredEventHandler; }
 	static const QHash<QString, EventSourceInfo> getRegisteredEventSources() { return mRegisteredEventSources; }
-	QSharedPointer<OnvifPullPoint> getPullPoint(Uuid deviceId) const;
+	QSharedPointer<OnvifPullPoint> getPullPoint(QUuid deviceId) const;
 
 	Q_INVOKABLE void addBinding(const QString &rName, const QString &rDescription);
-	Q_INVOKABLE Result bindSource(const Uuid &rBindingId, const QString &rEventSourceType, const QVariantMap &rProperties = QVariantMap());
-	Q_INVOKABLE Result unbindSource(const Uuid &rBindingId);
-	Q_INVOKABLE Result bindHandler(const Uuid &rBindingId, const QString &rEventHandlerType, const QVariantMap &rProperties = QVariantMap());
-	Q_INVOKABLE Result unbindHandler(const Uuid &rBindingId);
-	Q_INVOKABLE Result triggerHandler(const Uuid &rBindingId);
+	Q_INVOKABLE Result bindSource(const QUuid &rBindingId, const QString &rEventSourceType, const QVariantMap &rProperties = QVariantMap());
+	Q_INVOKABLE Result unbindSource(const QUuid &rBindingId);
+	Q_INVOKABLE Result bindHandler(const QUuid &rBindingId, const QString &rEventHandlerType, const QVariantMap &rProperties = QVariantMap());
+	Q_INVOKABLE Result unbindHandler(const QUuid &rBindingId);
+	Q_INVOKABLE Result triggerHandler(const QUuid &rBindingId);
 
 
-	Q_INVOKABLE void unbind(const Uuid &rBindingId) {}
+	Q_INVOKABLE void unbind(const QUuid &rBindingId) {}
 	Q_INVOKABLE bool doesBindingNameExist(const QString &rName);
 	Q_INVOKABLE void bindEvents();
 	Q_INVOKABLE void getEventSourceParams() {}
 
 	Q_INVOKABLE void initialize();
-	Q_INVOKABLE FutureResult *getDeviceTopics(const Uuid &rDeviceId);
+	Q_INVOKABLE FutureResult *getDeviceTopics(const QUuid &rDeviceId);
 
 	Q_INVOKABLE QFuture<QString> testFuture(const QString &rDeviceId);
 	Q_INVOKABLE QFuture<bool> testFutureTwo(const QString &rDeviceId);
 
-	const QHash<Uuid, QSharedPointer<EventBinding>> &getEventBindings() const { return mInstalledEventBindings; }
-	QSharedPointer<EventBinding> getEventBinding(const Uuid &rBindingId) const { return mInstalledEventBindings.value(rBindingId); }
+	const QHash<QUuid, QSharedPointer<EventBinding>> &getEventBindings() const { return mInstalledEventBindings; }
+	QSharedPointer<EventBinding> getEventBinding(const QUuid &rBindingId) const { return mInstalledEventBindings.value(rBindingId); }
 
  signals:
 	//! Emitted if a pull point vanishes unexpectedly
-	void lostPullPoint(const Uuid &rDeviceId);
-	void eventBindingAdded(const Uuid &rBindingId);
-	void eventBindingRemoved(const Uuid &rBindingId);
-	void eventBindingChanged(const Uuid &rBindingId);
-	void eventOccured(const Uuid &rBindingId);
+	void lostPullPoint(const QUuid &rDeviceId);
+	void eventBindingAdded(const QUuid &rBindingId);
+	void eventBindingRemoved(const QUuid &rBindingId);
+	void eventBindingChanged(const QUuid &rBindingId);
+	void eventOccured(const QUuid &rBindingId);
 
  private slots:
 	//! (re)initialize a pull point for a device
-	void initPullPoint(const Uuid &rDeviceId);
+	void initPullPoint(const QUuid &rDeviceId);
 
  private:
 	Q_DISABLE_COPY(EventManager);
@@ -75,8 +75,8 @@ class EventManager : public QObject {
 
 	static QHash<QString, EventHandlerInfo> mRegisteredEventHandler;
 	static QHash<QString, EventSourceInfo> mRegisteredEventSources;
-	QHash<Uuid, QSharedPointer<EventBinding>> mInstalledEventBindings; // binding id -> binding
-	QHash<Uuid, OnvifPullPoint *> mPullPoints; // device id -> pullpoint
+	QHash<QUuid, QSharedPointer<EventBinding>> mInstalledEventBindings; // binding id -> binding
+	QHash<QUuid, OnvifPullPoint *> mPullPoints; // device id -> pullpoint
 	QMutex mMutex;
 };
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "Uuid.h"
+#include "QUuid"
 #include <QMetaObject>
 
 
@@ -7,17 +7,16 @@ class ProfileId {
 
 	Q_GADGET
 
-public:
-
-	ProfileId(const Uuid &rDeviceId = Uuid(), const QString &rProfileToken = QString());
-	Q_INVOKABLE Uuid getDeviceId() const;
-	void setDeviceId(const Uuid &rVal);
+ public:
+	ProfileId(const QUuid &rDeviceId = QUuid(), const QString &rProfileToken = QString());
+	Q_INVOKABLE QUuid getDeviceId() const;
+	void setDeviceId(const QUuid &rVal);
 	Q_INVOKABLE QString getProfileToken() const;
 	void setProfileToken(const QString &rVal);
 	QString toString() const;
 	bool isNull() const;
 
-private:
-	Uuid mDeviceId;
+ private:
+	QUuid mDeviceId;
 	QString mProfileToken;
 };

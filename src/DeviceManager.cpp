@@ -2,6 +2,7 @@
 #include "DeviceInfo.h"
 #include "Window.h"
 #include "OnvifDevice.h"
+#include "asyncfuture.h"
 #include <QGlobalStatic>
 #include <QCoreApplication>
 #include <QSettings>
@@ -9,6 +10,7 @@
 #include <QFuture>
 #include <QtConcurrent>
 #include <QMutexLocker>
+#include <QFutureWatcher>
 
 
 Q_GLOBAL_STATIC(DeviceManager, globalManager)
@@ -33,28 +35,44 @@ DeviceManager *DeviceM {
 	return globalManager;
 }
 
-void DeviceManager::removeDevice(const Uuid &rDeviceId) {
+void DeviceManager::removeDevice(const QUuid &rDeviceId) {
 
+	auto id = resolveId(rDeviceId);
 	setBusy(true);
 	mMutex.lock();
-	mDevices.remove(rDeviceId);
+	mDevices.remove(id);
 	mMutex.unlock();
 	QSettings settings;
 	settings.beginGroup("devices");
-	settings.beginGroup(rDeviceId.toString());
+	settings.beginGroup(id.toString());
 	settings.remove("");
 	setBusy(false);
-	emit deviceRemoved(rDeviceId);
+	emit deviceRemoved(id);
 }
 
-Uuid DeviceManager::getDeviceByHost(const QString &rHost, int port /*= 8080*/) {
+DeviceInfo DeviceManager::getDeviceInfo(const QUuid &rDeviceId) {
+
+	QMutexLocker lock(&mMutex);
+	if(mDevices.contains(rDeviceId)) {
+		return mDevices[rDeviceId].mDevice->getDeviceInfo();
+	}
+	return {};
+}
+
+bool DeviceManager::containsDevice(const QUuid &rDeviceId) {
+
+	QMutexLocker lock(&mMutex);
+	return mDevices.contains(resolveId(rDeviceId));
+}
+
+QUuid DeviceManager::getDeviceByHost(const QString &rHost, int port /*= 8080*/) {
 
 	QUuid deviceId;
 	setBusy(true);
 	QMutexLocker lock(&mMutex);
 	for(const auto &device : mDevices) {
 		if(device.mDevice && device.mDevice->getHost() == rHost && device.mDevice->getPort() == port) {
-			deviceId = device.mDevice->getDeviceId();
+			deviceId = resolveId(device.mDevice->getDeviceId());
 			break;
 		}
 	}
@@ -62,154 +80,207 @@ Uuid DeviceManager::getDeviceByHost(const QString &rHost, int port /*= 8080*/) {
 	return deviceId;
 }
 
-QList<Uuid> DeviceManager::getDevicesByName(const QString &rName) {
+QUuid DeviceManager::getDeviceByEndpoint(const QUrl &rEndpoint) {
 
-	return QList<Uuid>();
-}
-
-Uuid DeviceManager::addDevice(const QUrl &rEndpoint, const QString &rDeviceName /*= QString()*/,
-                              const QUuid &rDeviceId /*= QUuid::createUuid()*/) {
-
-	return addDevice(rEndpoint, QString(), QString(), false, rDeviceName, rDeviceId);
-}
-
-Uuid DeviceManager::addDevice(const QUrl &rEndpoint, const QString &rUsername, const QString &rPassword, bool save /*= false*/,
-                              const QString &rDeviceName /*= QString()*/, const QUuid &rDeviceId /*= QUuid::createUuid()*/) {
-
-	auto deviceId = !rDeviceId.isNull() ? rDeviceId : QUuid::createUuid();
-	if(rEndpoint.isValid()) {
-		setBusy(true);
-		QtConcurrent::run([=]() {
-			auto device = QSharedPointer<OnvifDevice>::create();
-			auto result = device->initDevice(rEndpoint, rUsername, rPassword);
-			mMutex.lock();
-			mDevices.insert(deviceId, device);
-			mMutex.unlock();
-			QSettings settings;
-			settings.beginGroup("devices");
-			settings.beginGroup(deviceId.toString());
-			settings.setValue("id", deviceId);
-			settings.setValue("endpoint", rEndpoint);
-			settings.setValue("endpointReference", device->getDeviceInfo().getEndpointReference().toQuuid());
-			settings.setValue("name", device->getDeviceInfo().getDeviceName());
-			if(!rUsername.isNull() && !rPassword.isNull() && save) {
-				settings.setValue("user", rUsername);
-				settings.setValue("password", rPassword);
-			}
-			setBusy(false);
-			emit deviceAdded(deviceId);
-			if(result) {
-				emit deviceInitialized(deviceId);
-			}
-		});
-	}
-	return deviceId;
-}
-
-void DeviceManager::renameDevice(const Uuid &rDeviceId, const QString &rDeviceName) {
-
-	mMutex.lock();
-	auto &device = mDevices[rDeviceId];
-	if(device.mDevice) {
-		device.mDeviceName = rDeviceName;
-		QSettings settings;
-		settings.beginGroup("devices");
-		settings.beginGroup(rDeviceId.toString());
-		settings.setValue("name", rDeviceName);
-	}
-	mMutex.unlock();
-	emit deviceChanged(rDeviceId);
-}
-
-Result DeviceManager::setDeviceHost(const Uuid &rDeviceId, const QUrl &rDeviceHost) {
-
+	QUuid deviceId;
 	setBusy(true);
-	Result result;
-	mMutex.lock();
-	auto device = mDevices.value(rDeviceId);
-	mMutex.unlock();
-	if(device) {
-		result = device->setHost(rDeviceHost);
-		if(result) {
-			QSettings settings;
-			settings.beginGroup("devices");
-			settings.beginGroup(rDeviceId.toString());
-			settings.setValue("endpoint", device->getDeviceInfo().getEndpoint());
-			QtConcurrent::run([=]() {
-				auto result = device->initialize();
-				emit deviceChanged(rDeviceId);
-				if(result) {
-					emit deviceInitialized(rDeviceId);
-				}
-				setBusy(false);
-			});
-		} else {
-			setBusy(false);
-		}
-	} else {
-		setBusy(false);
-	}
-	return result;
-}
-
-void DeviceManager::setDeviceCredentials(const Uuid &rDeviceId, const QString &rUsername, const QString &rPassword, bool save /*= false*/) {
-
-	setBusy(true);
-	mMutex.lock();
-	auto device = mDevices.value(rDeviceId);
-	mMutex.unlock();
-	if(device) {
-		device->setCredentials(rUsername, rPassword);
-		if(save) {
-			QSettings settings;
-			settings.beginGroup("devices");
-			settings.beginGroup(rDeviceId.toString());
-			settings.setValue("user", rUsername);
-			settings.setValue("password", rPassword);
+	QMutexLocker lock(&mMutex);
+	for(const auto &device : mDevices) {
+		if(device.mDevice && device.mDevice->getDeviceInfo().mEndpoint == rEndpoint) {
+			deviceId = resolveId(device.mDevice->getDeviceId());
+			break;
 		}
 	}
 	setBusy(false);
-	emit deviceChanged(rDeviceId);
+	return deviceId;
 }
 
-void DeviceManager::reinitializeDevice(const Uuid &rDeviceId) {
-
-	mMutex.lock();
-	auto device = mDevices.value(rDeviceId);
-	mMutex.unlock();
-	if(device) {
-		setBusy(true);
-		QtConcurrent::run([=]() {
-			auto result = device->initialize();
-			emit deviceChanged(rDeviceId);
-			if(result) {
-				emit deviceInitialized(rDeviceId);
-			}
-			setBusy(false);
-		});
-	}
-}
-
-QFuture<DetailedResult<DeviceInfo>> DeviceManager::getDeviceInfoF(const Uuid &rDeviceId) {
-
-	mMutex.lock();
-	auto device = mDevices.value(rDeviceId);
-	mMutex.unlock();
-	if(device) {
-		return QtConcurrent::run([device]() { return device->getDeviceInfo(); });
-	}
-}
-
-QList<DeviceInfo> DeviceManager::getDeviceInfos() {
+QList<QUuid> DeviceManager::getDevices() {
 
 	QMutexLocker lock(&mMutex);
-	auto ret = QList<DeviceInfo>();
-	for(auto device : mDevices) {
-		if(device) {
-			ret.append(device->getDeviceInfo());
+	return mDevices.keys();
+}
+
+QList<QUuid> DeviceManager::getDevicesByName(const QString &rName) {
+
+	QList<QUuid> deviceIds;
+	setBusy(true);
+	QMutexLocker lock(&mMutex);
+	for(const auto &device : mDevices) {
+		if(device.mDevice && device.mDeviceName.compare(rName) == 0) {
+			deviceIds.push_back(resolveId(device.mDevice->getDeviceId()));
 		}
 	}
-	return ret;
+	setBusy(false);
+	return deviceIds;
+}
+
+QFuture<DetailedResult<QUuid>> DeviceManager::addDevice(const QUrl &rEndpoint, const QString &rUsername, const QString &rPassword,
+                                                        const QString &rDeviceName /*= QString()*/,
+                                                        const QUuid &rDeviceId /*= QUuid::createUuid()*/) {
+
+	if(!rDeviceId.isNull()) {
+		mMutex.lock();
+		auto duplicateDeviceId = getDeviceByEndpoint(rEndpoint);
+		auto duplicateDeviceByEndpoint = !duplicateDeviceId.isNull();
+		auto duplicateDeviceById = mDevices.contains(rDeviceId);
+		if(!duplicateDeviceByEndpoint && duplicateDeviceById) duplicateDeviceId = rDeviceId;
+		mMutex.unlock();
+		if(!duplicateDeviceByEndpoint && !duplicateDeviceById) {
+			auto device = QSharedPointer<OnvifDevice>::create();
+			auto initFuture = initDevice(device, rEndpoint, rUsername, rPassword);
+			return AsyncFuture::observe(initFuture)
+			 .subscribe([this, initFuture, device, rEndpoint, rUsername, rPassword, rDeviceName, rDeviceId]() {
+				 auto initResult = initFuture.result();
+				 if(initResult) {
+					 auto deviceEntry = Device();
+					 deviceEntry.mEndpoint = rEndpoint;
+					 deviceEntry.mDeviceName = rDeviceName;
+					 deviceEntry.mUsername = rUsername;
+					 deviceEntry.mPassword = rPassword;
+					 deviceEntry.mDevice = device;
+					 deviceEntry.mInitialized = true;
+					 QSettings settings;
+					 settings.beginGroup("devices");
+					 settings.beginGroup(rDeviceId.toString());
+					 settings.setValue("id", rDeviceId);
+					 settings.setValue("endpoint", rEndpoint);
+					 settings.setValue("name", rDeviceName);
+					 settings.setValue("user", rUsername);
+					 settings.setValue("password", rPassword);
+					 settings.endGroup();
+					 mMutex.lock();
+					 mDevices.insert(rDeviceId, deviceEntry);
+					 mAliasIds.insert(device->getDeviceId(), rDeviceId);
+					 mMutex.unlock();
+					 emit deviceAdded(rDeviceId);
+					 return DetailedResult<QUuid>(rDeviceId);
+				 } else {
+					 auto result = DetailedResult<QUuid>(initResult, initResult.getDetails());
+					 return result;
+				 }
+			 })
+			 .future();
+		}
+		auto deferred = AsyncFuture::deferred<DetailedResult<QUuid>>();
+		deferred.complete(DetailedResult<QUuid>(
+		 Result::FAULT, tr("Device can't be added because it already exists under the name: %1").arg(getName(duplicateDeviceId))));
+		return deferred.future();
+	} else {
+		auto deferred = AsyncFuture::deferred<DetailedResult<QUuid>>();
+		deferred.complete(DetailedResult<QUuid>(Result::FAULT, tr("Device can't be added because the given uuid is invalid")));
+		return deferred.future();
+	}
+}
+
+QFuture<Result> DeviceManager::initDevice(QSharedPointer<AbstractDevice> device, const QUrl &rEndpoint, const QString &rUsername,
+                                          const QString &rPassword) {
+
+	if(device) {
+		auto initFuture =
+		 QtConcurrent::run([device, rEndpoint, rUsername, rPassword]() { return device->initDevice(rEndpoint, rUsername, rPassword); });
+		return initFuture;
+	}
+	auto d = AsyncFuture::deferred<Result>();
+	d.complete(Result(Result::OK, tr("Can't initialize device. The device doesn't exist.")));
+	return d.future();
+}
+
+void DeviceManager::renameDevice(const QUuid &rDeviceId, const QString &rDeviceName) {
+
+	mMutex.lock();
+	auto id = resolveId(rDeviceId);
+	if(mDevices.contains(id)) {
+		auto &device = mDevices[id];
+		device.mDeviceName = rDeviceName;
+		QSettings settings;
+		settings.beginGroup("devices");
+		settings.beginGroup(id.toString());
+		settings.setValue("name", rDeviceName);
+		mMutex.unlock();
+		emit deviceChanged(id);
+	} else {
+		mMutex.unlock();
+	}
+}
+
+QString DeviceManager::getName(const QUuid &rDeviceId) {
+
+	QMutexLocker lock(&mMutex);
+	auto id = resolveId(rDeviceId);
+	return mDevices.value(id).mDeviceName;
+}
+
+QFuture<Result> DeviceManager::setDeviceCredentials(const QUuid &rDeviceId, const QString &rUsername, const QString &rPassword,
+                                                    bool save /*= false*/) {
+
+	mMutex.lock();
+	auto id = resolveId(rDeviceId);
+	if(mDevices.contains(id)) {
+		auto &device = mDevices[id];
+		device.mUsername = rUsername;
+		device.mPassword = rPassword;
+		device.mInitialized = false;
+		mMutex.unlock();
+		emit deviceChanged(id);
+		if(save) {
+			QSettings settings;
+			settings.beginGroup("devices");
+			settings.beginGroup(id.toString());
+			settings.setValue("user", rUsername);
+			settings.setValue("password", rPassword);
+		}
+		auto initFuture = initDevice(device.mDevice, device.mEndpoint, device.mUsername, device.mPassword);
+		AsyncFuture::observe(initFuture).subscribe([this, initFuture, id]() {
+			mMutex.lock();
+			if(initFuture.result() && mDevices.contains(id)) {
+				auto &device = mDevices[id];
+				device.mInitialized = true;
+			}
+			mMutex.unlock();
+			emit deviceChanged(id);
+		});
+		return initFuture;
+	} else {
+		mMutex.unlock();
+	}
+	auto d = AsyncFuture::deferred<Result>();
+	d.complete(Result(Result::OK, tr("Can't change credentials. The device doesn't exist.")));
+	return d.future();
+}
+
+bool DeviceManager::isDeviceInitialized(const QUuid &rDeviceId) {
+
+	mMutex.lock();
+	auto deviceEntry = mDevices.value(resolveId(rDeviceId));
+	mMutex.unlock();
+	return deviceEntry.mInitialized;
+}
+
+QFuture<DetailedResult<QList<MediaProfile>>> DeviceManager::getMediaProfiles(const QUuid &rDeviceId) {
+
+	mMutex.lock();
+	auto deviceEntry = mDevices.value(resolveId(rDeviceId));
+	mMutex.unlock();
+	if(deviceEntry.mDevice) {
+		return QtConcurrent::run([deviceEntry]() { return deviceEntry.mDevice->getyMediaProfiles(); });
+	}
+	auto d = AsyncFuture::deferred<DetailedResult<QList<MediaProfile>>>();
+	d.complete(DetailedResult<QList<MediaProfile>>(Result::OK, tr("Can't get media profiles. The device doesn't exist.")));
+	return d.future();
+}
+
+QFuture<DetailedResult<QImage>> DeviceManager::getSnapshot(const QUuid &rDeviceId, const QString &rMediaProfile) {
+
+	mMutex.lock();
+	auto deviceEntry = mDevices.value(resolveId(rDeviceId));
+	mMutex.unlock();
+	if(deviceEntry.mDevice) {
+		return QtConcurrent::run([deviceEntry, rMediaProfile]() { return deviceEntry.mDevice->getSnapshot(rMediaProfile); });
+	}
+	auto d = AsyncFuture::deferred<DetailedResult<QImage>>();
+	d.complete(DetailedResult<QImage>(Result::OK, tr("Can't get snapshot. The device doesn't exist.")));
+	return d.future();
 }
 
 void DeviceManager::initDevices() {
@@ -220,43 +291,39 @@ void DeviceManager::initDevices() {
 	auto deviceGroup = settings.childGroups();
 	for(int i = 0; i < deviceGroup.size(); ++i) {
 		settings.beginGroup(deviceGroup.at(i));
-		Uuid deviceId = Uuid(settings.value("id").toUuid());
+		QUuid deviceId = QUuid(settings.value("id").toUuid());
 		QUrl deviceEndpoint = settings.value("endpoint").toUrl();
 		QString deviceName = settings.value("name").toString();
 		QString username = settings.value("user").toString();
 		QString password = settings.value("password").toString();
+		settings.endGroup();
+		auto deviceEntry = Device();
+		deviceEntry.mEndpoint = deviceEndpoint;
+		deviceEntry.mDeviceName = deviceName;
+		deviceEntry.mUsername = username;
+		deviceEntry.mPassword = password;
+		deviceEntry.mDevice = QSharedPointer<OnvifDevice>::create();
+		deviceEntry.mInitialized = false;
 		if(!deviceId.isNull() && deviceEndpoint.isValid()) {
-			auto device = QSharedPointer<Device>::create(deviceEndpoint, deviceId, deviceName, this);
-			connect(
-			 device.data(), &Device::unauthorized, this, [this, deviceId]() { emit unauthorized(deviceId); }, Qt::DirectConnection);
-			if(!username.isNull() && !password.isNull()) {
-				device->setCredentials(username, password);
-			}
 			mMutex.lock();
-			mDevices.insert(deviceId, device);
+			mDevices.insert(deviceId, deviceEntry);
 			mMutex.unlock();
 			emit deviceAdded(deviceId);
+			auto initFuture = initDevice(deviceEntry.mDevice, deviceEntry.mEndpoint, deviceEntry.mUsername, deviceEntry.mPassword);
+			AsyncFuture::observe(initFuture).subscribe([this, initFuture, deviceId]() {
+				mMutex.lock();
+				if(initFuture.result() && mDevices.contains(deviceId)) {
+					auto &device = mDevices[deviceId];
+					device.mInitialized = true;
+					mAliasIds.insert(device.mDevice->getDeviceId(), deviceId);
+				}
+				mMutex.unlock();
+				emit deviceChanged(deviceId);
+			});
 		} else {
 			qWarning() << "Found invalid device from settings";
 		}
-		settings.endGroup();
 	}
-
-	QtConcurrent::run([this]() {
-		QMutexLocker lock(&mMutex);
-		for(auto device : mDevices) {
-			auto result = device->initialize();
-			if(device->getDeviceName().isNull()) {
-				// We set a generic device name
-				device->setDeviceName(getUniqueDeviceName(tr(GENERIC_DEVICE_NAME)));
-			}
-			if(result) {
-				emit deviceInitialized(device->getDeviceId());
-			}
-			emit deviceChanged(device->getDeviceId());
-		}
-		setBusy(false);
-	});
 }
 
 void DeviceManager::setBusy(bool isBusy) {
@@ -272,8 +339,8 @@ QString DeviceManager::getUniqueDeviceName(const QString &rProposedName) {
 	while(!isUnique) {
 		isUnique = true;
 		mMutex.lock();
-		for(auto device : mDevices) {
-			if(probeName == device->getDeviceName()) {
+		for(const auto &device : mDevices) {
+			if(probeName == device.mDeviceName) {
 				isUnique = false;
 				probeName = QString("%1 %2").arg(rProposedName).arg(suffix++);
 				break;
@@ -282,4 +349,12 @@ QString DeviceManager::getUniqueDeviceName(const QString &rProposedName) {
 		mMutex.unlock();
 	}
 	return probeName;
+}
+
+QUuid DeviceManager::resolveId(const QUuid &id) {
+
+	QMutexLocker lock(&mMutex);
+	if(mDevices.contains(id)) return id;
+	if(mAliasIds.contains(id)) return mAliasIds.value(id);
+	return {};
 }

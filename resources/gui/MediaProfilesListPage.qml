@@ -1,50 +1,48 @@
 import QtQuick 2.10
 import QtQuick.Controls 2.3
-import QtQuick.Controls.Material 2.3
-import QtQuick.Controls.Universal 2.3
 import org.onvif.media 1.0
 
 Page {
 
-	property alias deviceId: mediaProfilesModel.deviceId
+    property alias deviceId: mediaProfilesModel.deviceId
 
-	title: qsTr("Profile Settings")
+    title: qsTr("Profile Settings")
 
-	ScrollView {
+    ScrollView {
 
-		anchors.fill: parent
+        anchors.fill: parent
 
-		ListView {
+        ListView {
 
-			anchors.fill: parent
+            anchors.fill: parent
 
-			model: mediaProfilesModel
+            model: mediaProfilesModel
 
-			delegate: ItemDelegate {
+            delegate: ItemDelegate {
 
-				width: parent.width
+                width: parent.width
 
-				text: name
+                text: name
 
-				rightPadding: moreIcon.width
+                rightPadding: moreIcon.width
 
-				onClicked: {
-					window.push("MediaProfileSettingsPage.qml", {
-									profileId: profileId
-								})
-				}
+                onClicked: {
+                    window.push("MediaProfileSettingsPage.qml", {
+                                    "profileId": profileId
+                                })
+                }
 
-				Icon {
-					id: moreIcon
-					name: "ic_chevron_right"
-					anchors.right: parent.right
-					anchors.verticalCenter: parent.verticalCenter
-				}
-			}
-		}
-	}
+                Icon {
+                    id: moreIcon
+                    name: "ic_chevron_right"
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+        }
+    }
 
-	MediaProfilesModel {
-		id: mediaProfilesModel
-	}
+    MediaProfilesModel {
+        id: mediaProfilesModel
+    }
 }

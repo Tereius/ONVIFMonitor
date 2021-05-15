@@ -1,7 +1,5 @@
 import QtQuick 2.10
 import QtQuick.Controls 2.3
-import QtQuick.Controls.Material 2.3
-import QtQuick.Controls.Universal 2.3
 import QtQuick.Layouts 1.3
 import org.onvif.media 1.0
 import org.onvif.common 1.0
@@ -9,133 +7,127 @@ import QtAV 1.7
 
 Page {
 
-	property var profileId
-	property var futureResult: MediaManager.getMediaProfile(profileId)
-	property var profileInfo: futureResult.result
+    property var profileId
+    property var futureResult: MediaManager.getMediaProfile(profileId)
+    property var profileInfo: futureResult.result
 
-	id: page
+    id: page
 
-	title: qsTr("Profile Settings")
+    title: qsTr("Profile Settings")
 
-	Component.onCompleted: {
+    Component.onCompleted: {
 
+        //proxyImage.load(profileId)
+    }
 
-		//proxyImage.load(profileId)
-	}
+    ScrollView {
 
-	ScrollView {
+        id: scrollView
 
-		id: scrollView
+        anchors.fill: parent
 
-		anchors.fill: parent
+        Column {
 
-		Column {
+            CameraImage {
 
-			CameraImage {
+                id: proxyImage
+                profileId: page.profileId
 
-				id: proxyImage
-				profileId: page.profileId
+                width: page.width
+                height: page.width * 9.0 / 16.0
 
-				width: page.width
-				height: page.width * 9.0 / 16.0
+                WRoundButton {
 
-				WRoundButton {
+                    id: loadingFailedIcon
 
-					id: loadingFailedIcon
+                    fillIcon: true
+                    icon.name: "ic_play_arrow"
 
-					fillIcon: true
-					icon.name: "ic_play_arrow"
+                    width: Math.round(Math.min(parent.width,
+                                               parent.height) / 3.0)
+                    height: width
 
-					width: Math.round(Math.min(parent.width,
-											   parent.height) / 3.0)
-					height: width
+                    visible: proxyImage.finished ? true : false
 
-					visible: proxyImage.finished ? true : false
+                    anchors.centerIn: parent
 
-					anchors.centerIn: parent
+                    onClicked: {
+                        loadingFailedIcon.visible = false
+                        var obj = qtav.createObject(proxyImage)
+                        obj.source = MediaManager.getStreamUrl(profileId)
+                        obj.play()
+                    }
+                }
 
-					onClicked: {
-						loadingFailedIcon.visible = false
-						var obj = qtav.createObject(proxyImage)
-						obj.source = MediaManager.getStreamUrl(profileId)
-						obj.play()
-					}
-				}
+                Component {
 
-				Component {
+                    id: qtav
 
-					id: qtav
+                    Rectangle {
 
-					Rectangle {
+                        property alias source: player.source
 
-						property alias source: player.source
+                        function play() {
+                            player.play()
+                        }
 
-						function play() {
-							player.play()
-						}
+                        anchors.fill: parent
+                        VideoOutput2 {
+                            anchors.fill: parent
+                            source: player
+                        }
 
-						anchors.fill: parent
-						VideoOutput2 {
-							anchors.fill: parent
-							source: player
-						}
+                        AVPlayer {
+                            id: player
+                        }
+                    }
+                }
+            }
 
-						AVPlayer {
-							id: player
-						}
-					}
-				}
-			}
+            RowLayout {
 
-			RowLayout {
+                width: page.width
+                height: 50
 
-				width: page.width
-				height: 50
+                spacing: 10
 
-				spacing: 10
+                Label {
 
-				Label {
+                    Layout.fillWidth: true
 
-					Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    text: qsTr("Profile settings")
+                    font.pixelSize: 15
+                }
 
-					elide: Text.ElideRight
-					Material.foreground: Material.accent
-					Universal.foreground: Universal.accent
-					text: qsTr("Profile settings")
-					font.pixelSize: 15
-				}
+                Button {
 
-				Button {
+                    text: qsTr("Refresh")
+                    icon.name: "ic_refresh"
+                    onClicked: {
 
-					text: qsTr("Refresh")
-					icon.name: "ic_refresh"
-					onClicked: {
+                        page.profileId = page.profileId
+                    }
+                }
+            }
 
-						page.profileId = page.profileId
-					}
-				}
-			}
+            ItemDelegate {
 
-			ItemDelegate {
+                width: page.width
 
-				width: page.width
+                contentItem: Column {
 
-				contentItem: Column {
-
-					Label {
-						width: parent.width
-						text: "fixed"
-
-						Material.foreground: Material.accent
-						Universal.foreground: Universal.accent
-					}
-					Text {
-						width: parent.width
-						text: profileInfo.fixed
-						wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-					}
-				}
-			}
-		}
-	}
+                    Label {
+                        width: parent.width
+                        text: "fixed"
+                    }
+                    Text {
+                        width: parent.width
+                        text: profileInfo.fixed
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    }
+                }
+            }
+        }
+    }
 }

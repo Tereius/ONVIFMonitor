@@ -27,7 +27,7 @@
         <file>gui/DeviceInfoPage.qml</file>
         <file>gui/EventServiceInfoPage.qml</file>
         <file>gui/MediaServiceInfoPage.qml</file>
-        <file>gui/DeviceSettingsPage.qml</file>
+        <file>gui/DevicesPage.qml</file>
         <file>gui/DeviceSettingsDialog.qml</file>
         <file>gui/BusyPopup.qml</file>
         <file>gui/SettingsPage.qml</file>
@@ -36,7 +36,7 @@
         <file>gui/MediaProfilesListPage.qml</file>
         <file>gui/CameraImage.qml</file>
         <file>gui/MediaProfileSettingsPage.qml</file>
-        <file>gui/NewDeviceDialog.qml</file>
+        <file>gui/NewDevicePage.qml</file>
         <file>gui/WRoundButton.qml</file>
         <file>gui/EventSettingsPage.qml</file>
         <file>gui/NewEventBindingDialog.qml</file>
@@ -49,5 +49,10 @@
         <file>gui/FilterBuilder/BaseFilterComponent.qml</file>
         <file>gui/FilterBuilder/DropLine.qml</file>
         <file>fonts/LiberationSans-Regular.ttf</file>
+        <file>gui/helper.js</file>
+        <file>gui/DevicePage.qml</file>
+        <file>gui/FormLayout.qml</file>
+        <file>gui/BusyCombobox.qml</file>
+        <file>gui/MonitoringPage.qml</file>
     </qresource>
 </RCC>

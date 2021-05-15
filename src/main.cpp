@@ -1,17 +1,11 @@
 #include "DeviceDiscoveryModel.h"
 #include "DeviceInfo.h"
-#include "DeviceManager.h"
 #include "DevicesModel.h"
 #include "Error.h"
 #include "EventBindingModel.h"
 #include "EventHandler.h"
 #include "EventHandlerModel.h"
-#include "EventManager.h"
-#include "EventSource.h"
-#include "EventSourceModel.h"
-#include "FutureResult.h"
-#include "IconImageProvider.h"
-#include "ImageProvider.h"
+#include "AdvancedQmlApplicationEngine.h"
 #include "MediaManager.h"
 #include "MediaProfile.h"
 #include "MediaProfilesModel.h"
@@ -20,9 +14,8 @@
 #include "ProfileId.h"
 #include "PropertyInfo.h"
 #include "Result.h"
-#include "Uuid.h"
-#include "Window.h"
 #include "info.h"
+
 #include <QCommandLineParser>
 #include <QtPlugin>
 #include <QDebug>
@@ -130,22 +123,20 @@ static void dbug_msg_handler(QtMsgType type, const QMessageLogContext &rContext,
 void writeSettings() {
 
 	QSettings settings;
-	settings.setValue("version", VERSION_STRING);
+	settings.setValue("version", QString("%1.%2.%3").arg(INFO_VERSION_MAJOR).arg(INFO_VERSION_MINOR).arg(INFO_VERSION_PATCH));
 	settings.sync();
 }
 
 int main(int argc, char *argv[]) {
 
 	QSettings::setDefaultFormat(QSettings::IniFormat);
-	QCoreApplication::setApplicationName(PROJECT_NAME);
-	QCoreApplication::setApplicationVersion(VERSION_STRING);
+	QCoreApplication::setApplicationName(INFO_PROJECTNAME);
+	QCoreApplication::setApplicationVersion(QString("%1.%2.%3").arg(INFO_VERSION_MAJOR).arg(INFO_VERSION_MINOR).arg(INFO_VERSION_PATCH));
 	QCoreApplication::setOrganizationName("");
-	QCoreApplication::setOrganizationDomain("com.github.tereius");
+	QCoreApplication::setOrganizationDomain("com.github.Tereius");
+	QCoreApplication::setLibraryPaths(QString::fromLocal8Bit(QT_PLUGIN_PATHS).split(',', Qt::SkipEmptyParts) +
+	                                  QCoreApplication::libraryPaths());
 	QCoreApplication::addLibraryPath("./");
-	QCoreApplication::addLibraryPath(Qt5_plugin_DIR);
-#ifndef NDEBUG
-	//	QCoreApplication::addLibraryPath(Qt5_plugin_DIR);
-#endif
 	QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 	QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
 
@@ -153,6 +144,7 @@ int main(int argc, char *argv[]) {
 	//	QString storagePath = QCoreApplication::applicationDirPath();
 	//#else
 	QDir storagePath(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation));
+	auto path = storagePath.absolutePath();
 	QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, storagePath.absolutePath());
 	QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope, storagePath.absolutePath());
 	writeSettings();
@@ -160,7 +152,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef Q_OS_ANDROID
 	QGuiApplication app(argc, argv);
-	QQuickStyle::setStyle(QStringLiteral("Material"));
+	// QQuickStyle::setStyle(QStringLiteral("Material"));
 #else
 	// Default to org.kde.desktop style unless the user forces another style
 	QApplication app(argc, argv);
@@ -197,107 +189,39 @@ int main(int argc, char *argv[]) {
 		qWarning() << "Log file was resized.";
 	}
 
+	/*
 	log_file.setFileName(storagePath.absoluteFilePath("test.log"));
 	auto success = log_file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text);
 	if(success) {
-		qInstallMessageHandler(dbug_msg_handler);
+	  qInstallMessageHandler(dbug_msg_handler);
 	} else {
-		qWarning() << "Couldn't open log file: " << log_file.errorString() << log_file.fileName();
-		qInstallMessageHandler(fatal_dbug_msg_handler);
-	}
-
-	QQmlApplicationEngine engine;
-	// Q_IMPORT_PLUGIN(QuickFutureQmlPlugin);
-	engine.addImageProvider("icons", new IconImageProvider(qApp));
-	engine.addImageProvider("profile", new ImageProvider(qApp));
-	engine.addPluginPath(QT5_QML_PATH);
-	engine.addPluginPath(QTAV_QML_PATH);
-	engine.addImportPath("qrc:///");
-	engine.addImportPath(QT5_QML_PATH);
-	engine.addImportPath(QTAV_QML_PATH);
-	engine.addImportPath(QUICKFUTURE_QML_PATH);
-	engine.addImportPath(KF5_QML_PATH);
-
-	qDebug() << "Used QML import paths" << engine.importPathList();
-	qDebug() << "Used QT plugin paths" << engine.pluginPathList();
-
-	// QML Singletons
-	qmlRegisterSingletonType<Window>("org.global", 1, 0, "Window", [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
-		Q_UNUSED(engine);
-		Q_UNUSED(scriptEngine);
-
-		auto window = Window::getGlobal();
-		QQmlEngine::setObjectOwnership(window, QQmlEngine::CppOwnership);
-		return window;
-	});
-	qmlRegisterSingletonType<DeviceManager>("org.onvif.device", 1, 0, "DeviceManager",
-	                                        [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
-		                                        Q_UNUSED(engine);
-		                                        Q_UNUSED(scriptEngine);
-
-		                                        auto manager = DeviceM;
-		                                        QQmlEngine::setObjectOwnership(manager, QQmlEngine::CppOwnership);
-		                                        return manager;
-	                                        });
-	qmlRegisterSingletonType<MediaManager>("org.onvif.media", 1, 0, "MediaManager",
-	                                       [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
-		                                       Q_UNUSED(engine);
-		                                       Q_UNUSED(scriptEngine);
-
-		                                       auto manager = MediaManager::getGlobal();
-		                                       QQmlEngine::setObjectOwnership(manager, QQmlEngine::CppOwnership);
-		                                       return manager;
-	                                       });
-	qmlRegisterSingletonType<MediaManager>("org.onvif.event", 1, 0, "EventManager",
-	                                       [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
-		                                       Q_UNUSED(engine);
-		                                       Q_UNUSED(scriptEngine);
-
-		                                       auto manager = EventM;
-		                                       QQmlEngine::setObjectOwnership(manager, QQmlEngine::CppOwnership);
-		                                       return manager;
-	                                       });
-	// Meta types
-	qRegisterMetaType<MediaProfile>();
-	qRegisterMetaType<DiscoveryMatch>();
-	qRegisterMetaType<ProfileId>();
-	qRegisterMetaType<Error>();
-	QMetaType::registerConverter<ProfileId, QString>(&ProfileId::toString);
-	qRegisterMetaType<Result>();
-	QMetaType::registerConverter<Result, QString>(&Result::toString);
-	qRegisterMetaType<Uuid>();
-	QMetaType::registerConverter<Uuid, QString>(&Uuid::toString);
-	QMetaType::registerConverter<Uuid, QUuid>(&Uuid::toQuuid);
-	qRegisterMetaType<DeviceInfo>();
-	qRegisterMetaType<MediaService>();
-	qRegisterMetaType<EventService>();
-	qRegisterMetaType<OnvifFilterMessageExpression>();
-
-	// QML types
-	qmlRegisterType<DeviceDiscoveryModel>("org.onvif.device", 1, 0, "DeviceDiscoverModel");
-	qmlRegisterType<DevicesModel>("org.onvif.device", 1, 0, "DeviceModel");
-	qmlRegisterType<MediaProfilesModel>("org.onvif.media", 1, 0, "MediaProfilesModel");
-	qmlRegisterType<EventHandlerModel>("org.onvif.event", 1, 0, "EventHandlerModel");
-	qmlRegisterType<EventSourceModel>("org.onvif.event", 1, 0, "EventSourceModel");
-	qmlRegisterType<EventBindingModel>("org.onvif.event", 1, 0, "EventBindingModel");
-	qmlRegisterType<NotItem>("org.onvif.event", 1, 0, "NotItem");
-	qmlRegisterType<ValItem>("org.onvif.event", 1, 0, "ValItem");
-	qmlRegisterUncreatableType<PropertyInfo>("org.onvif.event", 1, 0, "PropertyInfo", "Can't be created in QML");
-	qmlRegisterUncreatableType<FutureResult>("org.onvif.common", 1, 0, "FutureResult", "Can't be created in QML");
-
-	engine.load(QUrl(QLatin1String("qrc:///gui/main.qml")));
-	if(engine.rootObjects().isEmpty()) {
-		qWarning() << "Couldn't create GUI";
-		return -1;
-	}
+	  qWarning() << "Couldn't open log file: " << log_file.errorString() << log_file.fileName();
+	  qInstallMessageHandler(fatal_dbug_msg_handler);
+	}*/
 
 	// Event handler
-	EventManager::registerEventHandler<LogEventHandler>();
+	// EventManager::registerEventHandler<LogEventHandler>();
 
 	// Event sources
-	EventManager::registerEventSource<TimerEventSource>();
-	EventManager::registerEventSource<OnvifDeviceMessage>();
-	EventManager::registerEventSource<FilteredOnvifDeviceMessage>();
+	// EventManager::registerEventSource<TimerEventSource>();
+	// EventManager::registerEventSource<OnvifDeviceMessage>();
+	// EventManager::registerEventSource<FilteredOnvifDeviceMessage>();
+
+	AdvancedQmlApplicationEngine engine;
+#if !defined(NDEBUG)
+	auto qmlMainFile = QString("%1/main.qml").arg(QML_BASE_PATH);
+	if(QFile::exists(qmlMainFile)) {
+		qInfo() << "QML hot reloading enabled";
+		engine.setHotReload(true);
+		engine.loadRootItem(qmlMainFile);
+	} else {
+		engine.setHotReload(false);
+		engine.loadRootItem("qrc:///gui/main.qml");
+	}
+#else
+	engine.setHotReload(false);
+	engine.loadRootItem("qrc:///gui/main.qml");
+#endif
 
 	return app.exec();
 }

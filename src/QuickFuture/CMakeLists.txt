@@ -14,7 +14,7 @@ set(header_files
 		quickfuture.h
 		)
 
-set(quickfutureqmlplugin_outputDir "${CMAKE_CURRENT_BINARY_DIR}/QuickFuture")
+set(quickfutureqmlplugin_outputDir "${CMAKE_CURRENT_BINARY_DIR}/QuickFutureBuildDir/QuickFuture")
 add_library(quickfutureqmlplugin SHARED ${src_files} ${header_files})
 target_compile_definitions(quickfutureqmlplugin PUBLIC QUICKFUTURE_QML_PATH="${CMAKE_CURRENT_BINARY_DIR}" PRIVATE QUICK_FUTURE_BUILD_PLUGIN)
 set_target_properties(quickfutureqmlplugin
@@ -36,3 +36,4 @@ add_custom_command(TARGET quickfutureqmlplugin POST_BUILD
 									 COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/quickfuture.qmltypes" "${quickfutureqmlplugin_outputDir}/quickfuture.qmltypes")
 SET(QML_IMPORT_PATH "${CMAKE_CURRENT_BINARY_DIR}" CACHE STRING INTERNAL)
 target_link_libraries(quickfutureqmlplugin PRIVATE Qt5::Core Qt5::Qml)
+SET(QuickFuture_qml_DIR ${CMAKE_CURRENT_BINARY_DIR}/QuickFutureBuildDir PARENT_SCOPE)

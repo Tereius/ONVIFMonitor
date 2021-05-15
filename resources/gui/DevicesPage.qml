@@ -1,15 +1,16 @@
 import QtQuick 2.10
 import QtQuick.Controls 2.3
-import QtQuick.Controls.Material 2.3
-import QtQuick.Controls.Universal 2.3
 import QtQuick.Layouts 1.3
 import org.onvif.device 1.0
+import org.onvif.common 1.0
 import org.kde.kirigami 2.14 as Kirigami
+import "helper.js" as Helper
 
 Kirigami.ScrollablePage {
 
     id: settingsPage
     title: qsTr("Devices")
+    supportsRefreshing: true
 
     Component.onCompleted: {
 
@@ -21,6 +22,19 @@ Kirigami.ScrollablePage {
 
         timer.stop()
         deviceDiscoveryModel.stop()
+    }
+
+    onRefreshingChanged: {
+        if (refreshing) {
+            refreshDevices()
+        }
+        refreshing = false
+    }
+
+    function refreshDevices() {
+        deviceDiscoveryModel.reset()
+        deviceDiscoveryModel.start()
+        timer.start()
     }
 
     Timer {
@@ -52,8 +66,6 @@ Kirigami.ScrollablePage {
                     Layout.fillWidth: true
 
                     elide: Text.ElideRight
-                    Material.foreground: Material.accent
-                    Universal.foreground: Universal.accent
                     text: qsTr("Configured devices")
                     font.pixelSize: 15
                 }
@@ -64,7 +76,12 @@ Kirigami.ScrollablePage {
                     icon.name: "ic_add"
                     onClicked: {
 
-                        newDeviceDialog.open()
+                        pageStack.push(Qt.resolvedUrl("NewDevicePage.qml"), {
+                                           "deviceName": qsTr("New Device"),
+                                           "deviceEndpoint": "",
+                                           "deviceNameFixed": false,
+                                           "deviceEndpointFixed": false
+                                       })
                     }
                 }
             }
@@ -96,9 +113,11 @@ Kirigami.ScrollablePage {
 
                 onClicked: {
 
-                    root.push("DeviceInfoPage.qml", {
-                                  "deviceId": deviceId
-                              })
+                    pageStack.push(Qt.resolvedUrl("DevicePage.qml"), {
+                                       "deviceId": id,
+                                       "deviceNameFixed": false,
+                                       "deviceEndpointFixed": false
+                                   })
                 }
                 rightPadding: settingsButton.width + errorButton.width
 
@@ -146,8 +165,6 @@ Kirigami.ScrollablePage {
                     Layout.fillWidth: true
 
                     elide: Text.ElideRight
-                    Material.foreground: Material.accent
-                    Universal.foreground: Universal.accent
                     text: qsTr("Available devices")
                     font.pixelSize: 15
                 }
@@ -161,9 +178,7 @@ Kirigami.ScrollablePage {
                     onClicked: {
                         visible = false
                         discoveryProgress.visible = true
-                        deviceDiscoveryModel.reset()
-                        deviceDiscoveryModel.start()
-                        timer.start()
+                        settingsPage.refreshDevices()
                     }
                     Connections {
                         target: timer
@@ -216,39 +231,23 @@ Kirigami.ScrollablePage {
                 }
             }
 
-            model: deviceDiscoveryModel
+            model: deviceDiscoveryModelFiltered
             delegate: ItemDelegate {
 
                 width: parent.width
                 height: 50
 
-                icon.name: isNew ? "ic_fiber_new" : null
-                text: {
-                    if (isNew) {
-                        return name
-                    } else if (existingName == name) {
-                        return existingName
-                    }
-                    return existingName + " (" + name + ")"
-                }
-
+                icon.name: "ic_fiber_new"
+                text: name
                 onClicked: {
 
-                    //infoDialog.deviceInfo = DeviceManager.getDeviceInfo(
-                    //			endpoint)
-                    //infoDialog.open()
-                }
-
-                rightPadding: addButton.width
-                ToolButton {
-                    id: addButton
-                    icon.name: "ic_add"
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    enabled: isNew
-                    onClicked: {
-                        DeviceManager.addDevice(endpoint, name, id)
-                    }
+                    pageStack.push(Qt.resolvedUrl("NewDevicePage.qml"), {
+                                       "deviceName": name,
+                                       "deviceEndpoint": endpoint,
+                                       "deviceId": id,
+                                       "deviceNameFixed": false,
+                                       "deviceEndpointFixed": true
+                                   })
                 }
             }
         }
@@ -267,6 +266,26 @@ Kirigami.ScrollablePage {
         id: deviceDiscoveryModel
     }
 
+    Connections {
+        target: DeviceManager
+        onDeviceAdded: {
+            deviceDiscoveryModelFiltered.invalidate()
+        }
+        onDeviceRemoved: {
+            deviceDiscoveryModelFiltered.invalidate()
+        }
+    }
+
+    SortFilterProxyModel {
+
+        id: deviceDiscoveryModelFiltered
+        model: deviceDiscoveryModel
+        filterRole: Enums.IdRole
+        filterFunctor: function (value) {
+            return !DeviceManager.containsDevice(value)
+        }
+    }
+
     DeviceModel {
 
         id: deviceModel
@@ -275,10 +294,5 @@ Kirigami.ScrollablePage {
     DeviceSettingsDialog {
 
         id: deviceSettingsDialog
-    }
-
-    NewDeviceDialog {
-
-        id: newDeviceDialog
     }
 }

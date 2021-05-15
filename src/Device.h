@@ -1,6 +1,6 @@
 #pragma once
 #include "Result.h"
-#include "Uuid.h"
+#include <QUuid>
 #include "MediaProfile.h"
 #include "DeviceInfo.h"
 #include "Topics.h"
@@ -19,12 +19,12 @@ class Device : public QObject {
 	Q_OBJECT
 
  public:
-	Device(const QUrl &rDeviceEndpoint, const Uuid &rDeviceId, const QString &rDeviceName = QString(), QObject *pParent = nullptr);
+	Device(const QUrl &rDeviceEndpoint, const QUuid &rDeviceId, const QString &rDeviceName = QString(), QObject *pParent = nullptr);
 	~Device() = default;
 	Result initialize();
 	DeviceInfo getDeviceInfo();
 	QString getDeviceName();
-	Uuid getDeviceId();
+	QUuid getDeviceId();
 	void setDeviceName(const QString &rDeviceName);
 	void setCredentials(const QString &rUser, const QString &rPassword);
 	//! You are responsible to call initialize afterwards!

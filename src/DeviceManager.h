@@ -1,7 +1,8 @@
 #pragma once
-#include "Uuid.h"
 #include "Result.h"
+#include "MediaProfile.h"
 #include <QFuture>
+#include "DeviceInfo.h"
 #include <QObject>
 #include <QMap>
 #include <QUrl>
@@ -24,42 +25,53 @@ class DeviceManager : public QObject {
 	explicit DeviceManager(QObject *pParent = nullptr);
 	~DeviceManager() override;
 	Q_INVOKABLE void initialize();
-	Q_INVOKABLE void removeDevice(const Uuid &rDeviceId);
-	Q_INVOKABLE Uuid getDeviceByHost(const QString &rHost, int port = 8080);
-	Q_INVOKABLE QList<Uuid> getDevicesByName(const QString &rName);
-	Q_INVOKABLE Uuid addDevice(const QUrl &rEndpoint, const QString &rUsername, const QString &rPassword, bool save = false,
-	                           const QString &rDeviceName = QString(), const QUuid &rDeviceId = QUuid::createUuid());
-	Q_INVOKABLE Uuid addDevice(const QUrl &rEndpoint, const QString &rDeviceName = QString(), const QUuid &rDeviceId = QUuid::createUuid());
-	Q_INVOKABLE void renameDevice(const Uuid &rDeviceId, const QString &rDeviceName);
-	Q_INVOKABLE Result setDeviceHost(const Uuid &rDeviceId, const QUrl &rDeviceHost);
-	Q_INVOKABLE void setDeviceCredentials(const Uuid &rDeviceId, const QString &rUsername, const QString &rPassword, bool save = false);
-	Q_INVOKABLE void reinitializeDevice(const Uuid &rDeviceId);
-
-	Q_INVOKABLE QFuture<DetailedResult<DeviceInfo>> getDeviceInfoF(const Uuid &rDeviceId);
-
-	QList<DeviceInfo> getDeviceInfos();
+	Q_INVOKABLE bool containsDevice(const QUuid &rDeviceId);
+	Q_INVOKABLE QUuid getDeviceByHost(const QString &rHost, int port = 8080);
+	Q_INVOKABLE QUuid getDeviceByEndpoint(const QUrl &rEndpoint);
+	Q_INVOKABLE QList<QUuid> getDevices();
+	Q_INVOKABLE QList<QUuid> getDevicesByName(const QString &rName);
+	Q_INVOKABLE void renameDevice(const QUuid &rDeviceId, const QString &rDeviceName);
+	Q_INVOKABLE QFuture<DetailedResult<QUuid>> addDevice(const QUrl &rEndpoint, const QString &rUsername, const QString &rPassword,
+	                                                     const QString &rDeviceName = QString(),
+	                                                     const QUuid &rDeviceId = QUuid::createUuid());
+	Q_INVOKABLE void removeDevice(const QUuid &rDeviceId);
+	Q_INVOKABLE DeviceInfo getDeviceInfo(const QUuid &rDeviceId);
+	Q_INVOKABLE QString getName(const QUuid &rDeviceId);
+	Q_INVOKABLE QFuture<Result> setDeviceCredentials(const QUuid &rDeviceId, const QString &rUsername, const QString &rPassword,
+	                                                 bool save = false);
+	Q_INVOKABLE bool isDeviceInitialized(const QUuid &rDeviceId);
+	Q_INVOKABLE QFuture<DetailedResult<QList<MediaProfile>>> getMediaProfiles(const QUuid &rDeviceId);
+	Q_INVOKABLE QFuture<DetailedResult<QImage>> getSnapshot(const QUuid &rDeviceId, const QString &rMediaProfile);
 
 	static DeviceManager *getGlobal();
 
  signals:
-	void unauthorized(const Uuid &rDeviceId);
-	void deviceAdded(const Uuid &rAddedDeviceId);
-	void deviceRemoved(const Uuid &rRemovedDeviceId);
-	void deviceInitialized(const Uuid &rRemovedDeviceId);
-	void deviceChanged(const Uuid &rRemovedDeviceId);
+	void unauthorized(const QUuid &rDeviceId);
+	void deviceAdded(const QUuid &rAddedDeviceId);
+	void deviceRemoved(const QUuid &rRemovedDeviceId);
+	void deviceInitialized(const QUuid &rRemovedDeviceId);
+	void deviceChanged(const QUuid &rRemovedDeviceId);
 
  private:
 	Q_DISABLE_COPY(DeviceManager);
 
 	struct Device {
+		QAtomicInt mInitialized = 0;
+		QUrl mEndpoint;
 		QString mDeviceName;
+		QString mUsername;
+		QString mPassword;
 		QSharedPointer<AbstractDevice> mDevice;
 	};
 
 	void initDevices();
+	QFuture<Result> initDevice(QSharedPointer<AbstractDevice> device, const QUrl &rEndpoint, const QString &rUsername,
+	                           const QString &rPassword);
 	void setBusy(bool isBusy);
 	QString getUniqueDeviceName(const QString &rProposedName);
+	QUuid resolveId(const QUuid &id);
 
-	QMap<Uuid, Device> mDevices;
+	QMap<QUuid, Device> mDevices;
+	QMap<QUuid, QUuid> mAliasIds;
 	QMutex mMutex;
 };

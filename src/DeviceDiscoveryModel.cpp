@@ -1,11 +1,10 @@
 #include "DeviceDiscoveryModel.h"
-#include "DeviceInfo.h"
-#include "DeviceManager.h"
 #include "OnvifDiscovery.h"
 #include "Roles.h"
-#include "Device.h"
+#include "Util.h"
 #include <QHash>
 #include <QLoggingCategory>
+#include <algorithm>
 
 Q_LOGGING_CATEGORY(ddm, "DeviceDiscoveryModel")
 
@@ -15,35 +14,14 @@ DeviceDiscoveryModel::DeviceDiscoveryModel(QObject *pParent /*= nullptr*/) :
 	connect(
 	 mpDiscovery, &OnvifDiscovery::NewMatch, this,
 	 [this](const DiscoveryMatch &rMatch) {
-		 int oldSize = this->mMatches.size();
+		 auto oldSize = this->mMatches.size();
 		 if(!rMatch.GetDeviceEndpoints().isEmpty() && rMatch.GetDeviceEndpoints().first().isValid()) {
 			 beginInsertRows(QModelIndex(), oldSize, oldSize);
-			 mMatches << rMatch;
+			 mMatches.push_back(rMatch);
 			 endInsertRows();
 		 } else {
 			 qInfo(ddm) << "Skipping device with empty or invalid device endpoint";
 		 }
-	 },
-	 Qt::QueuedConnection);
-
-	connect(
-	 DeviceM, &DeviceManager::deviceAdded, this,
-	 [this](const Uuid &rDeviceId) {
-		 emit dataChanged(index(0), index(mMatches.size() - 1), {Roles::IsNewRole, Qt::DisplayRole, Roles::HostRole});
-	 },
-	 Qt::QueuedConnection);
-
-	connect(
-	 DeviceM, &DeviceManager::deviceRemoved, this,
-	 [this](const Uuid &rDeviceId) {
-		 emit dataChanged(index(0), index(mMatches.size() - 1), {Roles::IsNewRole, Qt::DisplayRole, Roles::HostRole});
-	 },
-	 Qt::QueuedConnection);
-
-	connect(
-	 DeviceM, &DeviceManager::deviceChanged, this,
-	 [this](const Uuid &rDeviceId) {
-		 emit dataChanged(index(0), index(mMatches.size() - 1), {Roles::IsNewRole, Qt::DisplayRole, Roles::HostRole});
 	 },
 	 Qt::QueuedConnection);
 }
@@ -73,10 +51,11 @@ QVariant DeviceDiscoveryModel::data(const QModelIndex &index, int role /*= Qt::D
 			qInfo(ddm) << "Skipping device with empty or invalid device endpoint";
 			return QVariant();
 		}
-		auto endpointRef = match.GetEndpointReference();
+		// auto endpointRef = match.GetEndpointReference();
 
 		switch(role) {
-			case Qt::DisplayRole: {
+			case Qt::DisplayRole:
+			case Enums::Roles::NameRole: {
 				QString deviceName = "";
 				for(const auto &scope : match.GetScopes()) {
 					if(scope.startsWith("onvif://www.onvif.org/name/")) {
@@ -87,35 +66,18 @@ QVariant DeviceDiscoveryModel::data(const QModelIndex &index, int role /*= Qt::D
 				ret = !deviceName.isEmpty() ? deviceName : endpoint.host();
 				break;
 			}
-			case Roles::NameRole: {
-				ret = DeviceM->getDeviceInfo(endpointRef).getDeviceName();
-				break;
-			}
-			case Roles::HostRole:
+			case Enums::Roles::HostRole:
 				ret = endpoint.host();
 				break;
-			case Roles::PortRole: {
-				auto port = endpoint.port();
-				if(port < 0) {
-					auto scheme = endpoint.scheme();
-					if(scheme.startsWith("https")) {
-						port = 443;
-					} else if(scheme.startsWith("http")) {
-						port = 80;
-					}
-				}
-				ret = port;
+			case Enums::Roles::PortRole: {
+				ret = Util::getDefaultPort(endpoint);
 				break;
 			}
-			case Roles::EndpointRole:
+			case Enums::Roles::EndpointRole:
 				ret = endpoint;
 				break;
-			case Roles::IsNewRole: {
-				ret = DeviceM->getDeviceInfo(endpointRef).isNull();
-				break;
-			}
-			case Roles::IdRole:
-				ret = match.GetEndpointReference();
+			case Enums::Roles::IdRole:
+				ret = !match.GetEndpointReference().isNull() ? match.GetEndpointReference() : QVariant();
 				break;
 			default:
 				ret = QVariant();
@@ -128,13 +90,11 @@ QVariant DeviceDiscoveryModel::data(const QModelIndex &index, int role /*= Qt::D
 QHash<int, QByteArray> DeviceDiscoveryModel::roleNames() const {
 
 	auto ret = QHash<int, QByteArray>();
-	ret.insert(Roles::EndpointRole, "endpoint");
-	ret.insert(Roles::HostRole, "host");
-	ret.insert(Roles::PortRole, "port");
-	ret.insert(Qt::DisplayRole, "name");
-	ret.insert(Roles::NameRole, "existingName");
-	ret.insert(Roles::IsNewRole, "isNew");
-	ret.insert(Roles::IdRole, "id");
+	ret.insert(Enums::Roles::EndpointRole, "endpoint");
+	ret.insert(Enums::Roles::HostRole, "host");
+	ret.insert(Enums::Roles::PortRole, "port");
+	ret.insert(Enums::Roles::NameRole, "name");
+	ret.insert(Enums::Roles::IdRole, "id");
 	return ret;
 }
 
@@ -155,4 +115,27 @@ void DeviceDiscoveryModel::reset() {
 	mMatches.clear();
 	mpDiscovery->ClearMatches();
 	endResetModel();
+}
+
+void DeviceDiscoveryModel::sortList() {
+
+	std::sort(mMatches.begin(), mMatches.end(), [](DiscoveryMatch left, DiscoveryMatch right) {
+		auto leftHost = !left.GetDeviceEndpoints().isEmpty() ? left.GetDeviceEndpoints().first().host() : "";
+		auto rightHost = !right.GetDeviceEndpoints().isEmpty() ? right.GetDeviceEndpoints().first().host() : "";
+		QString leftName(leftHost);
+		QString rightName(rightHost);
+		for(const auto &scope : left.GetScopes()) {
+			if(scope.startsWith("onvif://www.onvif.org/name/")) {
+				leftName = scope.mid(27);
+				break;
+			}
+		}
+		for(const auto &scope : right.GetScopes()) {
+			if(scope.startsWith("onvif://www.onvif.org/name/")) {
+				rightName = scope.mid(27);
+				break;
+			}
+		}
+		return leftName.compare(rightName, Qt::CaseInsensitive);
+	});
 }

@@ -1,4 +1,5 @@
 #include "AbstractDevice.h"
+#include "Util.h"
 #include <QCryptographicHash>
 #include <cstring>
 
@@ -6,8 +7,9 @@
 QUuid AbstractDevice::getDeviceId() const {
 
 	QUuid id{};
-	auto serial = getSerialNumber();
-	auto manufacturer = getManufacturer();
+	auto deviceInfo = getDeviceInfo();
+	auto serial = deviceInfo.mSerialNumber;
+	auto manufacturer = deviceInfo.mManufacturer;
 	Q_ASSERT(!serial.isEmpty());
 	if(!serial.isEmpty()) {
 		auto hash = QCryptographicHash::hash(serial.toUtf8() + manufacturer.toUtf8(), QCryptographicHash::Md5);
@@ -26,16 +28,17 @@ QUuid AbstractDevice::getDeviceId() const {
 	return id;
 }
 
+QDateTime AbstractDevice::getDeviceTime() const {
+
+	return QDateTime::currentDateTimeUtc().addMSecs(getDeviceInfo().mDateTimeOffset);
+}
+
 QString AbstractDevice::getHost() const {
 
-	return getEndpoint().host();
+	return getDeviceInfo().mEndpoint.host();
 }
 
 int AbstractDevice::getPort() const {
 
-	if(getEndpoint().scheme().compare("http") == 0)
-		return getEndpoint().port(80);
-	else if(getEndpoint().scheme().compare("https") == 0)
-		return getEndpoint().port(443);
-	return getEndpoint().port();
+	return Util::getDefaultPort(getDeviceInfo().mEndpoint);
 }

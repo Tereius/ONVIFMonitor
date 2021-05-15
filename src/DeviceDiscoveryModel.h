@@ -11,17 +11,19 @@ class DeviceDiscoveryModel : public AbstractListModel {
 	Q_OBJECT
 
  public:
-	DeviceDiscoveryModel(QObject *pParent = nullptr);
-	virtual ~DeviceDiscoveryModel();
-	virtual int rowCount(const QModelIndex &parent = QModelIndex()) const;
-	virtual QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
-	virtual QHash<int, QByteArray> roleNames() const;
+	explicit DeviceDiscoveryModel(QObject *pParent = nullptr);
+	~DeviceDiscoveryModel() override;
+	int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+	QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+	QHash<int, QByteArray> roleNames() const override;
 	Q_INVOKABLE void start();
 	Q_INVOKABLE void reset();
 	Q_INVOKABLE void stop();
 
  private:
 	Q_DISABLE_COPY(DeviceDiscoveryModel);
+
+	void sortList();
 
 	OnvifDiscovery *mpDiscovery;
 	QList<DiscoveryMatch> mMatches;

@@ -12,26 +12,19 @@
 
 Q_GLOBAL_STATIC(MediaManager, globalManager)
 
-MediaManager::MediaManager(QObject *pParent /*= nullptr*/) :
-	QObject(pParent),
-	mMutex() {
-
-}
+MediaManager::MediaManager(QObject *pParent /*= nullptr*/) : QObject(pParent), mMutex() {}
 
 QUrl MediaManager::getStreamUrl(const ProfileId &rProfileId) const {
 
-	QUrl ret;
-	auto device = DeviceM->getDevice(rProfileId.getDeviceId());
-	if(device) {
-		ret = device->getStreamUrl(rProfileId.getProfileToken());
-	}
-	return ret;
+	auto futureUrl = DeviceM->getStreamUrl(rProfileId.getDeviceId(), rProfileId.toString());
+	futureUrl.waitForFinished();
+	return futureUrl.result() ? futureUrl.result().GetResultObject() : {};
 }
 
-FutureResult* MediaManager::getMediaProfile(const ProfileId &rProfileId) {
+FutureResult *MediaManager::getMediaProfile(const ProfileId &rProfileId) {
 
 	auto pResutl = new FutureResult();
-	//QQmlEngine::setObjectOwnership(pResutl, QQmlEngine::JavaScriptOwnership);
+	// QQmlEngine::setObjectOwnership(pResutl, QQmlEngine::JavaScriptOwnership);
 	auto device = DeviceM->getDevice(rProfileId.getDeviceId());
 	if(device) {
 		QtConcurrent::run([pResutl, device, rProfileId]() {
@@ -39,8 +32,7 @@ FutureResult* MediaManager::getMediaProfile(const ProfileId &rProfileId) {
 			if(profile) {
 				auto prof = profile.GetResultObject();
 				pResutl->resolveResult(QVariant::fromValue(prof));
-			}
-			else {
+			} else {
 				pResutl->resolveEmptyResult();
 				Window::getGlobal()->showError(tr("Error"), profile.toString());
 			}
@@ -49,7 +41,7 @@ FutureResult* MediaManager::getMediaProfile(const ProfileId &rProfileId) {
 	return pResutl;
 }
 
-MediaManager* MediaManager::getGlobal() {
+MediaManager *MediaManager::getGlobal() {
 
 	return globalManager;
 }

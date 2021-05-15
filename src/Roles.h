@@ -1,5 +1,8 @@
 #include <Qt>
 
+namespace Enums {
+
+Q_NAMESPACE
 
 enum Roles {
 
@@ -25,3 +28,6 @@ enum Roles {
 	EventSourcePropertiesRole,
 	EventHandlerPropertiesRole
 };
+
+Q_ENUM_NS(Roles)
+} // namespace Enums

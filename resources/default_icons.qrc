@@ -1,21 +1,46 @@
 <RCC>
-    <qresource prefix="/">
-        <file>icons/onvif/index.theme</file>
-        <file>icons/onvif/48x48/ic_more_vert.svg</file>
-        <file>icons/onvif/48x48/ic_arrow_back.svg</file>
-        <file>icons/onvif/48x48/ic_fiber_new.svg</file>
-        <file>icons/onvif/48x48/ic_refresh.svg</file>
-        <file>icons/onvif/48x48/ic_settings.svg</file>
-        <file>icons/onvif/48x48/ic_warning.svg</file>
-        <file>icons/onvif/48x48/ic_add.svg</file>
-        <file>icons/onvif/48x48/ic_chevron_right.svg</file>
-        <file>icons/onvif/48x48/ic_video_library.svg</file>
-        <file>icons/onvif/48x48/ic_linked_camera.svg</file>
-        <file>icons/onvif/48x48/ic_cast_connected.svg</file>
-        <file>icons/onvif/48x48/ic_settings_applications.svg</file>
-        <file>icons/onvif/48x48/ic_play_arrow.svg</file>
-        <file>icons/onvif/48x48/ic_appbar_speakerphone.svg</file>
-        <file>icons/onvif/48x48/ic_appbar_link.svg</file>
-        <file>icons/onvif/48x48/ic_close.svg</file>
-    </qresource>
+<qresource prefix="/">
+<file>icons/onvif/index.theme</file>
+<file>icons/onvif/48x48/dialog-error.svg</file>
+<file>icons/onvif/48x48/dialog-information.svg</file>
+<file>icons/onvif/48x48/dialog-positive.svg</file>
+<file>icons/onvif/48x48/dialog-warning.svg</file>
+<file>icons/onvif/48x48/globe.svg</file>
+<file>icons/onvif/48x48/go-next-symbolic-rtl.svg</file>
+<file>icons/onvif/48x48/go-next-symbolic.svg</file>
+<file>icons/onvif/48x48/go-next.svg</file>
+<file>icons/onvif/48x48/go-previous-symbolic-rtl.svg</file>
+<file>icons/onvif/48x48/go-previous-symbolic.svg</file>
+<file>icons/onvif/48x48/go-previous.svg</file>
+<file>icons/onvif/48x48/go-up.svg</file>
+<file>icons/onvif/48x48/handle-sort.svg</file>
+<file>icons/onvif/48x48/ic_add.svg</file>
+<file>icons/onvif/48x48/ic_appbar_link.svg</file>
+<file>icons/onvif/48x48/ic_appbar_speakerphone.svg</file>
+<file>icons/onvif/48x48/ic_arrow_back.svg</file>
+<file>icons/onvif/48x48/ic_cast_connected.svg</file>
+<file>icons/onvif/48x48/ic_chevron_right.svg</file>
+<file>icons/onvif/48x48/ic_close.svg</file>
+<file>icons/onvif/48x48/ic_delete.svg</file>
+<file>icons/onvif/48x48/ic_fiber_new.svg</file>
+<file>icons/onvif/48x48/ic_linked_camera.svg</file>
+<file>icons/onvif/48x48/ic_menu.svg</file>
+<file>icons/onvif/48x48/ic_more_vert.svg</file>
+<file>icons/onvif/48x48/ic_placeholder.svg</file>
+<file>icons/onvif/48x48/ic_play_arrow.svg</file>
+<file>icons/onvif/48x48/ic_refresh.svg</file>
+<file>icons/onvif/48x48/ic_save.svg</file>
+<file>icons/onvif/48x48/ic_settings.svg</file>
+<file>icons/onvif/48x48/ic_settings_applications.svg</file>
+<file>icons/onvif/48x48/ic_video_library.svg</file>
+<file>icons/onvif/48x48/ic_warning.svg</file>
+<file>icons/onvif/48x48/mail-sent.svg</file>
+<file>icons/onvif/48x48/overflow-menu-left.svg</file>
+<file>icons/onvif/48x48/overflow-menu-right.svg</file>
+<file>icons/onvif/48x48/overflow-menu.svg</file>
+<file>icons/onvif/48x48/user.svg</file>
+<file>icons/onvif/48x48/view-left-close.svg</file>
+<file>icons/onvif/48x48/view-right-close.svg</file>
+<file>icons/onvif/48x48/view-right-new.svg</file>
+</qresource>
 </RCC>

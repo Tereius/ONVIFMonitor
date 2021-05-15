@@ -1,100 +1,95 @@
 import QtQuick 2.10
 import QtQuick.Controls 2.3
-import QtQuick.Controls.Material 2.3
-import QtQuick.Controls.Universal 2.3
 import QtQuick.Layouts 1.3
 import org.onvif.device 1.0
 
 Page {
 
-	property var deviceId
+    property var deviceId
 
-	title: qsTr("Event service info")
+    title: qsTr("Event service info")
 
-	QtObject {
+    QtObject {
 
-		id: d
-		property var eventServiceInfo: DeviceManager.getDeviceInfo(
-													deviceId).eventService
-	}
+        id: d
+        property var eventServiceInfo: DeviceManager.getDeviceInfo(
+                                           deviceId).eventService
+    }
 
-	ListModel {
+    ListModel {
 
-		id: deviceInfoModel
+        id: deviceInfoModel
 
-		dynamicRoles: true
+        dynamicRoles: true
 
-		Component.onCompleted: {
+        Component.onCompleted: {
 
-			append({
-					   label: qsTr("Endpoint"),
-					   value: d.eventServiceInfo.serviceEndpoint
-				   })
-			append({
-					   label: qsTr("WS subsc. policy support"),
-					   value: d.eventServiceInfo.wSSubscriptionPolicySupport
-				   })
-			append({
-					   label: qsTr("WS pull point support"),
-					   value: d.eventServiceInfo.wSPullPointSupport
-				   })
-			append({
-					   label: qsTr("WS pausable subscription support"),
-					   value: d.eventServiceInfo.wSPausableSubscriptionManagerInterfaceSupport
-				   })
-			append({
-					   label: qsTr("Max. notification producers"),
-					   value: d.eventServiceInfo.maxNotificationProducers
-				   })
-			append({
-					   label: qsTr("Max. pull points"),
-					   value: d.eventServiceInfo.maxPullPoints
-				   })
-			append({
-					   label: qsTr("Persistentce"),
-					   value: d.eventServiceInfo.persistentNotificationStorage
-				   })
+            append({
+                       "label": qsTr("Endpoint"),
+                       "value": d.eventServiceInfo.serviceEndpoint
+                   })
+            append({
+                       "label": qsTr("WS subsc. policy support"),
+                       "value": d.eventServiceInfo.wSSubscriptionPolicySupport
+                   })
+            append({
+                       "label": qsTr("WS pull point support"),
+                       "value": d.eventServiceInfo.wSPullPointSupport
+                   })
+            append({
+                       "label": qsTr("WS pausable subscription support"),
+                       "value": d.eventServiceInfo.wSPausableSubscriptionManagerInterfaceSupport
+                   })
+            append({
+                       "label": qsTr("Max. notification producers"),
+                       "value": d.eventServiceInfo.maxNotificationProducers
+                   })
+            append({
+                       "label": qsTr("Max. pull points"),
+                       "value": d.eventServiceInfo.maxPullPoints
+                   })
+            append({
+                       "label": qsTr("Persistentce"),
+                       "value": d.eventServiceInfo.persistentNotificationStorage
+                   })
 
-			infoListView.model = deviceInfoModel
-		}
-	}
+            infoListView.model = deviceInfoModel
+        }
+    }
 
-	ScrollView {
+    ScrollView {
 
-		anchors.fill: parent
+        anchors.fill: parent
 
-		ListView {
+        ListView {
 
-			id: infoListView
+            id: infoListView
 
-			anchors.fill: parent
+            anchors.fill: parent
 
-			delegate: ItemDelegate {
+            delegate: ItemDelegate {
 
-				width: parent.width
+                width: parent.width
 
-				onClicked: {
-					if (showMoreSource) {
-						window.push(showMoreSource, showMoreParam)
-					}
-				}
+                onClicked: {
+                    if (showMoreSource) {
+                        window.push(showMoreSource, showMoreParam)
+                    }
+                }
 
-				contentItem: Column {
+                contentItem: Column {
 
-					Label {
-						width: parent.width
-						text: label
-
-						Material.foreground: Material.accent
-						Universal.foreground: Universal.accent
-					}
-					Text {
-						width: parent.width
-						text: value
-						wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-					}
-				}
-			}
-		}
-	}
+                    Label {
+                        width: parent.width
+                        text: label
+                    }
+                    Text {
+                        width: parent.width
+                        text: value
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    }
+                }
+            }
+        }
+    }
 }

@@ -10,12 +10,37 @@ import org.kde.kirigami 2.16 as Kirigami
 
 Kirigami.ApplicationWindow {
     id: root
-
     title: Qt.application.name
+
+    pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.ToolBar
+    pageStack.globalToolBar.showNavigationButtons: pageStack.currentIndex > 0 ? Kirigami.ApplicationHeaderStyle.ShowBackButton : 0
+    //pageStack.globalToolBar.minimumHeight: Kirigami.Units.gridUnit * 2
+    //pageStack.globalToolBar.preferredHeight: Kirigami.Units.gridUnit * 2
+    //pageStack.globalToolBar.maximumHeight: Kirigami.Units.gridUnit * 2
+    pageStack.initialPage: Qt.resolvedUrl("MonitoringPage.qml")
+    pageStack.interactive: false
+
+    Settings {
+        property alias x: root.x
+        property alias y: root.y
+        property alias width: root.width
+        property alias height: root.height
+    }
+
+    Component.onCompleted: {
+
+        DeviceManager.initialize()
+    }
 
     globalDrawer: Kirigami.GlobalDrawer {
         title: Qt.application.name
         titleIcon: "applications-graphics"
+        isMenu: !Kirigami.Settings.isMobile
+        handleVisible: Kirigami.Settings.isMobile ? pageStack.currentIndex === 0 : false
+        enabled: Kirigami.Settings.isMobile ? pageStack.currentIndex === 0 : false
+        handleClosedIcon.source: "ic_menu"
+        handleOpenIcon.source: "ic_close"
+
         actions: [
             Kirigami.Action {
                 text: qsTr("View")
@@ -32,13 +57,18 @@ Kirigami.ApplicationWindow {
                 }
             },
             Kirigami.Action {
-                text: qsTr("ONVIF Devices")
+                text: qsTr("Monitoring")
                 onTriggered: pageStack.replace(Qt.resolvedUrl(
-                                                   "DeviceSettingsPage.qml"))
+                                                   "MonitoringPage.qml"))
             },
             Kirigami.Action {
-                text: qsTr("Action 2")
-                onTriggered: showPassiveNotification(qsTr("Action 2 clicked"))
+                text: qsTr("ONVIF Devices")
+                onTriggered: pageStack.replace(Qt.resolvedUrl(
+                                                   "DevicesPage.qml"))
+            },
+            Kirigami.Action {
+                text: qsTr("About")
+                onTriggered: pageStack.replace(aboutPage)
             }
         ]
     }
@@ -46,8 +76,6 @@ Kirigami.ApplicationWindow {
     contextDrawer: Kirigami.ContextDrawer {
         id: contextDrawer
     }
-
-    pageStack.initialPage: mainPageComponent
 
     Component {
         id: mainPageComponent
@@ -93,6 +121,38 @@ Kirigami.ApplicationWindow {
                     wrapMode: Text.WordWrap
                     text: "Lorem ipsum dolor sit amet"
                 }
+            }
+        }
+    }
+
+    Component {
+        id: aboutPage
+        Kirigami.AboutPage {
+            aboutData: {
+                "displayName": "KirigamiApp",
+                "productName": "kirigami/app",
+                "componentName": "kirigamiapp",
+                "shortDescription": "A Kirigami example",
+                "homepage": "",
+                "bugAddress": "submit@bugs.kde.org",
+                "version": "5.14.80",
+                "otherText": "",
+                "authors": [{
+                                "name": "...",
+                                "task": "",
+                                "emailAddress": "somebody@kde.org",
+                                "webAddress": "",
+                                "ocsUsername": ""
+                            }],
+                "credits": [],
+                "translators": [],
+                "licenses": [{
+                                 "name": "GPL v2",
+                                 "text": "long, boring, license text",
+                                 "spdx": "GPL-2.0"
+                             }],
+                "copyrightStatement": "© 2010-2018 Plasma Development Team",
+                "desktopFileName": "org.kde.kirigamiapp"
             }
         }
     }

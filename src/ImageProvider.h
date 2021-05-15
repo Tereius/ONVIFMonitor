@@ -5,7 +5,6 @@
 #include <QObject>
 #include <QQuickImageResponse>
 #include <QRunnable>
-#include <QtAV/VideoFrameExtractor.h>
 
 
 class QQuickTextureFactory;
@@ -14,31 +13,26 @@ class ImageProvider : public QObject, public QQuickAsyncImageProvider {
 
 	Q_OBJECT
 
-public:
-	ImageProvider(QObject *pParent = nullptr);
+ public:
+	explicit ImageProvider(QObject *pParent = nullptr);
+	QQuickImageResponse *requestImageResponse(const QString &id, const QSize &requestedSize) override;
 
-	virtual QQuickImageResponse* requestImageResponse(const QString &id, const QSize &requestedSize) override;
-
-private:
+ private:
 	Q_DISABLE_COPY(ImageProvider)
-
 };
 
 
 class AsyncImageResponse : public QQuickImageResponse, public QRunnable {
 
-public:
+ public:
 	AsyncImageResponse(const ProfileId &rProfileId, const QSize &requestedSize);
-	virtual ~AsyncImageResponse();
-	QQuickTextureFactory* textureFactory() const;
-	void run();
-	virtual QString errorString() const override;
+	QQuickTextureFactory *textureFactory() const override;
+	void run() override;
+	QString errorString() const override;
 
-private:
-
+ private:
 	ProfileId mProfileId;
 	QSize mSize;
 	QImage mImage;
 	Result mResult;
-	QtAV::VideoFrameExtractor *mpExtractor;
 };

@@ -18,14 +18,14 @@ class Result {
  public:
 	Result();
 	Result(const Result &rType, const QString &rDetails);
-	~Result() {}
+	~Result() = default;
 	Q_INVOKABLE inline bool isSuccess() const { return !isFault(); }
 	Q_INVOKABLE inline bool isFault() const { return mValue > 0; }
 	inline bool operator==(const Result &rOther) const { return mValue == rOther.mValue; }
 	inline bool operator!=(const Result &rOther) const { return mValue != rOther.mValue; }
 	inline int getErrorCode() const { return mValue; }
-	inline const QString &getLabel() const { return mLabel; }
-	inline const QString &getDetails() const { return mDetails; }
+	Q_INVOKABLE inline QString getLabel() const { return mLabel; }
+	Q_INVOKABLE inline QString getDetails() const { return mDetails; }
 	QString toString() const;
 	void setLabel(const QString &rLabel);
 	void setDetails(const QString &rDetails);
@@ -56,17 +56,17 @@ class DetailedResult : public Result {
  public:
 	DetailedResult() : Result() {}
 	DetailedResult(const Result &rType, const QString &rDetails) : Result(rType, rDetails) {}
+	explicit DetailedResult(T resultObj) : Result(), mResultObject(resultObj) {}
 	void setResultObject(T resultObj) { mResultObject = resultObj; }
 	T GetResultObject() const { return mResultObject; }
 	static DetailedResult fromResponse(const SimpleResponse &rResponse, const QString &rDescription = QString()) {
 		DetailedResult res;
 		if(rResponse.IsFault()) {
 			if(rResponse.IsAuthFault()) {
-				res = DetailedResult(Result::UNAUTHORIZED, rResponse.GetSoapFault());
+				res = DetailedResult(Result::UNAUTHORIZED, rResponse.GetSoapFaultDetail());
 			} else {
-				res = DetailedResult(Result::RPC, rResponse.GetSoapFault());
+				res = DetailedResult(Result::RPC, rResponse.GetSoapFaultDetail());
 			}
-			res.setDetails(rResponse.GetCompleteFault());
 			if(!rDescription.isEmpty()) {
 				res.setLabel(rDescription);
 			}

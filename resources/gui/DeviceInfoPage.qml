@@ -1,154 +1,149 @@
 import QtQuick 2.10
 import QtQuick.Controls 2.3
-import QtQuick.Controls.Material 2.3
-import QtQuick.Controls.Universal 2.3
 import QtQuick.Layouts 1.3
 import org.onvif.device 1.0
 
 Page {
 
-	property var deviceId
+    property var deviceId
 
-	title: qsTr("Device info")
+    title: qsTr("Device info")
 
-	QtObject {
+    QtObject {
 
-		id: d
-		property var deviceInfo: DeviceManager.getDeviceInfo(deviceId)
-	}
+        id: d
+        property var deviceInfo: DeviceManager.getDeviceInfo(deviceId)
+    }
 
-	ListModel {
+    ListModel {
 
-		id: deviceInfoModel
+        id: deviceInfoModel
 
-		dynamicRoles: true
+        dynamicRoles: true
 
-		Component.onCompleted: {
+        Component.onCompleted: {
 
-			if (d.deviceInfo.error) {
-				append({
-						   label: qsTr("Error"),
-						   value: d.deviceInfo.error
-					   })
-			}
-			append({
-					   label: qsTr("Name"),
-					   value: d.deviceInfo.deviceName
-				   })
-			append({
-					   label: qsTr("Id"),
-					   value: d.deviceInfo.deviceId
-				   })
-			append({
-					   label: qsTr("Host"),
-					   value: d.deviceInfo.host
-				   })
-			append({
-					   label: qsTr("Port"),
-					   value: d.deviceInfo.port
-				   })
-			append({
-					   label: qsTr("Endpoint"),
-					   value: d.deviceInfo.deviceEndpoint
-				   })
-			append({
-					   label: qsTr("Endpoint id"),
-					   value: d.deviceInfo.endpointReference
-				   })
-			append({
-					   label: qsTr("Model"),
-					   value: d.deviceInfo.model
-				   })
-			append({
-					   label: qsTr("Manufacturer"),
-					   value: d.deviceInfo.manufacturer
-				   })
-			append({
-					   label: qsTr("Hardware"),
-					   value: d.deviceInfo.hardwareId
-				   })
-			append({
-					   label: qsTr("Firmware"),
-					   value: d.deviceInfo.firmwareVersion
-				   })
-			append({
-					   label: qsTr("Serial Nr"),
-					   value: d.deviceInfo.serialNumber
-				   })
-			append({
-					   label: qsTr("Time offset"),
-					   value: d.deviceInfo.dateTimeOffset
-				   })
-			append({
-					   label: qsTr("Event service"),
-					   value: qsTr("Show more"),
-					   showMoreSource: "EventServiceInfoPage.qml",
-					   showMoreParam: {
-						   deviceId: d.deviceInfo.deviceId
-					   }
-				   })
-			append({
-					   label: qsTr("Media service"),
-					   value: qsTr("Show more"),
-					   showMoreSource: "MediaServiceInfoPage.qml",
-					   showMoreParam: {
-						   deviceId: d.deviceInfo.deviceId
-					   }
-				   })
+            if (d.deviceInfo.error) {
+                append({
+                           "label": qsTr("Error"),
+                           "value": d.deviceInfo.error
+                       })
+            }
+            append({
+                       "label": qsTr("Name"),
+                       "value": d.deviceInfo.deviceName
+                   })
+            append({
+                       "label": qsTr("Id"),
+                       "value": d.deviceInfo.deviceId
+                   })
+            append({
+                       "label": qsTr("Host"),
+                       "value": d.deviceInfo.host
+                   })
+            append({
+                       "label": qsTr("Port"),
+                       "value": d.deviceInfo.port
+                   })
+            append({
+                       "label": qsTr("Endpoint"),
+                       "value": d.deviceInfo.deviceEndpoint
+                   })
+            append({
+                       "label": qsTr("Endpoint id"),
+                       "value": d.deviceInfo.endpointReference
+                   })
+            append({
+                       "label": qsTr("Model"),
+                       "value": d.deviceInfo.model
+                   })
+            append({
+                       "label": qsTr("Manufacturer"),
+                       "value": d.deviceInfo.manufacturer
+                   })
+            append({
+                       "label": qsTr("Hardware"),
+                       "value": d.deviceInfo.hardwareId
+                   })
+            append({
+                       "label": qsTr("Firmware"),
+                       "value": d.deviceInfo.firmwareVersion
+                   })
+            append({
+                       "label": qsTr("Serial Nr"),
+                       "value": d.deviceInfo.serialNumber
+                   })
+            append({
+                       "label": qsTr("Time offset"),
+                       "value": d.deviceInfo.dateTimeOffset
+                   })
+            append({
+                       "label": qsTr("Event service"),
+                       "value": qsTr("Show more"),
+                       "showMoreSource": "EventServiceInfoPage.qml",
+                       "showMoreParam": {
+                           "deviceId": d.deviceInfo.deviceId
+                       }
+                   })
+            append({
+                       "label": qsTr("Media service"),
+                       "value": qsTr("Show more"),
+                       "showMoreSource": "MediaServiceInfoPage.qml",
+                       "showMoreParam": {
+                           "deviceId": d.deviceInfo.deviceId
+                       }
+                   })
 
-			infoListView.model = deviceInfoModel
-		}
-	}
+            infoListView.model = deviceInfoModel
+        }
+    }
 
-	ScrollView {
+    ScrollView {
 
-		anchors.fill: parent
+        anchors.fill: parent
 
-		ListView {
+        ListView {
 
-			id: infoListView
+            id: infoListView
 
-			anchors.fill: parent
+            anchors.fill: parent
 
-			//height: contentHeight
-			//width: parent.width
-			//model: deviceInfoModel
-			delegate: ItemDelegate {
+            //height: contentHeight
+            //width: parent.width
+            //model: deviceInfoModel
+            delegate: ItemDelegate {
 
-				width: parent.width
+                width: parent.width
 
-				onClicked: {
-					if (showMoreSource) {
-						window.push(showMoreSource, showMoreParam)
-					}
-				}
+                onClicked: {
+                    if (showMoreSource) {
+                        window.push(showMoreSource, showMoreParam)
+                    }
+                }
 
-				contentItem: Column {
+                contentItem: Column {
 
-					Label {
-						width: parent.width
-						text: label
+                    Label {
+                        width: parent.width
+                        text: label
+                    }
+                    Text {
+                        width: parent.width
+                        text: value
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    }
+                }
 
-						Material.foreground: Material.accent
-						Universal.foreground: Universal.accent
-					}
-					Text {
-						width: parent.width
-						text: value
-						wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-					}
-				}
+                rightPadding: moreButton.width
 
-				rightPadding: moreButton.width
-
-				Icon {
-					id: moreButton
-					name: "ic_chevron_right"
-					anchors.right: parent.right
-					anchors.verticalCenter: parent.verticalCenter
-					visible: showMoreSource ? true : false
-				}
-			}
-		}
-	}
+                Icon {
+                    id: moreButton
+                    name: "ic_chevron_right"
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: showMoreSource ? true : false
+                }
+            }
+        }
+    }
 }

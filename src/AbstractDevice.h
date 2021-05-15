@@ -7,23 +7,21 @@
 #include <QDateTime>
 #include <QUrl>
 #include <QList>
+#include <QImage>
 
 
 class AbstractDevice {
 
  public:
-	virtual Result initDevice(const QUrl &rEndpoint, const QString &rUser = {}, const QString &rPassword = {}) = 0;
+	// The implementation may perform custom initialization steps. This method may be called multiple times.
+	virtual Result initDevice(const QUrl &rEndpoint, const QString &rUser, const QString &rPassword) = 0;
 	// The implementation should return a globally unique uuid that will never change.
-	// The default implementation generates an id from AbstractDevice::getSerialNumber() and AbstractDevice::getManufacturer()
+	// The default implementation generates an id from its serial number and manufacturer
 	virtual QUuid getDeviceId() const;
-	virtual QString getModel() const = 0;
-	virtual QString getManufacturer() const = 0;
-	virtual QString getSerialNumber() const = 0;
-	virtual QUrl getEndpoint() const = 0;
-	virtual QDateTime getDeviceTime() const = 0;
+	QDateTime getDeviceTime() const;
 	QString getHost() const;
 	int getPort() const;
-	virtual DetailedResult<DeviceInfo> getDeviceInfo() = 0;
+	virtual DeviceInfo getDeviceInfo() const = 0;
 	virtual DetailedResult<QList<MediaProfile>> getyMediaProfiles() = 0;
-	virtual DetailedResult<QUrl> getStreamUrl(const QString &rMediaProfile) = 0;
+	virtual DetailedResult<QImage> getSnapshot(const QString &rMediaProfile) = 0;
 };

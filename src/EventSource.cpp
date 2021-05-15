@@ -80,8 +80,8 @@ QStringList FilteredOnvifDeviceMessage::getTopics() {
 QStringList FilteredOnvifDeviceMessage::getDevices() {
 
 	QStringList ret;
-	for(auto di : DeviceM->getDeviceInfos()) {
-		ret.push_back(di.getDeviceName());
+	for(auto di : DeviceM->getDevices()) {
+		ret.push_back(DeviceM->getName(di));
 	}
 	return ret;
 }

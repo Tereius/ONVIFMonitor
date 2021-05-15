@@ -8,57 +8,60 @@
 EventBindingModel::EventBindingModel(QObject *pParent /*= nullptr*/) : AbstractListModel(pParent), mEventBindings() {
 
 	for(auto binding : EventM->getEventBindings()) {
-		mEventBindings.push_back(QPair<QString, Uuid>(binding->getName(), binding->getId()));
+		mEventBindings.push_back(QPair<QString, QUuid>(binding->getName(), binding->getId()));
 	}
 	sortList();
 
-	connect(EventM, &EventManager::eventBindingAdded, this,
-	        [this](const Uuid &rBindingId) {
-		        auto addedBinding = EventM->getEventBinding(rBindingId);
-		        auto index = 0;
-		        for(int i = 0; i < mEventBindings.size(); ++i) {
-			        if(mEventBindings.at(i).first >= addedBinding->getName()) {
-				        index = i;
-				        break;
-			        }
-		        }
-		        beginInsertRows(QModelIndex(), index, index);
-		        mEventBindings.insert(index, QPair<QString, Uuid>(addedBinding->getName(), addedBinding->getId()));
-		        endInsertRows();
-	        },
-	        Qt::QueuedConnection);
+	connect(
+	 EventM, &EventManager::eventBindingAdded, this,
+	 [this](const QUuid &rBindingId) {
+		 auto addedBinding = EventM->getEventBinding(rBindingId);
+		 auto index = 0;
+		 for(int i = 0; i < mEventBindings.size(); ++i) {
+			 if(mEventBindings.at(i).first >= addedBinding->getName()) {
+				 index = i;
+				 break;
+			 }
+		 }
+		 beginInsertRows(QModelIndex(), index, index);
+		 mEventBindings.insert(index, QPair<QString, QUuid>(addedBinding->getName(), addedBinding->getId()));
+		 endInsertRows();
+	 },
+	 Qt::QueuedConnection);
 
-	connect(EventM, &EventManager::eventBindingRemoved, this,
-	        [this](const Uuid &rBindingId) {
-		        auto foundIndex = -1;
-		        for(auto i = 0; i < mEventBindings.size(); ++i) {
-			        if(mEventBindings.at(i).second == rBindingId) {
-				        foundIndex = i;
-				        break;
-			        }
-		        }
-		        if(foundIndex >= 0) {
-			        beginRemoveRows(QModelIndex(), foundIndex, foundIndex);
-			        mEventBindings.removeAt(foundIndex);
-			        endRemoveRows();
-		        }
-	        },
-	        Qt::QueuedConnection);
+	connect(
+	 EventM, &EventManager::eventBindingRemoved, this,
+	 [this](const QUuid &rBindingId) {
+		 auto foundIndex = -1;
+		 for(auto i = 0; i < mEventBindings.size(); ++i) {
+			 if(mEventBindings.at(i).second == rBindingId) {
+				 foundIndex = i;
+				 break;
+			 }
+		 }
+		 if(foundIndex >= 0) {
+			 beginRemoveRows(QModelIndex(), foundIndex, foundIndex);
+			 mEventBindings.removeAt(foundIndex);
+			 endRemoveRows();
+		 }
+	 },
+	 Qt::QueuedConnection);
 
-	connect(EventM, &EventManager::eventBindingChanged, this,
-	        [this](const Uuid &rBindingId) {
-		        auto foundIndex = -1;
-		        for(auto i = 0; i < mEventBindings.size(); ++i) {
-			        if(mEventBindings.at(i).second == rBindingId) {
-				        foundIndex = i;
-				        break;
-			        }
-		        }
-		        if(foundIndex >= 0) {
-			        emit dataChanged(index(foundIndex), index(foundIndex));
-		        }
-	        },
-	        Qt::QueuedConnection);
+	connect(
+	 EventM, &EventManager::eventBindingChanged, this,
+	 [this](const QUuid &rBindingId) {
+		 auto foundIndex = -1;
+		 for(auto i = 0; i < mEventBindings.size(); ++i) {
+			 if(mEventBindings.at(i).second == rBindingId) {
+				 foundIndex = i;
+				 break;
+			 }
+		 }
+		 if(foundIndex >= 0) {
+			 emit dataChanged(index(foundIndex), index(foundIndex));
+		 }
+	 },
+	 Qt::QueuedConnection);
 }
 
 int EventBindingModel::rowCount(const QModelIndex &parent /*= QModelIndex()*/) const {
@@ -132,7 +135,7 @@ QHash<int, QByteArray> EventBindingModel::roleNames() const {
 	return ret;
 }
 
-Q_INVOKABLE QVariantMap EventBindingModel::get(const Uuid &rBindingId) {
+Q_INVOKABLE QVariantMap EventBindingModel::get(const QUuid &rBindingId) {
 
 	QVariantMap ret;
 	auto index = 0;
@@ -149,5 +152,5 @@ Q_INVOKABLE QVariantMap EventBindingModel::get(const Uuid &rBindingId) {
 void EventBindingModel::sortList() {
 
 	std::sort(mEventBindings.begin(), mEventBindings.end(),
-	          [](QPair<QString, Uuid> left, QPair<QString, Uuid> right) { return left.first.compare(right.first, Qt::CaseInsensitive); });
+	          [](QPair<QString, QUuid> left, QPair<QString, QUuid> right) { return left.first.compare(right.first, Qt::CaseInsensitive); });
 }

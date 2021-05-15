@@ -1,73 +1,71 @@
 import QtQuick 2.10
 import QtQuick.Controls 2.3
-import QtQuick.Controls.Material 2.3
-import QtQuick.Controls.Universal 2.3
 import QtQuick.Layouts 1.3
 import org.onvif.device 1.0
 
 Page {
 
-	title: qsTr("Settings")
+    title: qsTr("Settings")
 
-	ListModel {
+    ListModel {
 
-		id: settingsModel
+        id: settingsModel
 
-		ListElement {
-			label: qsTr("Onvif Devices")
-			source: "DeviceSettingsPage.qml"
-			iconName: "ic_cast_connected"
-		}
-		ListElement {
-			label: qsTr("Media Profiles")
-			source: "MediaProfilesDevicesSettingsPage.qml"
-			iconName: "ic_video_library"
-		}
-		ListElement {
-			label: qsTr("Message/Event Handling")
-			source: "EventSettingsPage.qml"
-			iconName: "ic_appbar_speakerphone"
-		}
-		ListElement {
-			label: qsTr("Other")
-			source: ""
-			iconName: "ic_settings_applications"
-		}
-	}
+        ListElement {
+            label: qsTr("Onvif Devices")
+            source: "DeviceSettingsPage.qml"
+            iconName: "ic_cast_connected"
+        }
+        ListElement {
+            label: qsTr("Media Profiles")
+            source: "MediaProfilesDevicesSettingsPage.qml"
+            iconName: "ic_video_library"
+        }
+        ListElement {
+            label: qsTr("Message/Event Handling")
+            source: "EventSettingsPage.qml"
+            iconName: "ic_appbar_speakerphone"
+        }
+        ListElement {
+            label: qsTr("Other")
+            source: ""
+            iconName: "ic_settings_applications"
+        }
+    }
 
-	ScrollView {
+    ScrollView {
 
-		anchors.fill: parent
+        anchors.fill: parent
 
-		ListView {
+        ListView {
 
-			anchors.fill: parent
+            anchors.fill: parent
 
-			model: settingsModel
+            model: settingsModel
 
-			delegate: ItemDelegate {
+            delegate: ItemDelegate {
 
-				width: parent.width
+                width: parent.width
 
-				text: label
-				icon.name: iconName ? iconName : null
+                text: label
+                icon.name: iconName ? iconName : null
 
-				onClicked: {
+                onClicked: {
 
-					if (source) {
-						window.push(source)
-					}
-				}
+                    if (source) {
+                        window.push(source)
+                    }
+                }
 
-				rightPadding: moreButton.width
+                rightPadding: moreButton.width
 
-				Icon {
-					id: moreButton
-					name: "ic_chevron_right"
-					anchors.right: parent.right
-					anchors.verticalCenter: parent.verticalCenter
-				}
-			}
-		}
-	}
+                Icon {
+                    id: moreButton
+                    name: "ic_chevron_right"
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+        }
+    }
 }

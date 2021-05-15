@@ -1,128 +1,136 @@
 import QtQuick 2.10
 import QtQuick.Controls 2.3
-import QtQuick.Controls.Material 2.3
-import QtQuick.Controls.Universal 2.3
 import QtGraphicalEffects 1.0
 
 Item {
 
-	id: conrol
+    id: conrol
 
-	property alias fillMode: image.fillMode
-	property bool finished: image.status === Image.Ready ? true : false
-	property var profileId
+    property var profileId
+    property alias fillMode: image.fillMode
+    property bool finished: image.status === Image.Ready ? true : false
 
-	onProfileIdChanged: {
+    function refresh() {
 
-		load(profileId)
-	}
+        priv.load(profileId)
+    }
 
-	function load(profileId, timestamp) {
+    height: image.status === Image.Ready ? image.implicitHeight / image.implicitWidth
+                                           * width : image.sourceSize.height
+                                           / image.sourceSize.width * width
 
-		console.debug("Camera snapshot requested for profile: " + profileId)
-		d.profileId = profileId
-		if (!timestamp) {
-			timestamp = new Date()
-		}
-		if (!profileId) {
-			profileId = new ProfileId()
-			console.warn("No profile id given")
-		}
+    onProfileIdChanged: {
 
-		image.source = "image://profile/" + profileId.getDeviceId(
-					) + "/" + profileId.getProfileToken() + "/" + timestamp
-	}
+        priv.load(profileId)
+    }
 
-	QtObject {
+    Image {
 
-		id: d
-		property var profileId
-	}
+        id: image
 
-	Image {
+        anchors.fill: parent
 
-		id: image
+        //mipmap: true
+        asynchronous: false
+        cache: false
+        sourceSize.width: 1280
+        sourceSize.height: 720
 
-		anchors.fill: parent
+        Rectangle {
 
-		asynchronous: false
-		cache: true
-		sourceSize.width: 1280
-		sourceSize.height: 720
+            anchors.fill: parent
 
-		Rectangle {
+            color: palette.base
 
-			anchors.fill: parent
+            visible: image.status === Image.Ready ? false : true
 
-			color: "#EEEEEE"
+            Icon {
 
-			visible: image.status === Image.Ready ? false : true
+                id: loadingIcon
 
-			Icon {
+                name: "ic_linked_camera"
 
-				id: loadingIcon
+                width: Math.round(Math.min(parent.width, parent.height) / 3.0)
+                height: width
 
-				name: "ic_linked_camera"
+                visible: image.status === Image.Loading ? true : false
 
-				width: Math.round(Math.min(parent.width, parent.height) / 3.0)
-				height: width
+                anchors.centerIn: parent
 
-				visible: image.status === Image.Loading ? true : false
+                SequentialAnimation {
 
-				anchors.centerIn: parent
+                    running: true
+                    loops: Animation.Infinite
+                    OpacityAnimator {
 
-				SequentialAnimation {
+                        target: loadingIcon
+                        from: 0
+                        to: 1
+                        duration: 1000
+                        easing.type: Easing.InOutSine
+                    }
 
-					running: true
-					loops: Animation.Infinite
-					OpacityAnimator {
+                    OpacityAnimator {
 
-						target: loadingIcon
-						from: 0
-						to: 1
-						duration: 1000
-						easing.type: Easing.InOutSine
-					}
+                        target: loadingIcon
+                        from: 1
+                        to: 0
+                        duration: 1000
+                        easing.type: Easing.InOutSine
+                    }
+                }
+            }
 
-					OpacityAnimator {
+            Icon {
 
-						target: loadingIcon
-						from: 1
-						to: 0
-						duration: 1000
-						easing.type: Easing.InOutSine
-					}
-				}
-			}
+                id: loadingFailedIcon
 
-			Icon {
+                name: "ic_warning"
 
-				id: loadingFailedIcon
+                width: Math.round(Math.min(parent.width, parent.height) / 3.0)
+                height: width
 
-				name: "ic_warning"
+                visible: image.status === Image.Error ? true : false
 
-				width: Math.round(Math.min(parent.width, parent.height) / 3.0)
-				height: width
+                anchors.centerIn: parent
+            }
+        }
 
-				visible: image.status === Image.Error ? true : false
+        WRoundButton {
 
-				anchors.centerIn: parent
-			}
-		}
+            anchors.right: parent.right
+            anchors.margins: 10
+            anchors.bottom: parent.bottom
 
-		WRoundButton {
+            visible: image.status === Image.Loading ? false : true
+            icon.name: "ic_refresh"
 
-			anchors.right: parent.right
-			anchors.margins: 10
-			anchors.bottom: parent.bottom
+            onClicked: {
 
-			visible: image.status === Image.Loading ? false : true
-			icon.name: "ic_refresh"
+                priv.load(priv.profileId)
+            }
+        }
+    }
 
-			onClicked: {
+    QtObject {
 
-				conrol.load(d.profileId)
-			}
-		}
-	}
+        id: priv
+        property var profileId
+
+        function load(profileId, timestamp) {
+
+            console.debug("Camera snapshot requested for profile: " + profileId)
+            priv.profileId = profileId
+            if (!timestamp) {
+                timestamp = new Date()
+            }
+            if (!profileId) {
+                profileId = new ProfileId()
+                console.warn("No profile id given")
+            }
+
+            image.source = "image://profile/" + profileId.getDeviceId(
+                        ) + "/" + profileId.getProfileToken() + "/" + timestamp
+        }
+    }
 }

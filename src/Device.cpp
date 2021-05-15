@@ -9,9 +9,9 @@
 #include <QtConcurrent>
 
 
-#define shortId mDeviceInfo.getDeviceId().toShortString().toLocal8Bit().constData()
+#define shortId mDeviceInfo.getDeviceId().toString().toLocal8Bit().constData()
 
-Device::Device(const QUrl &rDeviceEndpoint, const Uuid &rDeviceId, const QString &rDeviceName /*= QString()*/,
+Device::Device(const QUrl &rDeviceEndpoint, const QUuid &rDeviceId, const QString &rDeviceName /*= QString()*/,
                QObject *pParent /*= nullptr*/) :
  QObject(pParent),
  mDeviceEndpoint(rDeviceEndpoint),
@@ -107,7 +107,7 @@ QString Device::getDeviceName() {
 	return mDeviceInfo.getDeviceName();
 }
 
-Uuid Device::getDeviceId() {
+QUuid Device::getDeviceId() {
 
 	QMutexLocker lock(&mMutex);
 	return mDeviceInfo.getDeviceId();
