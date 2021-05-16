@@ -24,7 +24,7 @@ class DeviceInfo {
 	Q_PROPERTY(qint64 dateTimeOffset MEMBER mDateTimeOffset CONSTANT)
 	Q_PROPERTY(QUuid endpointReference MEMBER mEndpointReference CONSTANT)
 	Q_PROPERTY(bool hasMediaService MEMBER mHasMediaService CONSTANT)
-	Q_PROPERTY(QList<MediaProfile> mediaProfiles MEMBER mMediaProfiles CONSTANT)
+	Q_PROPERTY(QList<MediaProfile> mediaProfiles MEMBER mMediaProfiles)
 
  public:
 	QString mDeviceName = QString();
@@ -41,5 +41,5 @@ class DeviceInfo {
 	qint64 mDateTimeOffset = 0;
 	QUuid mEndpointReference = QUuid();
 	bool mHasMediaService = false;
-	QList<MediaProfile> mMediaProfiles;
+	QList<MediaProfile> mMediaProfiles = {};
 };

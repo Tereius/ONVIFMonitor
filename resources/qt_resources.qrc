@@ -54,5 +54,7 @@
         <file>gui/FormLayout.qml</file>
         <file>gui/BusyCombobox.qml</file>
         <file>gui/MonitoringPage.qml</file>
+        <file>gui/Tile.qml</file>
+        <file>gui/TileLayout.qml</file>
     </qresource>
 </RCC>

@@ -1,6 +1,7 @@
 import QtQuick 2.10
 import QtQml 2.12
 import QtQuick.Controls 2.3
+import org.onvif.device 1.0
 import QtAV 1.7
 
 Pane {
@@ -35,6 +36,7 @@ Pane {
         MouseArea {
             anchors.fill: parent
             onClicked: {
+
                 if (player.playbackState === MediaPlayer.PlayingState) {
                     player.stop()
                 } else {

@@ -23,7 +23,7 @@ QQuickImageResponse *ImageProvider::requestImageResponse(const QString &id, cons
 AsyncImageResponse::AsyncImageResponse(const ProfileId &rProfileId, const QSize &requestedSize) :
  QQuickImageResponse(), QRunnable(), mProfileId(rProfileId), mSize(requestedSize), mImage(), mResult() {
 
-	setAutoDelete(true);
+	setAutoDelete(false);
 }
 
 QQuickTextureFactory *AsyncImageResponse::textureFactory() const {

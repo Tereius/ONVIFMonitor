@@ -30,7 +30,7 @@ Item {
 
         anchors.fill: parent
 
-        //mipmap: true
+        mipmap: true
         asynchronous: false
         cache: false
         sourceSize.width: 1280

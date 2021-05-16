@@ -10,62 +10,50 @@ Kirigami.ScrollablePage {
 
     title: qsTr("Monitoring")
 
-    ListModel {
-        id: fruitModel
+    ColumnLayout {
+        TileLayout {
 
-        ListElement {
-            name: "Apple"
-            cost: 2.45
+            id: tyleLayout
         }
-        ListElement {
-            name: "Orange"
-            cost: 3.25
-        }
-        ListElement {
-            name: "Banana"
-            cost: 1.95
-        }
-    }
 
-    DeviceModel {
+        RowLayout {
+            Tile {
 
-        id: deviceModel
-    }
+                color: "red"
+                opacity: 0.5
+            }
 
-    ListView {
+            Tile {
 
-        model: deviceModel
+                color: "green"
+                opacity: 0.5
+            }
 
-        anchors.fill: parent
+            Tile {
 
-        delegate: Rectangle {
-
-            color: "transparent"
-            border.color: "black"
-            border.width: 1
-            width: parent.width
-            height: 400
-
-            VideoWallPane {
-                anchors.fill: parent
-
-                property string streamS: {
-
-                    var deviceInfo = DeviceManager.getDeviceInfo(id)
-                    if (deviceInfo.hasMediaService) {
-                        stremUrl = deviceInfo.mediaProfiles
-                    }
-                }
+                color: "blue"
+                opacity: 0.5
+                rowSpan: 2
             }
         }
 
-        section.delegate: Kirigami.ListSectionHeader {
-            label: "adsf"
-            Button {
-                text: "Button 1"
-            }
-            Button {
-                text: "Button 2"
+        SpinBox {
+            id: from
+            editable: true
+        }
+
+        SpinBox {
+            id: to
+            editable: true
+        }
+
+        Button {
+
+            text: "move"
+            onClicked: {
+
+                tyleLayout.moveTile(tyleLayout.tileAt(from.value), to.value)
+                from.value = to.value
             }
         }
     }

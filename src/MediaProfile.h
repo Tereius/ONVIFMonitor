@@ -1,5 +1,7 @@
 #pragma once
 #include "ProfileId.h"
+#include "Result.h"
+#include "QuickFuture/quickfuture.h"
 #include <QUuid>
 #include <QMetaType>
 #include <QString>
@@ -19,6 +21,8 @@ class StreamUrl {
 	QUrl mUrl;
 	StreamProtocol mProtocol;
 };
+
+Q_DECLARE_METATYPE(QList<StreamUrl>)
 
 class MediaProfile {
 
@@ -55,3 +59,7 @@ class MediaProfile {
 	QString mToken;
 	bool mFixed;
 };
+
+Q_DECLARE_METATYPE(QList<MediaProfile>)
+Q_DECLARE_METATYPE(DetailedResult<QList<MediaProfile>>)
+Q_DECLARE_METATYPE(QFuture<DetailedResult<QList<MediaProfile>>>)

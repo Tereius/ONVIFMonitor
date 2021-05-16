@@ -29,9 +29,6 @@ Q_DECLARE_METATYPE(DetailedResult<QUrl>)
 Q_DECLARE_METATYPE(QFuture<DetailedResult<QUrl>>)
 Q_DECLARE_METATYPE(DetailedResult<QUuid>)
 Q_DECLARE_METATYPE(QFuture<DetailedResult<QUuid>>)
-Q_DECLARE_METATYPE(QList<MediaProfile>)
-Q_DECLARE_METATYPE(DetailedResult<QList<MediaProfile>>)
-Q_DECLARE_METATYPE(QFuture<DetailedResult<QList<MediaProfile>>>)
 
 QUuid ApplicationData::createUuid() const {
 

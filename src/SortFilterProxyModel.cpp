@@ -2,19 +2,23 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QJSEngine>
+#include <QCoreApplication>
 #include <cstdint>
 
+bool aboutToQuit = false;
 
 SortFilterProxyModel::SortFilterProxyModel(QObject *parent /*= nullptr*/) : QSortFilterProxyModel(parent), mHasFunctor(false) {
 
 	connect(this, &SortFilterProxyModel::rowsInserted, this, &SortFilterProxyModel::countChanged);
 	connect(this, &SortFilterProxyModel::rowsRemoved, this, &SortFilterProxyModel::countChanged);
 	connect(this, &SortFilterProxyModel::modelReset, this, &SortFilterProxyModel::countChanged);
+	connect(qApp, &QCoreApplication::aboutToQuit, this, []() { aboutToQuit = true; });
 }
 
 SortFilterProxyModel::~SortFilterProxyModel() {
 
-	deleteJsFunctor();
+	if(!aboutToQuit)
+		deleteJsFunctor(); // TODO: Workaround - Leads to segfault if the dtor is called in the process of QQmlEngine getting destroyed
 }
 
 void SortFilterProxyModel::setSortOrder(SortOrder sortOrder) {
