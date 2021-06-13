@@ -14,9 +14,11 @@ Kirigami.ScrollablePage {
         TileLayout {
 
             id: tyleLayout
+            rowSpacing: from.value
+            columnSpacing: to.value
         }
 
-        RowLayout {
+        Row {
             Tile {
 
                 color: "red"
@@ -35,6 +37,14 @@ Kirigami.ScrollablePage {
                 opacity: 0.5
                 rowSpan: 2
             }
+
+            Tile {
+
+                color: "red"
+                opacity: 0.5
+                rowSpan: 2
+                columnSpan: 2
+            }
         }
 
         SpinBox {
@@ -45,16 +55,6 @@ Kirigami.ScrollablePage {
         SpinBox {
             id: to
             editable: true
-        }
-
-        Button {
-
-            text: "move"
-            onClicked: {
-
-                tyleLayout.moveTile(tyleLayout.tileAt(from.value), to.value)
-                from.value = to.value
-            }
         }
     }
 }

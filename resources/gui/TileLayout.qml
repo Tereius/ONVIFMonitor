@@ -45,12 +45,20 @@ Grid {
 
     function dragEntered(row, column, drag) {
 
+        if (drag.source && drag.source.dragActive) {
+
+            var tile = drag.source
+            d.dragActive = Qt.binding(function () {
+                return tile.dragActive
+            })
+        }
+
         console.log("drag entered in row " + row + " column " + column + " source " + drag.source)
 
         lastStackIndex = d.index()
         console.log("saved undo stack index " + lastStackIndex)
 
-        findSpot(toIndex(row, column))
+        findSpot(drag.source, toIndex(row, column))
 
         drag.source.width = grid.atomicWidth * drag.source.columnSpan
                 + (drag.source.columnSpan - 1) * grid.columnSpacing
@@ -61,7 +69,18 @@ Grid {
     function dragExited(row, column, drag) {
 
         console.log("drag exited in row " + row + " column " + column)
-        d.revertBack(lastStackIndex)
+
+
+        /*
+        for (var i = column; i < column + columnSpan && hasSpace; i++) {
+            for (var ii = row; ii < row + rowSpan && hasSpace; ii++) {
+                let tileHolder = tileHolderAt(toIndex(ii, i))
+                if (!tileHolder || (tileHolder && tileHolder.tile
+                                    && tileHolder.tile !== tile)) {
+                    hasSpace = false
+                }
+            }
+        }*/
     }
 
     function dragFinished(row, column, drag) {
@@ -72,7 +91,10 @@ Grid {
         console.log("adding to tile holder in row" + drag.tileHolder.row
                     + " column " + drag.tileHolder.column)
 
-        moveTile(drag.source, toIndex(row, column))
+        makePermanent()
+        if (canMoveTile(drag.source, toIndex(row, column))) {
+            moveTile(drag.source, toIndex(row, column), [], true)
+        }
     }
 
     function addTile(tile, targetIndex) {
@@ -81,13 +103,13 @@ Grid {
         if (tileHolderTarget) {
             if (!tileHolderTarget.tile) {
                 console.log("Adding tile to " + targetIndex)
-                tile.parent = tileHolderTarget
+                tile.reparent(tileHolderTarget)
                 tileHolderTarget.tile = tile
             }
         }
     }
 
-    function canMoveTile(tile, targetIndex) {
+    function canMoveTile(tile, targetIndex, ignoreTiles) {
 
         if (tile) {
             let row = toPosition(targetIndex).row
@@ -96,12 +118,16 @@ Grid {
                                    grid.rows)
             let columnSpan = Math.min(Math.max(Math.round(tile.columnSpan), 1),
                                       grid.columns)
+            let ignore = [tile]
+            if (Array.isArray(ignoreTiles)) {
+                ignore = ignore.concat(ignoreTiles)
+            }
             let hasSpace = true
             for (var i = column; i < column + columnSpan && hasSpace; i++) {
                 for (var ii = row; ii < row + rowSpan && hasSpace; ii++) {
                     let tileHolder = tileHolderAt(toIndex(ii, i))
                     if (!tileHolder || (tileHolder && tileHolder.tile
-                                        && tileHolder.tile !== tile)) {
+                                        && !ignore.includes(tileHolder.tile))) {
                         hasSpace = false
                     }
                 }
@@ -111,12 +137,37 @@ Grid {
         return false
     }
 
-    function moveTile(tile, targetIndex) {
+    function resetTiles() {
+        console.warn("----- reset")
+        for (let key in tmpMovedTile) {
+            let tileHolder = tmpMovedTile[key]
+            if (tileHolder && tileHolder.tile) {
+                tileHolder.tile.reparent(tileHolder)
+            }
+        }
+        tmpMovedTile.length = 0
+    }
+
+    function makePermanent() {
+        console.warn("----- make permanent")
+        for (let key in tmpMovedTile) {
+            let tileHolder = tmpMovedTile[key]
+            if (tileHolder && tileHolder.tile) {
+                moveTile(tileHolder.tile,
+                         toIndex(tileHolder.tile.row,
+                                 tileHolder.tile.column), [], true)
+            }
+        }
+        tmpMovedTile.length = 0
+    }
+
+    // If permanent == false no canMoveTile checks are performed
+    function moveTile(tile, targetIndex, ignoreTiles, permanent) {
 
         let tileHolderTarget = tileHolderAt(targetIndex)
-        if (tile && tileHolderTarget && canMoveTile(
-                    tile, toIndex(tileHolderTarget.row,
-                                  tileHolderTarget.column))) {
+        console.warn("--------------- move tile " + tile
+                     + " -- holder target -- " + tileHolderTarget)
+        if (tile && tileHolderTarget) {
 
             let row = toPosition(targetIndex).row
             let column = toPosition(targetIndex).column
@@ -128,23 +179,45 @@ Grid {
             let rowOrigin = tile.row
             let columnOrigin = tile.column
 
-            if (rowOrigin >= 0 && columnOrigin >= 0) {
-                for (var i = columnOrigin; i < columnOrigin + columnSpan; i++) {
-                    for (var ii = rowOrigin; ii < rowOrigin + rowSpan; ii++) {
-                        let tileHolder = tileHolderAt(toIndex(ii, i))
-                        if (tileHolder) {
-                            tileHolder.tile = null
+            if (permanent) {
+
+                // rowOrigin and columnOrigin may only point to the visual position (if the tile was moved temporarly). We need the owning parent
+                for (let key in tmpMovedTile) {
+                    let owningTileHolder = tmpMovedTile[key]
+                    if (owningTileHolder) {
+                        let potentialTile = owningTileHolder.tile
+                        if (potentialTile === tile) {
+                            rowOrigin = owningTileHolder.row
+                            columnOrigin = owningTileHolder.column
+                            break
+                        }
+                    }
+                }
+
+                if (rowOrigin >= 0 && columnOrigin >= 0) {
+                    for (var i = columnOrigin; i < columnOrigin + columnSpan; i++) {
+                        for (var ii = rowOrigin; ii < rowOrigin + rowSpan; ii++) {
+                            let tileHolder = tileHolderAt(toIndex(ii, i))
+                            if (tileHolder && tileHolder.tile === tile) {
+                                tileHolder.tile = null
+                                tileHolder.tileIndex = 0
+                            }
                         }
                     }
                 }
             }
 
-            tile.parent = tileHolderTarget
-            for (var i = column; i < column + columnSpan; i++) {
-                for (var ii = row; ii < row + rowSpan; ii++) {
-                    let tileHolder = tileHolderAt(toIndex(ii, i))
-                    if (tileHolder) {
-                        tileHolder.tile = tile
+            tile.reparent(tileHolderTarget)
+
+            if (permanent) {
+                let counter = 0
+                for (var i = row; i < row + rowSpan; i++) {
+                    for (var ii = column; ii < column + columnSpan; ii++) {
+                        let tileHolder = tileHolderAt(toIndex(i, ii))
+                        if (tileHolder) {
+                            tileHolder.tile = tile
+                            tileHolder.tileIndex = counter++
+                        }
                     }
                 }
             }
@@ -163,47 +236,126 @@ Grid {
         return undefined
     }
 
-    //! Find the next free spot for the tile at index
-    function findSpot(index) {
+    readonly property var tmpMovedTile: []
 
+    //! Find a free spot for the tile at index
+    function findSpot(tile, index) {
         let tileHolder = tileHolderAt(index)
-        if (tileHolder && tileHolder.tile) {
-            let oldRow = tileHolder.row
-            let oldCol = tileHolder.column
-            let newRow = tileHolder.row + 1
-            let newCol = tileHolder.column
-            console.log("proposed new pos " + newRow + " " + newCol)
-            let otherTileHolder = tileHolderAt(toIndex(newRow, newCol))
-            if (otherTileHolder) {
-                if (!otherTileHolder.tile) {
-                    console.log("move tile " + toIndex(oldRow,
-                                                       oldCol) + " " + toIndex(
-                                    newRow, newCol))
 
-                    d.pushUndoRedoStack(function () {
-                        moveTile(toIndex(oldRow, oldCol),
-                                 toIndex(newRow, newCol))
-                    }, function () {
-                        moveTile(toIndex(newRow, newCol),
-                                 toIndex(oldRow, oldCol))
-                    })
-                } else {
-                    findSpot(toIndex(newRow, newCol))
+        if (tile && tileHolder && tileHolder.tile && tile !== tileHolder.tile) {
 
-                    d.pushUndoRedoStack(function () {
-                        moveTile(toIndex(oldRow, oldCol),
-                                 toIndex(newRow, newCol))
-                    }, function () {
-                        moveTile(toIndex(newRow, newCol),
-                                 toIndex(oldRow, oldCol))
-                    })
-                }
+            let tileMove = tileHolder.tile
+            let owningTileHolderMove = tileHolderAt(
+                    toIndex(
+                        tileHolder.row - Math.floor(
+                            tileHolder.tileIndex / tileMove.columnSpan),
+                        tileHolder.column - tileHolder.tileIndex % tileMove.columnSpan))
+            let tileMoveRow = tileHolder.row - Math.floor(
+                    tileHolder.tileIndex / tileMove.columnSpan)
+            let tileMoveColumn = tileHolder.column - tileHolder.tileIndex % tileMove.columnSpan
+
+            let tileRowSpan = Math.min(Math.max(Math.round(tile.rowSpan), 1),
+                                       grid.rows)
+            let tileColumnSpan = Math.min(Math.max(Math.round(tile.columnSpan),
+                                                   1), grid.columns)
+            let tileMoveRowSpan = Math.min(Math.max(Math.round(
+                                                        tileMove.rowSpan), 1),
+                                           grid.rows)
+            let tileMoveColumnSpan = Math.min(
+                    Math.max(Math.round(tileMove.columnSpan), 1), grid.columns)
+
+            function intersectRect(index, targetIndex) {
+
+                let targetTop = toPosition(targetIndex).row
+                let targetLeft = toPosition(targetIndex).column
+                let targetBottom = toPosition(
+                        targetIndex).row + tileMoveRowSpan - 1
+                let targetRight = toPosition(
+                        targetIndex).column + tileMoveColumnSpan - 1
+                let srcTop = toPosition(index).row
+                let srcLeft = toPosition(index).column
+                let srcBottom = toPosition(index).row + tileRowSpan - 1
+                let srcRight = toPosition(index).column + tileColumnSpan - 1
+
+                var leftX = Math.max(srcLeft, targetLeft)
+                var rightX = Math.min(srcRight, targetRight)
+                var topY = Math.max(srcTop, targetTop)
+                var bottomY = Math.min(srcBottom, targetBottom)
+
+                return Qt.rect(leftX, topY, rightX - leftX, bottomY - bottomY)
             }
+
+            function intersects(index, targetIndex) {
+
+                let targetTop = toPosition(targetIndex).row
+                let targetLeft = toPosition(targetIndex).column
+                let targetBottom = toPosition(
+                        targetIndex).row + tileMoveRowSpan - 1
+                let targetRight = toPosition(
+                        targetIndex).column + tileMoveColumnSpan - 1
+                let srcTop = toPosition(index).row
+                let srcLeft = toPosition(index).column
+                let srcBottom = toPosition(index).row + tileRowSpan - 1
+                let srcRight = toPosition(index).column + tileColumnSpan - 1
+                let ret = srcLeft <= targetRight && srcRight >= targetLeft
+                    && srcTop <= targetBottom && srcBottom >= targetTop
+                console.warn(
+                            "-------- intersects " + ret + " src (" + srcLeft
+                            + "," + srcTop + ")(" + srcRight + "," + srcBottom
+                            + ")" + " target (" + targetLeft + "," + targetTop + ")("
+                            + targetRight + "," + targetBottom + ")" + " -- " + intersectRect(
+                                index, targetIndex))
+                return ret
+            }
+
+            let moveDownIndex = toIndex(tileMoveRow + tileRowSpan,
+                                        tileMoveColumn)
+            let moveUpIndex = toIndex(tileMoveRow - tileRowSpan, tileMoveColumn)
+            let moveLeftIndex = toIndex(tileMoveRow,
+                                        tileMoveColumn - tileColumnSpan)
+            let moveRightIndex = toIndex(tileMoveRow,
+                                         tileMoveColumn + tileColumnSpan)
+
+            if (canMoveTile(tileMove, moveRightIndex,
+                            [tile]) && !intersects(index, moveRightIndex)) {
+                //Move right
+                grid.tmpMovedTile.push(owningTileHolderMove)
+                moveTile(tileMove, moveRightIndex, [], false)
+                console.warn("-------- move right")
+            } else if (canMoveTile(tileMove, moveLeftIndex,
+                                   [tile]) && !intersects(index,
+                                                          moveLeftIndex)) {
+                //Move left
+                grid.tmpMovedTile.push(owningTileHolderMove)
+                moveTile(tileMove, moveLeftIndex, [], false)
+                console.warn("-------- move left")
+            } else if (canMoveTile(tileMove, moveDownIndex,
+                                   [tile]) && !intersects(index,
+                                                          moveDownIndex)) {
+                // Move down
+                grid.tmpMovedTile.push(owningTileHolderMove)
+                moveTile(tileMove, moveDownIndex, [], false)
+                console.warn("-------- move down")
+            } else if (canMoveTile(tileMove, moveUpIndex,
+                                   [tile]) && !intersects(index, moveUpIndex)) {
+                // Move up
+                grid.tmpMovedTile.push(owningTileHolderMove)
+                moveTile(tileMove, moveUpIndex, [], false)
+                console.warn("-------- move up")
+            } else {
+                console.warn("-------- nowhere to move")
+            }
+        } else {
+
+            resetTiles()
         }
     }
 
     function toIndex(row, column) {
-        return row * grid.columns + column
+        if (row < grid.rows && column < grid.columns) {
+            return row * grid.columns + column
+        }
+        return -1
     }
 
     function toPosition(index) {
@@ -360,8 +512,12 @@ Grid {
         delegate: Rectangle {
 
             id: tileHolder
+            border.width: 1
+            border.color: "black"
+            color: "transparent"
 
             property Tile tile: null
+            property int tileIndex: 0
             property bool ownedTile: false
 
             readonly property int modelIndex: index
@@ -370,6 +526,8 @@ Grid {
 
             property int rowSpan: 1
             property int columnSpan: 1
+
+            objectName: "TileHolder(" + row + "," + column + ")"
 
             implicitHeight: grid.atomicHeight
             implicitWidth: grid.atomicWidth
@@ -395,34 +553,36 @@ Grid {
                 }
 
                 if (containsDrag) {
-                    d.dragActive = true
                     highlightItem = highlightComponent.createObject(tileHolder,
                                                                     {
                                                                         "width": highlightItemWidth,
                                                                         "height": highlightItemHeight,
-                                                                        "z": 0.5
+                                                                        "z": -1
                                                                     })
                 } else {
-                    d.dragActive = false
                     if (highlightItem)
                         highlightItem.destroy()
                 }
             }
 
-            z: 0 + (tile
-                    && tile.dragActive ? 1 : 0) + (ownedTile ? 1 : 0) + (containsDrag ? 1 : 0)
-
+            z: (ownedTile ? 1 : 0) + (tile
+                                      && tile.dragActive ? 1 : 0) //+ (containsDrag ? 1 : 0)
             onTileChanged: {
                 if (tile) {
                     var owned = false
                     for (var child in tileHolder.children) {
                         if (tileHolder.children[child] === tileHolder.tile) {
                             owned = true
+                            //tile.scale = Qt.binding(function () {
+                            //    return d.dragActive
+                            //            && !this.dragActive ? 0.9 : 1
+                            //})
                             break
                         }
                     }
-                    if (owned !== tileHolder.ownedTile)
+                    if (owned !== tileHolder.ownedTile) {
                         tileHolder.ownedTile = owned
+                    }
                     console.log("Gained tile at index " + index
                                 + (tileHolder.ownedTile ? " owning it" : ""))
                     tileHolder.rowSpan = Qt.binding(function () {
@@ -446,7 +606,8 @@ Grid {
             }
 
             Label {
-                text: tileHolder.tile ? (tileHolder.ownedTile ? "To" : "T") : ""
+                text: tileHolder.tile ? (tileHolder.ownedTile ? "To" + tileIndex : "T"
+                                                                + tileIndex) : ""
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
             }
@@ -455,7 +616,7 @@ Grid {
                 enabled: true
                 NumberAnimation {
                     duration: 150
-                    easing: Easing.InCubic
+                    easing.type: Easing.InCubic
                 }
             }
 
@@ -463,7 +624,7 @@ Grid {
                 enabled: true
                 NumberAnimation {
                     duration: 150
-                    easing: Easing.InCubic
+                    easing.type: Easing.InCubic
                 }
             }
 
@@ -471,12 +632,11 @@ Grid {
                 enabled: true
                 NumberAnimation {
                     duration: 150
-                    easing: Easing.InCubic
+                    easing.type: Easing.InCubic
                 }
             }
 
-            scale: d.dragActive ? 0.8 : 1
-
+            //scale: d.dragActive ? 0.9 : 1
             DropArea {
                 id: drop
                 scale: 1 / parent.scale
@@ -486,19 +646,14 @@ Grid {
                 anchors.topMargin: -grid.rowSpacing / 2
                 anchors.bottomMargin: -grid.rowSpacing / 2
 
-                Rectangle {
-                    color: "red"
-                    anchors.fill: parent
-                    opacity: 0.5
-                }
-
                 onEntered: {
                     drag.tileHolder = tileHolder
-                    if (!grid.canMoveTile(drag.source,
-                                          grid.toIndex(tileHolder.row,
-                                                       tileHolder.column)))
+                    if (false && !grid.canMoveTile(drag.source, grid.toIndex(
+                                                       tileHolder.row,
+                                                       tileHolder.column))) {
+                        console.warn("drag rejected")
                         drag.accepted = false
-                    else
+                    } else
                         grid.dragEntered(tileHolder.row,
                                          tileHolder.column, drag)
                 }
@@ -509,6 +664,7 @@ Grid {
                 }
 
                 onDropped: {
+                    drop.accept(Qt.MoveAction)
                     drop.tileHolder = tileHolder
                     grid.dragFinished(tileHolder.row, tileHolder.column, drop)
                 }
@@ -522,6 +678,7 @@ Grid {
         Rectangle {
 
             color: "green"
+            opacity: 0.5
         }
     }
 }

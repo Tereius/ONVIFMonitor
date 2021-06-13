@@ -18,9 +18,8 @@ Rectangle {
     implicitHeight: 48 * rowSpan
     implicitWidth: 48 * columnSpan
 
-    anchors.top: parent ? parent.top : undefined
-    anchors.left: parent ? parent.left : undefined
-
+    //anchors.top: parent ? parent.top : undefined
+    //anchors.left: parent ? parent.left : undefined
     color: "red"
     objectName: "item-(" + row + ", " + column + ")"
 
@@ -28,33 +27,68 @@ Rectangle {
     Drag.active: mouseArea.drag.active
     Drag.hotSpot.x: width / columnSpan / 2
     Drag.hotSpot.y: height / rowSpan / 2
-    states: State {
-        when: mouseArea.drag.active
-        //ParentChange {
-        //    target: tile
-        //    parent: root
-        //}
-        AnchorChanges {
-            target: tile
-            anchors.top: undefined
-            anchors.left: undefined
+
+    function reparent(newParent) {
+        if (newParent && newParent !== tile.parent) {
+            let from = mapToItem(newParent, 0, 0)
+            tile.parent = newParent
+            animX.from = from.x
+            animY.from = from.y
+            animX.to = 0
+            animY.to = 0
+            animX.restart()
+            animY.restart()
         }
     }
 
-    transitions: Transition {
-        ParentAnimation {
-            NumberAnimation {
-                properties: "x,y"
-                duration: 1000
+    onStateChanged: {
+        console.warn("state changed: " + state)
+    }
+
+    states: [
+        State {
+            when: !mouseArea.drag.active
+            name: "dragging"
+
+
+            /*
+            ParentChange {
+                id: parentChange
+                target: tile
+            }*/
+            PropertyChanges {
+                target: tile
+                x: 0
+                y: 0
             }
         }
+    ]
+
+    NumberAnimation {
+        id: animX
+        target: tile
+        duration: 250
+        easing.type: Easing.OutQuad
+        property: "x"
+        running: false
     }
 
+    NumberAnimation {
+        id: animY
+        target: tile
+        duration: 250
+        easing.type: Easing.OutQuad
+        property: "y"
+        running: false
+    }
+
+
+    /*
     Behavior on width {
         enabled: tile.Drag.active
         NumberAnimation {
             duration: 150
-            easing: Easing.InCubic
+            easing.type: Easing.InCubic
         }
     }
 
@@ -62,10 +96,10 @@ Rectangle {
         enabled: tile.Drag.active
         NumberAnimation {
             duration: 150
-            easing: Easing.InCubic
+            easing.type: Easing.InCubic
         }
     }
-
+*/
     Text {
         anchors.centerIn: parent
         text: tile.row + "," + tile.column + " " + tile.index
@@ -81,7 +115,8 @@ Rectangle {
 
         onReleased: {
             var dropAction = tile.Drag.drop()
-            console.info("Drop accepted " + tile.Drag.target)
+            console.info("Drop accepted " + tile.Drag.target + " action "
+                         + (dropAction != Qt.IgnoreAction ? "accepted" : "rejected"))
             //if (dropAction !== Qt.IgnoreAction && tile.Drag.target)
             //tile.parent = tile.Drag.target
         } //tile.parent = tile.Drag.target !== null ? tile.Drag.target : tile.parent
