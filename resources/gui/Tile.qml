@@ -10,10 +10,10 @@ Rectangle {
     readonly property int index: parent
                                  && parent.modelIndex != null ? parent.modelIndex : -1
 
+    readonly property bool dragActive: mouseArea.drag.active
+
     property int rowSpan: 1
     property int columnSpan: 1
-
-    property bool dragActive: mouseArea.drag.active
 
     implicitHeight: 48 * rowSpan
     implicitWidth: 48 * columnSpan
@@ -23,8 +23,9 @@ Rectangle {
     color: "red"
     objectName: "item-(" + row + ", " + column + ")"
 
-    Drag.keys: [objectName]
+    Drag.keys: ["tile"]
     Drag.active: mouseArea.drag.active
+    Drag.dragType: Drag.Internal
     Drag.hotSpot.x: width / columnSpan / 2
     Drag.hotSpot.y: height / rowSpan / 2
 
@@ -40,29 +41,6 @@ Rectangle {
             animY.restart()
         }
     }
-
-    onStateChanged: {
-        console.warn("state changed: " + state)
-    }
-
-    states: [
-        State {
-            when: !mouseArea.drag.active
-            name: "dragging"
-
-
-            /*
-            ParentChange {
-                id: parentChange
-                target: tile
-            }*/
-            PropertyChanges {
-                target: tile
-                x: 0
-                y: 0
-            }
-        }
-    ]
 
     NumberAnimation {
         id: animX
@@ -82,24 +60,6 @@ Rectangle {
         running: false
     }
 
-
-    /*
-    Behavior on width {
-        enabled: tile.Drag.active
-        NumberAnimation {
-            duration: 150
-            easing.type: Easing.InCubic
-        }
-    }
-
-    Behavior on height {
-        enabled: tile.Drag.active
-        NumberAnimation {
-            duration: 150
-            easing.type: Easing.InCubic
-        }
-    }
-*/
     Text {
         anchors.centerIn: parent
         text: tile.row + "," + tile.column + " " + tile.index
@@ -109,16 +69,15 @@ Rectangle {
     MouseArea {
         id: mouseArea
 
-        anchors.fill: parent
-
+        anchors.fill: tile
         drag.target: tile
-
-        onReleased: {
-            var dropAction = tile.Drag.drop()
-            console.info("Drop accepted " + tile.Drag.target + " action "
-                         + (dropAction != Qt.IgnoreAction ? "accepted" : "rejected"))
-            //if (dropAction !== Qt.IgnoreAction && tile.Drag.target)
-            //tile.parent = tile.Drag.target
-        } //tile.parent = tile.Drag.target !== null ? tile.Drag.target : tile.parent
+        drag.filterChildren: true
+        drag.onActiveChanged: {
+            if (!mouseArea.drag.active) {
+                tile.Drag.drop()
+                tile.x = 0
+                tile.y = 0
+            }
+        }
     }
 }

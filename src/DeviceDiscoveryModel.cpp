@@ -58,9 +58,12 @@ QVariant DeviceDiscoveryModel::data(const QModelIndex &index, int role /*= Qt::D
 			case Enums::Roles::NameRole: {
 				QString deviceName = "";
 				for(const auto &scope : match.GetScopes()) {
-					if(scope.startsWith("onvif://www.onvif.org/name/")) {
-						deviceName = scope.mid(27);
-						break;
+					if(scope.startsWith("onvif://www.onvif.org/")) {
+						QUrl onvifScope = QUrl(scope);
+						if(onvifScope.path().startsWith("/name/")) {
+							deviceName = onvifScope.path().mid(6);
+							break;
+						}
 					}
 				}
 				ret = !deviceName.isEmpty() ? deviceName : endpoint.host();

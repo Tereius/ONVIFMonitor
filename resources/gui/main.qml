@@ -32,6 +32,8 @@ Kirigami.ApplicationWindow {
         DeviceManager.initialize()
     }
 
+    onActiveFocusItemChanged: console.warn("activeFocus: " + activeFocusItem)
+
     globalDrawer: Kirigami.GlobalDrawer {
         title: Qt.application.name
         titleIcon: "applications-graphics"

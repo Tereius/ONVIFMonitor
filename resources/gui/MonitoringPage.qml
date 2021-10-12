@@ -10,51 +10,64 @@ Kirigami.ScrollablePage {
 
     title: qsTr("Monitoring")
 
-    ColumnLayout {
-        TileLayout {
+    FocusScope {
+        ColumnLayout {
 
-            id: tyleLayout
-            rowSpacing: from.value
-            columnSpacing: to.value
-        }
+            objectName: "test"
 
-        Row {
-            Tile {
+            TileLayout {
 
-                color: "red"
-                opacity: 0.5
+                id: tyleLayout
+                //rowSpacing: from.value
+                //columnSpacing: to.value
+                focus: true
             }
 
-            Tile {
+            Row {
+                Tile {
 
-                color: "green"
-                opacity: 0.5
+                    color: "red"
+                    opacity: 0.5
+                }
+
+                Tile {
+
+                    color: "green"
+                    opacity: 0.5
+                }
+
+                Tile {
+
+                    color: "blue"
+                    opacity: 0.5
+                    rowSpan: 2
+                }
+
+                Tile {
+
+                    color: "yellow"
+                    opacity: 0.5
+                    columnSpan: 2
+                }
+
+                Tile {
+
+                    color: "red"
+                    opacity: 0.5
+                    rowSpan: 2
+                    columnSpan: 2
+                }
             }
 
-            Tile {
-
-                color: "blue"
-                opacity: 0.5
-                rowSpan: 2
+            SpinBox {
+                id: from
+                editable: true
             }
 
-            Tile {
-
-                color: "red"
-                opacity: 0.5
-                rowSpan: 2
-                columnSpan: 2
+            SpinBox {
+                id: to
+                editable: true
             }
-        }
-
-        SpinBox {
-            id: from
-            editable: true
-        }
-
-        SpinBox {
-            id: to
-            editable: true
         }
     }
 }

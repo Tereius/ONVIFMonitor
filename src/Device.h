@@ -20,7 +20,7 @@ class Device : public QObject {
 
  public:
 	Device(const QUrl &rDeviceEndpoint, const QUuid &rDeviceId, const QString &rDeviceName = QString(), QObject *pParent = nullptr);
-	~Device() = default;
+	~Device() override = default;
 	Result initialize();
 	DeviceInfo getDeviceInfo();
 	QString getDeviceName();

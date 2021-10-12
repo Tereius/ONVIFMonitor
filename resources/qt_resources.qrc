@@ -56,5 +56,7 @@
         <file>gui/MonitoringPage.qml</file>
         <file>gui/Tile.qml</file>
         <file>gui/TileLayout.qml</file>
+        <file>gui/TileLayoutLogic.qml</file>
+        <file>gui/TileLayoutData.qml</file>
     </qresource>
 </RCC>

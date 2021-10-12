@@ -1,17 +1,17 @@
 #include "Cryptography.h"
 #include <QMessageAuthenticationCode>
+#include <limits>
 
 
-QByteArray Cryptography::pbkdf2(QCryptographicHash::Algorithm method, const QByteArray &rPassword, const QByteArray &rSalt, int rounds, int keyLength) {
+QByteArray Cryptography::pbkdf2(QCryptographicHash::Algorithm method, const QByteArray &rPassword, const QByteArray &rSalt, int rounds,
+                                int keyLength) {
 
 	if(rPassword.isEmpty() == true || rSalt.isEmpty() == true) return QByteArray();
 
 	QByteArray key;
-	if(rounds < 1 || keyLength < 1)
-		return QByteArray();
+	if(rounds < 1 || keyLength < 1) return QByteArray();
 
-	if(rSalt.size() == 0 || rSalt.size() > std::numeric_limits<int>::max() - 4)
-		return QByteArray();
+	if(rSalt.size() == 0 || rSalt.size() > std::numeric_limits<int>::max() - 4) return QByteArray();
 
 	QByteArray asalt = rSalt;
 	asalt.resize(rSalt.size() + 4);
