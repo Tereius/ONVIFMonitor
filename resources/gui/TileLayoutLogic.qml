@@ -46,6 +46,95 @@ QtObject {
 
     onCollisionDetected: (model, tile, index, intersections) => {
 
+                             for (let key in intersections) {
+                                 // Some constants
+                                 let tileRow = model.toPosition(index).row
+                                 let tileColumn = model.toPosition(index).column
+                                 let tileMove = intersections[key].tile
+                                 let intersection = intersections[key].intersection
+                                 let tileRowSpan = Math.min(
+                                     Math.max(Math.round(tile.rowSpan), 1),
+                                     model.rows)
+                                 let tileColumnSpan = Math.min(
+                                     Math.max(Math.round(tile.columnSpan), 1),
+                                     model.columns)
+                                 let tileMoveRowSpan = Math.min(
+                                     Math.max(Math.round(tileMove.rowSpan), 1),
+                                     model.rows)
+                                 let tileMoveColumnSpan = Math.min(
+                                     Math.max(Math.round(tileMove.columnSpan),
+                                              1), model.columns)
+                                 let maxWidthTile = tile.columnSpan
+                                 > tileMove.columnSpan ? tile : tileMove
+                                 let maxHeightTile = tile.rowSpan
+                                 > tileMove.rowSpan ? tile : tileMove
+
+                                 let moveDownIndex = model.toIndex(
+                                     tileRow + tileRowSpan, tileMove.column)
+                                 let moveUpIndex = model.toIndex(
+                                     tileRow - tileMoveRowSpan, tileMove.column)
+                                 let moveLeftIndex = model.toIndex(
+                                     tileMove.row,
+                                     tileColumn - tileMoveColumnSpan)
+                                 let moveRightIndex = model.toIndex(
+                                     tileMove.row, tileColumn + tileColumnSpan)
+
+                                 // Determine the affinity where the 'tileMove' wants to move
+                                 let preferedMoveAffinity = []
+
+                                 if (model.canMoveTile(tileMove,
+                                                       moveRightIndex,
+                                                       [tile])) {
+                                     preferedMoveAffinity.push(moveRightIndex)
+                                 }
+
+                                 if (model.canMoveTile(tileMove, moveLeftIndex,
+                                                       [tile])) {
+                                     preferedMoveAffinity.push(moveLeftIndex)
+                                 }
+
+                                 if (model.canMoveTile(tileMove, moveDownIndex,
+                                                       [tile])) {
+                                     preferedMoveAffinity.push(moveDownIndex)
+                                 }
+
+                                 if (model.canMoveTile(tileMove, moveUpIndex,
+                                                       [tile])) {
+                                     preferedMoveAffinity.push(moveUpIndex)
+                                 }
+
+                                 preferedMoveAffinity.sort(
+                                     function (leftIndex, rightIndex) {
+                                         let leftDistance = Math.abs(
+                                                 model.toPosition(
+                                                     leftIndex).row - tileMove.row) + Math.abs(
+                                                 model.toPosition(
+                                                     leftIndex).column - tileMove.column)
+
+                                         let rightDistance = Math.abs(
+                                                 model.toPosition(
+                                                     rightIndex).row - tileMove.row) + Math.abs(
+                                                 model.toPosition(
+                                                     rightIndex).column - tileMove.column)
+
+                                         return leftDistance - rightDistance
+                                     })
+
+                                 console.warn(
+                                     "ääääääääää " + preferedMoveAffinity)
+
+                                 if (preferedMoveAffinity.length > 0) {
+
+                                     model.moveTile(tileMove,
+                                                    preferedMoveAffinity[0],
+                                                    [tile])
+                                 }
+
+                                 // The horizontal move affinity is inverted if the width of 'tile' is bigger than 'tileMove'
+                             }
+
+
+                             /*
                              console.debug(
                                  "emit collisionDetected(" + tile + ", " + index + ")")
 
@@ -155,6 +244,7 @@ QtObject {
                                      console.warn("-------- nowhere to move")
                                  }
                              }
+                             */
                          }
 
     function undo() {
@@ -224,7 +314,6 @@ QtObject {
         if (tile && tileHolderTarget && logic.canMoveTile(tile, targetIndex,
                                                           ignoreTiles)) {
             let oldIndex = logic.toIndex(tile.row, tile.column)
-            console.warn("oldindex ----- " + tile)
             logic._private.pushUndoRedoCommand(function () {
                 logic._moveTile(tile, targetIndex, ignoreTiles)
             }, function () {
@@ -234,14 +323,22 @@ QtObject {
         }
     }
 
+
+    /**
+     * The given tile is not moved at all but the tile at index (if there is one) will make place.
+     * This function can be called several times in succession for the same tile but you have to finish it off
+     * either by calling finishProposeMoveTile() or cancelProposeMoveTile().
+     * The typical use case is if a user drags a tile over another tile which then moves out of the way
+     *
+     * @param type:tile tile The tile object
+     * @param type:int index The index where to move the tile
+     */
     function proposeMoveTile(tile, index) {
 
         if (logic._private.proposeMoveTile
                 && logic._private.proposeMoveTile.equals(tile)) {
             logic._private.setIndex(logic._private.proposeMoveUndoStackIndex)
-            console.warn("--------------- ############## back")
         } else {
-            console.warn("--------------- ##############")
             logic._private.proposeMoveTile = tile
             logic._private.proposeMoveUndoStackIndex = logic._private.index()
         }
@@ -273,7 +370,12 @@ QtObject {
                 var topY = Math.max(srcTop, targetTop)
                 var bottomY = Math.min(srcBottom, targetBottom)
 
-                return Qt.rect(leftX, topY, rightX - leftX, bottomY - topY)
+                return {
+                    "column": leftX,
+                    "row": topY,
+                    "columnSpan": rightX - leftX,
+                    "rowSpan": bottomY - topY
+                }
             }
         }
 
@@ -312,17 +414,32 @@ QtObject {
             logic.collisionDetected(d.model, tile, index, intersections)
     }
 
+
+    /**
+     * The given tile is finally moved and the proposed layout is applyd
+     *
+     * @param type:tile tile The tile object
+     * @param type:int index The index where to move the tile
+     */
     function finishProposeMoveTile(tile, index) {
 
         if (logic._private.proposeMoveTile
                 && logic._private.proposeMoveTile.equals(tile)) {
             moveTile(tile, index, [])
         }
-        cancelProposeMoveTile()
+        logic._private.proposeMoveTile = null
+        logic._private.proposeMoveUndoStackIndex = 0
     }
 
+
+    /**
+     * The layout is reverted to the state before proposeMoveTile() was called
+     */
     function cancelProposeMoveTile() {
 
+        if (logic._private.proposeMoveTile) {
+            logic._private.setIndex(logic._private.proposeMoveUndoStackIndex)
+        }
         logic._private.proposeMoveTile = null
         logic._private.proposeMoveUndoStackIndex = 0
     }

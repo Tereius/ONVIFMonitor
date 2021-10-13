@@ -65,8 +65,8 @@ Control {
 
         readonly property int maxIndex: toIndex(rows - 1, columns - 1)
 
-        //columnSpacing: 4
-        //rowSpacing: 4
+        columnSpacing: 10
+        rowSpacing: 10
         rows: 6
         columns: 6
 
@@ -158,6 +158,11 @@ Control {
                     }
                 }
             }
+        }
+
+        function tileHolderAtPosition(x, y) {
+
+            return grid.childAt(x, y)
         }
 
         function tileHolderAt(index) {
@@ -392,6 +397,9 @@ Control {
                 property var highlightItem: null
 
                 property bool containsDrag: drop.containsDrag
+                                            && grid.tileHolderAtPosition(
+                                                drop.drag.x,
+                                                drop.drag.y) === tileHolder
 
                 onContainsDragChanged: {
                     let highlightItemWidth = grid.atomicWidth
@@ -404,6 +412,7 @@ Control {
                                                                    tile.column))
                         if (!tileModel)
                             tileModel = tile
+
                         let rowSpan = Math.min(Math.max(Math.round(
                                                             tile.rowSpan), 1),
                                                grid.rows)
@@ -434,6 +443,7 @@ Control {
                 }
 
                 z: (ownedTile ? 1 : 0) + (tile && tile.dragActive ? 1 : 0)
+
                 onTileChanged: {
                     if (tile) {
                         var owned = false
@@ -502,105 +512,89 @@ Control {
                         easing.type: Easing.InCubic
                     }
                 }
-
-                DropArea {
-                    id: drop
-                    scale: 1 / parent.scale
-                    keys: ["tile"]
-                    anchors.fill: parent
-                    anchors.leftMargin: -grid.columnSpacing / 2
-                    anchors.rightMargin: -grid.columnSpacing / 2
-                    anchors.topMargin: -grid.rowSpacing / 2
-                    anchors.bottomMargin: -grid.rowSpacing / 2
-
-                    function dragCanceled() {}
-
-                    onEntered: drag => {
-
-                                   if (drag.source
-                                       && drag.source instanceof Tile) {
-                                       var tile = drag.source
-
-                                       let modelTile = d.model.tileAt(
-                                           d.model.toIndex(tile.row,
-                                                           tile.column))
-
-                                       if (tile.row < 0 && tile.column < 0) {
-
-                                           // A new tile
-                                           console.debug(
-                                               "A new tile entered " + tileHolder.objectName)
-                                       } else {
-                                           console.debug(
-                                               "An existing tile entered " + tileHolder.objectName)
-                                       }
-
-                                       if (!modelTile) {
-                                           // A new tile
-                                           modelTile = d.model._private.newTile(
-                                               -1, -1, drag.source.rowSpan,
-                                               drag.source.columnSpan)
-                                       }
-
-                                       console.log(
-                                           "drag entered in row " + row + " column "
-                                           + column + " source " + drag.source)
-
-                                       d.model.proposeMoveTile(modelTile,
-                                                               d.model.toIndex(
-                                                                   row, column))
-                                   }
-                               }
-
-                    onDropped: drop => {
-
-                                   if (drop.source
-                                       && drop.source instanceof Tile) {
-
-                                       var tile = drop.source
-                                       let modelTile = d.model.tileAt(
-                                           d.model.toIndex(tile.row,
-                                                           tile.column))
-
-                                       if (tile.row < 0 && tile.column < 0) {
-
-                                           // A new tile
-                                           console.debug(
-                                               "A new tile dropped " + tileHolder.objectName)
-                                       } else {
-                                           console.debug(
-                                               "An existing tile dropped " + tileHolder.objectName)
-                                       }
-
-                                       if (!modelTile) {
-                                           // A new tile
-                                           modelTile = d.model._private.newTile(
-                                               -1, -1, tile.rowSpan,
-                                               tile.columnSpan)
-
-                                           console.warn(
-                                               "------" + tile + " " + d.visualTiles)
-                                           d.visualTiles[modelTile.id] = tile
-                                       }
-
-                                       drop.accept(Qt.MoveAction)
-
-                                       console.log(
-                                           "drop finished in row " + row + " column "
-                                           + column + " spanning rows " + tile.rowSpan
-                                           + ", columns " + tile.columnSpan)
-
-                                       console.log(
-                                           "adding to tile holder in row " + row
-                                           + " column " + column)
-
-                                       d.model.finishProposeMoveTile(
-                                           modelTile,
-                                           d.model.toIndex(row, column))
-                                   }
-                               }
-                }
             }
+        }
+    }
+
+    DropArea {
+        id: drop
+        keys: ["tile"]
+        anchors.fill: parent
+
+        function handleDrag(drag) {
+
+            if (drag.source && drag.source instanceof Tile) {
+
+                var tileHolder = grid.tileHolderAtPosition(drag.x, drag.y)
+
+                if (tileHolder) {
+
+                    var tile = drag.source
+
+                    let modelTile = d.model.tileAt(d.model.toIndex(tile.row,
+                                                                   tile.column))
+
+                    if (!modelTile) {
+                        // A new tile
+                        modelTile = d.model._private.newTile(
+                                    -1, -1, drag.source.rowSpan,
+                                    drag.source.columnSpan)
+                    }
+
+                    d.model.proposeMoveTile(modelTile,
+                                            d.model.toIndex(tileHolder.row,
+                                                            tileHolder.column))
+                }
+            } else {
+                d.model.cancelProposeMoveTile()
+                drag.accepted = false
+            }
+        }
+
+        onPositionChanged: drag => {
+                               handleDrag(drag)
+                           }
+
+        onEntered: drag => {
+                       handleDrag(drag)
+                   }
+
+        onDropped: drop => {
+
+                       handleDrag(drop)
+
+                       var tileHolder = grid.tileHolderAtPosition(drag.x,
+                                                                  drag.y)
+
+                       if (tileHolder && drop.source
+                           && drop.source instanceof Tile) {
+                           var tile = drop.source
+
+                           let modelTile = d.model.tileAt(
+                               d.model.toIndex(tile.row, tile.column))
+
+                           if (!modelTile) {
+                               // A new tile
+                               modelTile = d.model._private.newTile(
+                                   -1, -1, tile.rowSpan, tile.columnSpan)
+
+                               d.visualTiles[modelTile.id] = tile
+                           }
+
+                           drop.accept(Qt.MoveAction)
+
+                           d.model.finishProposeMoveTile(modelTile,
+                                                         d.model.toIndex(
+                                                             tileHolder.row,
+                                                             tileHolder.column))
+                       } else {
+                           d.model.cancelProposeMoveTile()
+                           drop.accepted = false
+                       }
+                   }
+
+        onExited: {
+            d.model.cancelProposeMoveTile()
         }
     }
 }
