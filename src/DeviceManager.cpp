@@ -1,19 +1,17 @@
 #include "DeviceManager.h"
 #include "DeviceInfo.h"
-#include "Window.h"
 #include "OnvifDevice.h"
+#include "Window.h"
 #include "asyncfuture.h"
-#include <QGlobalStatic>
 #include <QCoreApplication>
-#include <QSettings>
 #include <QDebug>
 #include <QFuture>
-#include <QtConcurrent>
+#include <QGlobalStatic>
 #include <QMutexLocker>
-#include <QFutureWatcher>
+#include <QSettings>
+#include <QtConcurrent>
 
 
-Q_GLOBAL_STATIC(DeviceManager, globalManager)
 #define SECRET "yoY,V<EN.!0KPMpp" // Don't change. Otherwise saved passwords will be lost
 #define GENERIC_DEVICE_NAME "New Device"
 
@@ -28,11 +26,6 @@ void DeviceManager::initialize() {
 		initDevices();
 		initialized = true;
 	}
-}
-
-DeviceManager *DeviceM {
-
-	return globalManager;
 }
 
 void DeviceManager::removeDevice(const QUuid &rDeviceId) {
@@ -263,24 +256,60 @@ QFuture<DetailedResult<QList<MediaProfile>>> DeviceManager::getMediaProfiles(con
 	auto deviceEntry = mDevices.value(resolveId(rDeviceId));
 	mMutex.unlock();
 	if(deviceEntry.mDevice) {
-		return QtConcurrent::run([deviceEntry]() { return deviceEntry.mDevice->getyMediaProfiles(); });
+		return QtConcurrent::run([deviceEntry]() { return deviceEntry.mDevice->getMediaProfiles(); });
 	}
 	auto d = AsyncFuture::deferred<DetailedResult<QList<MediaProfile>>>();
 	d.complete(DetailedResult<QList<MediaProfile>>(Result::OK, tr("Can't get media profiles. The device doesn't exist.")));
 	return d.future();
 }
 
-QFuture<DetailedResult<QImage>> DeviceManager::getSnapshot(const QUuid &rDeviceId, const QString &rMediaProfile) {
+QUrl DeviceManager::getStreamUrl(const QUuid &rDeviceId, const QString &rMediaProfileToken) {
 
 	mMutex.lock();
 	auto deviceEntry = mDevices.value(resolveId(rDeviceId));
 	mMutex.unlock();
 	if(deviceEntry.mDevice) {
-		return QtConcurrent::run([deviceEntry, rMediaProfile]() { return deviceEntry.mDevice->getSnapshot(rMediaProfile); });
+		auto deviceInfo = deviceEntry.mDevice->getDeviceInfo();
+		MediaProfile profile;
+		for(const auto &rProfile : deviceInfo.mMediaProfiles) {
+			if(rProfile.getToken().compare(rMediaProfileToken) == 0) {
+				if(!rProfile.mStreamUrls.isEmpty()) {
+					return rProfile.mStreamUrls.first().mUrlWithCredentials;
+				}
+			}
+		}
+	}
+	return {};
+}
+
+QFuture<DetailedResult<QImage>> DeviceManager::getSnapshot(const QUuid &rDeviceId, const QString &rMediaProfileToken,
+                                                           const QSize &rSize /*= QSize()*/) {
+
+	mMutex.lock();
+	auto deviceEntry = mDevices.value(resolveId(rDeviceId));
+	mMutex.unlock();
+	if(deviceEntry.mDevice) {
+		auto deviceInfo = deviceEntry.mDevice->getDeviceInfo();
+		MediaProfile profile;
+		for(const auto &rProfile : deviceInfo.mMediaProfiles) {
+			if(rProfile.getToken().compare(rMediaProfileToken) == 0) {
+				profile = rProfile;
+				break;
+			}
+		}
+		return deviceEntry.mDevice->getSnapshot(profile, rSize);
 	}
 	auto d = AsyncFuture::deferred<DetailedResult<QImage>>();
 	d.complete(DetailedResult<QImage>(Result::OK, tr("Can't get snapshot. The device doesn't exist.")));
 	return d.future();
+}
+
+QSharedPointer<AbstractDevice> DeviceManager::getDevice(const QUuid &rDeviceId) {
+
+	mMutex.lock();
+	auto deviceEntry = mDevices.value(resolveId(rDeviceId));
+	mMutex.unlock();
+	return deviceEntry.mDevice;
 }
 
 void DeviceManager::initDevices() {

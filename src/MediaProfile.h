@@ -1,24 +1,26 @@
 #pragma once
 #include "ProfileId.h"
-#include "Result.h"
 #include "QuickFuture/quickfuture.h"
-#include <QUuid>
+#include "Result.h"
 #include <QMetaType>
 #include <QString>
 #include <QUrl>
+#include <QUuid>
 
 
 class StreamUrl {
 
 	Q_GADGET
 	Q_PROPERTY(QUrl url MEMBER mUrl CONSTANT)
+	Q_PROPERTY(QUrl urlWithCredentials MEMBER mUrlWithCredentials CONSTANT)
 	Q_PROPERTY(StreamProtocol protocol MEMBER mProtocol CONSTANT)
 
  public:
-	enum StreamProtocol { UNKNOWN = 0, SP_UDP, SP_TCP, SP_RTSP, SP_HTTP };
+	enum StreamProtocol { UNKNOWN = 0, SP_UDP, SP_UDP_MULTICAST, SP_TCP, SP_RTSP, SP_HTTP };
 	Q_ENUM(StreamProtocol);
 
 	QUrl mUrl;
+	QUrl mUrlWithCredentials;
 	StreamProtocol mProtocol;
 };
 

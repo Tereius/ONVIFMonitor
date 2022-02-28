@@ -1,7 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>gui/main.qml</file>
-        <file>gui/qtquickcontrols2.conf</file>
+        <file>qtquickcontrols2.conf</file>
         <file>gui/banner.jpg</file>
         <file>gui/gallery/ButtonGallery.qml</file>
         <file>gui/gallery/CheckBoxGallery.qml</file>
@@ -54,9 +54,19 @@
         <file>gui/FormLayout.qml</file>
         <file>gui/BusyCombobox.qml</file>
         <file>gui/MonitoringPage.qml</file>
-        <file>gui/Tile.qml</file>
-        <file>gui/TileLayout.qml</file>
-        <file>gui/TileLayoutLogic.qml</file>
-        <file>gui/TileLayoutData.qml</file>
+        <file>gui/FixedSizeGridLayout.qml</file>
+        <file>gui/CameraStream.qml</file>
+        <file>gui/Style.qml</file>
+        <file>gui/controls/Button.qml</file>
+        <file>gui/controls/TextField.qml</file>
+        <file>gui/controls/ComboBox.qml</file>
+        <file>gui/controls/GroupBox.qml</file>
+        <file>gui/root.qml</file>
+        <file>gui/controls/TabButtonFolding.qml</file>
+        <file>gui/controls/TabBarFolding.qml</file>
+        <file>gui/AboutPage.qml</file>
+        <file>gui/PlaceholderPage.qml</file>
+        <file>gui/controls/Icon.qml</file>
+        <file>gui/controls/Popup.qml</file>
     </qresource>
 </RCC>

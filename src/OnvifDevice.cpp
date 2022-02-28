@@ -1,27 +1,72 @@
 #include "OnvifDevice.h"
+#include "App.h"
+#include "FrameExtractor.h"
+#include "HttpClient.h"
+#include "MediaPlayer.h"
 #include "OnvifDeviceClient.h"
 #include "OnvifEventClient.h"
 #include "OnvifMediaClient.h"
 #include "SoapHelper.h"
-#include "HttpClient.h"
-#include <QTime>
+#include "asyncfuture.h"
+#include "mdk/Player.h"
 #include <QScopedPointer>
+#include <QtConcurrent>
 #include <cmath>
 
+
+DetailedResult<QImage> getSnapshotInternal(const MediaProfile &profile, const QSize &rSize, const QSharedPointer<HttpClient> &httpClient,
+                                           QSharedPointer<QAtomicInt> isCanceled, const QString &rUser, const QString &rPassword,
+                                           bool forceSnapshotFromStream) {
+
+	DetailedResult<QImage> result(Result::FAULT, "Generic snapshot fault");
+	if(profile.mSnapshotCapability && profile.mSnapshotUrl.isValid() && !forceSnapshotFromStream && isCanceled->load() == false) {
+		auto response = httpClient->get(profile.mSnapshotUrl);
+		if(response && !response.GetResultObject().isEmpty() && isCanceled->load() == false) {
+			auto image = QImage::fromData(response.GetResultObject());
+			if(rSize.isValid()) {
+				image = image.scaled(rSize, Qt::KeepAspectRatio);
+			}
+			result = DetailedResult<QImage>(image);
+		} else {
+			result = DetailedResult<QImage>::fromResponse(response);
+		}
+	}
+	if(!result && isCanceled->load() == false) {
+		qInfo() << "Fallback to getSnapshotFromStream()";
+		if(!profile.mStreamUrls.isEmpty()) {
+			for(auto streamUrl : profile.mStreamUrls) {
+				result = MediaPlayer::getSnapshot(streamUrl);
+				if(result) {
+					break;
+				}
+			}
+		} else {
+			result =
+			 (DetailedResult<QImage>(Result::FAULT, QObject::tr("The device doesn't provide any stream urls \"%1\"").arg(profile.getToken())));
+		}
+	}
+	if(isCanceled->load() == true) {
+		result = DetailedResult<QImage>(Result::FAULT, QObject::tr("The snapshot request was canceled"));
+	}
+	return result;
+}
 
 OnvifDevice::OnvifDevice() : mDeviceInfo(), mpDeviceClient(nullptr), mpEventClient(nullptr), mpMediaClient(nullptr) {
 
 	mpDeviceClient = new OnvifDeviceClient(QUrl(), SoapCtx::Builder()
+	                                                .SetUserAgent(App::getDefaultUserAgent())
 #ifdef WITH_OPENSSL
 	                                                .EnableSsl()
 #endif
 	                                                .Build());
 	mpEventClient = new OnvifEventClient(QUrl(), SoapCtx::Builder()
+	                                              .SetUserAgent(App::getDefaultUserAgent())
 #ifdef WITH_OPENSSL
 	                                              .EnableSsl()
 #endif
 	                                              .Build());
 	mpMediaClient = new OnvifMediaClient(QUrl(), SoapCtx::Builder()
+	                                              .SetUserAgent(App::getDefaultUserAgent())
 #ifdef WITH_OPENSSL
 	                                              .EnableSsl()
 #endif
@@ -148,7 +193,7 @@ Result OnvifDevice::initDevice(const QUrl &rEndpoint, const QString &rUser, cons
 	mDeviceInfo.mInitialized = result.isSuccess();
 
 	if(mDeviceInfo.mInitialized && mDeviceInfo.mHasMediaService) {
-		auto mediaProfilesResult = getyMediaProfiles();
+		auto mediaProfilesResult = getMediaProfiles();
 		if(mediaProfilesResult) {
 			mDeviceInfo.mMediaProfiles = mediaProfilesResult.GetResultObject();
 		} else {
@@ -169,7 +214,7 @@ DeviceInfo OnvifDevice::getDeviceInfo() const {
 	return mDeviceInfo;
 }
 
-DetailedResult<QList<MediaProfile>> OnvifDevice::getyMediaProfiles() {
+DetailedResult<QList<MediaProfile>> OnvifDevice::getMediaProfiles() {
 
 	if(!mDeviceInfo.mInitialized) {
 		return DetailedResult<QList<MediaProfile>>(Result::FAULT, QObject::tr("The device is not initialized"));
@@ -184,12 +229,13 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getyMediaProfiles() {
 	bool hasStreaming = true;
 	bool hasRtpOverTcp = false;
 	bool hasRtpOverRtspOverTcp = false;
-	bool hasRtpOverRtspOverHttpOverTcp = true; // TODO: No capability check
+	bool hasRtpOverRtspOverHttpOverTcp = true; // TODO: No capability check - disable for now doesn't work with test devices
+	bool hasMulticast = false;
 
 	Request<_trt__GetServiceCapabilities> capRequest;
 	auto capResponse = mpMediaClient->GetServiceCapabilities(capRequest);
 	if(capResponse && capResponse.GetResultObject()) {
-		auto capability = capResponse.GetResultObject();
+		const auto *capability = capResponse.GetResultObject();
 		if(capability->Capabilities) {
 			if(capability->Capabilities->SnapshotUri) hasSnapshotCapability = *capability->Capabilities->SnapshotUri;
 			if(capability->Capabilities->StreamingCapabilities) {
@@ -199,6 +245,8 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getyMediaProfiles() {
 					hasRtpOverTcp = *capability->Capabilities->StreamingCapabilities->RTP_USCORETCP;
 				if(capability->Capabilities->StreamingCapabilities->RTP_USCORERTSP_USCORETCP)
 					hasRtpOverRtspOverTcp = *capability->Capabilities->StreamingCapabilities->RTP_USCORERTSP_USCORETCP;
+				if(capability->Capabilities->StreamingCapabilities->RTPMulticast)
+					hasMulticast = *capability->Capabilities->StreamingCapabilities->RTPMulticast;
 			}
 		}
 	} else {
@@ -209,12 +257,14 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getyMediaProfiles() {
 	Request<_trt__GetProfiles> profilesRequest;
 	auto profilesResponse = mpMediaClient->GetProfiles(profilesRequest);
 	if(profilesResponse) {
-		for(auto profile : profilesResponse.GetResultObject()->Profiles) {
+		for(auto *profile : profilesResponse.GetResultObject()->Profiles) {
 			if(profile) {
 				MediaProfile retProfile(getDeviceId());
 				retProfile.setName(profile->Name);
 				retProfile.setToken(profile->token);
-				retProfile.setFixed(profile->fixed);
+				if(profile->fixed) {
+					retProfile.setFixed(*profile->fixed);
+				}
 				retProfile.mSnapshotCapability = hasSnapshotCapability;
 
 				if(hasSnapshotCapability) {
@@ -222,7 +272,7 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getyMediaProfiles() {
 					snapshotRequest.ProfileToken = profile->token;
 					auto snapshotRespoinse = mpMediaClient->GetSnapshotUri(snapshotRequest);
 					if(snapshotRespoinse) {
-						if(auto snapshotResult = snapshotRespoinse.GetResultObject()) {
+						if(const auto *snapshotResult = snapshotRespoinse.GetResultObject()) {
 							if(snapshotResult->MediaUri) retProfile.mSnapshotUrl = QUrl::fromUserInput(snapshotResult->MediaUri->Uri);
 						}
 					}
@@ -237,25 +287,49 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getyMediaProfiles() {
 					streamRequest.StreamSetup->Transport->Protocol = tt__TransportProtocol::UDP;
 					auto streamResponse = mpMediaClient->GetStreamUri(streamRequest);
 					if(streamResponse) {
-						if(auto streamResult = streamResponse.GetResultObject()) {
+						if(const auto *streamResult = streamResponse.GetResultObject()) {
 							if(streamResult->MediaUri) {
 								StreamUrl streamUrl;
 								streamUrl.mProtocol = StreamUrl::SP_UDP;
-								streamUrl.mUrl = QUrl::fromUserInput(streamResult->MediaUri->Uri);
+								streamUrl.mUrl = streamUrl.mUrlWithCredentials = QUrl::fromUserInput(streamResult->MediaUri->Uri);
+								streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
+								streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
 								retProfile.mStreamUrls.push_back(streamUrl);
 							}
 						}
 					}
 
+					if(hasMulticast) {
+						streamRequest.StreamSetup->Stream = tt__StreamType::RTP_Multicast;
+						streamRequest.StreamSetup->Transport->Protocol = tt__TransportProtocol::UDP;
+						streamResponse = mpMediaClient->GetStreamUri(streamRequest);
+						if(streamResponse) {
+							if(const auto *streamResult = streamResponse.GetResultObject()) {
+								if(streamResult->MediaUri) {
+									StreamUrl streamUrl;
+									streamUrl.mProtocol = StreamUrl::SP_UDP_MULTICAST;
+									streamUrl.mUrl = streamUrl.mUrlWithCredentials = QUrl::fromUserInput(streamResult->MediaUri->Uri);
+									streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
+									streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
+									retProfile.mStreamUrls.push_back(streamUrl);
+								}
+							}
+						}
+					}
+
+
 					if(hasRtpOverTcp) {
+						streamRequest.StreamSetup->Stream = tt__StreamType::RTP_Unicast;
 						streamRequest.StreamSetup->Transport->Protocol = tt__TransportProtocol::TCP;
 						streamResponse = mpMediaClient->GetStreamUri(streamRequest);
 						if(streamResponse) {
-							if(auto streamResult = streamResponse.GetResultObject()) {
+							if(const auto *streamResult = streamResponse.GetResultObject()) {
 								if(streamResult->MediaUri) {
 									StreamUrl streamUrl;
 									streamUrl.mProtocol = StreamUrl::SP_TCP;
-									streamUrl.mUrl = QUrl::fromUserInput(streamResult->MediaUri->Uri);
+									streamUrl.mUrl = streamUrl.mUrlWithCredentials = QUrl::fromUserInput(streamResult->MediaUri->Uri);
+									streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
+									streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
 									retProfile.mStreamUrls.push_back(streamUrl);
 								}
 							}
@@ -263,14 +337,17 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getyMediaProfiles() {
 					}
 
 					if(hasRtpOverRtspOverTcp) {
+						streamRequest.StreamSetup->Stream = tt__StreamType::RTP_Unicast;
 						streamRequest.StreamSetup->Transport->Protocol = tt__TransportProtocol::RTSP;
 						streamResponse = mpMediaClient->GetStreamUri(streamRequest);
 						if(streamResponse) {
-							if(auto streamResult = streamResponse.GetResultObject()) {
+							if(const auto *streamResult = streamResponse.GetResultObject()) {
 								if(streamResult->MediaUri) {
 									StreamUrl streamUrl;
 									streamUrl.mProtocol = StreamUrl::SP_RTSP;
-									streamUrl.mUrl = QUrl::fromUserInput(streamResult->MediaUri->Uri);
+									streamUrl.mUrl = streamUrl.mUrlWithCredentials = QUrl::fromUserInput(streamResult->MediaUri->Uri);
+									streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
+									streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
 									retProfile.mStreamUrls.push_back(streamUrl);
 								}
 							}
@@ -278,14 +355,17 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getyMediaProfiles() {
 					}
 
 					if(hasRtpOverRtspOverHttpOverTcp) {
+						streamRequest.StreamSetup->Stream = tt__StreamType::RTP_Unicast;
 						streamRequest.StreamSetup->Transport->Protocol = tt__TransportProtocol::HTTP;
 						streamResponse = mpMediaClient->GetStreamUri(streamRequest);
 						if(streamResponse) {
-							if(auto streamResult = streamResponse.GetResultObject()) {
+							if(const auto *streamResult = streamResponse.GetResultObject()) {
 								if(streamResult->MediaUri) {
 									StreamUrl streamUrl;
 									streamUrl.mProtocol = StreamUrl::SP_HTTP;
-									streamUrl.mUrl = QUrl::fromUserInput(streamResult->MediaUri->Uri);
+									streamUrl.mUrl = streamUrl.mUrlWithCredentials = QUrl::fromUserInput(streamResult->MediaUri->Uri);
+									streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
+									streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
 									retProfile.mStreamUrls.push_back(streamUrl);
 								}
 							}
@@ -295,6 +375,40 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getyMediaProfiles() {
 				profiles << retProfile;
 			}
 		}
+
+		static auto functor = [](StreamUrl::StreamProtocol protocol) {
+			int ret = std::numeric_limits<int>::max();
+			switch(protocol) {
+				case StreamUrl::SP_HTTP:
+					ret = 99;
+					break;
+				case StreamUrl::SP_TCP:
+					ret = 2;
+					break;
+				case StreamUrl::SP_RTSP:
+					ret = 1;
+					break;
+				case StreamUrl::SP_UDP:
+					ret = 3;
+					break;
+				case StreamUrl::SP_UDP_MULTICAST:
+					ret = 4;
+					break;
+				case StreamUrl::UNKNOWN:
+				default:
+					ret = std::numeric_limits<int>::max();
+					break;
+			}
+			return ret;
+		};
+
+		for(auto &rProfile : profiles) {
+			// Sort the stream urls by the most preferred protocol
+			std::sort(rProfile.mStreamUrls.begin(), rProfile.mStreamUrls.end(),
+			          [](StreamUrl &one, StreamUrl &two) { return functor(one.mProtocol) < functor(two.mProtocol); });
+			break;
+		}
+
 		result.setResultObject(profiles);
 	} else {
 		qWarning() << "Couldn't get media profiles:" << profilesResponse;
@@ -303,43 +417,56 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getyMediaProfiles() {
 	return result;
 }
 
-DetailedResult<QImage> OnvifDevice::getSnapshot(const QString &rMediaProfile) {
+QFuture<DetailedResult<QImage>> OnvifDevice::getSnapshot(const MediaProfile &rMediaProfile, const QSize &rSize /*= QSize()*/) {
 
 	if(!mDeviceInfo.mInitialized) {
-		return DetailedResult<QImage>(Result::FAULT, QObject::tr("The device is not initialized"));
+		auto d = AsyncFuture::deferred<DetailedResult<QImage>>();
+		d.complete(DetailedResult<QImage>(Result::FAULT, QObject::tr("The device is not initialized")));
+		return d.future();
 	}
 
 	if(!mDeviceInfo.mHasMediaService) {
-		return DetailedResult<QImage>(Result::FAULT, QObject::tr("The device has no media service"));
+		auto d = AsyncFuture::deferred<DetailedResult<QImage>>();
+		d.complete(DetailedResult<QImage>(Result::FAULT, QObject::tr("The device has no media service")));
+		return d.future();
 	}
 
 	MediaProfile profile;
 	for(const auto &rProfile : mDeviceInfo.mMediaProfiles) {
-		if(rProfile.getToken().compare(rMediaProfile) == 0) {
+		if(rProfile == rMediaProfile) {
 			profile = rProfile;
 			break;
 		}
 	}
+
+	QFuture<DetailedResult<QImage>> future;
 	if(profile.isValid()) {
-		if(profile.mSnapshotCapability && profile.mSnapshotUrl.isValid()) {
-			if(auto ctx = mpDeviceClient->GetCtx()) {
-				QScopedPointer<HttpClient> httpClient(new HttpClient(ctx));
-				auto response = httpClient->get(profile.mSnapshotUrl);
-				if(response && !response.GetResultObject().isEmpty()) {
-					auto image = QImage::fromData(response.GetResultObject());
-					return DetailedResult<QImage>(image);
-				}
-				qWarning() << "Snapshot failed:" << response;
-				return DetailedResult<QImage>(Result::FAULT, QObject::tr("Snapshot failed. %1").arg(response.GetCompleteFault()));
-			} else {
-				return DetailedResult<QImage>(Result::FAULT, QObject::tr("Snapshot failed. Couldn't get soap context"));
-			}
-		} else {
-			return DetailedResult<QImage>(
-			 Result::FAULT, QObject::tr("The device doesn't provide a snapshot url for the media profile \"%1\"").arg(rMediaProfile));
-		}
+
+		auto ctx = mpDeviceClient->GetCtx();
+		QSharedPointer<HttpClient> httpClient(new HttpClient(ctx));
+		QSharedPointer<QAtomicInt> isCanceled(new QAtomicInt(false));
+
+		auto user = mDeviceInfo.mUser;
+		auto password = mDeviceInfo.mPassword;
+		auto forceSnapshotFromStream = false;
+
+		future = QtConcurrent::run([profile, rSize, httpClient, isCanceled, user, password, forceSnapshotFromStream]() {
+			return getSnapshotInternal(profile, rSize, httpClient, isCanceled, user, password, forceSnapshotFromStream);
+		});
+
+		auto observer = AsyncFuture::observe(future);
+		observer.subscribe([isCanceled]() {},
+		                   [httpClient, isCanceled]() {
+			                   isCanceled->store(true);
+			                   httpClient->CancelRequest();
+		                   });
+
 	} else {
-		return DetailedResult<QImage>(Result::FAULT,
-		                              QObject::tr("The device doesn't provide a media profile with name \"%1\"").arg(rMediaProfile));
+		auto d = AsyncFuture::deferred<DetailedResult<QImage>>();
+		d.complete(DetailedResult<QImage>(
+		 Result::FAULT, QObject::tr("The device doesn't provide a media profile with name \"%1\"").arg(rMediaProfile.getToken())));
+		future = d.future();
 	}
+
+	return future;
 }

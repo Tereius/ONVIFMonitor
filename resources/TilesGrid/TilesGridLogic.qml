@@ -1,17 +1,42 @@
-import QtQuick 2.0
+import QtQuick 2.12
 
 QtObject {
 
     id: logic
+    signal rowAdded(int row)
+    signal rowRemoved(int row)
+    signal columnAdded(int column)
+    signal columnRemoved(int column)
     signal tileAdded(var tile, int index)
-    signal tileMoved(int fromIndex, int toIndex)
+    signal tileMoved(var tile, int fromIndex, int toIndex)
     signal tileRemoved(var tile)
     signal collisionDetected(var model, var tile, var index, var intersections)
 
-    property TileLayoutData data: TileLayoutData {}
+    property TilesGridData data: TilesGridData {}
 
-    property alias rows: logic.data.rows
-    property alias columns: logic.data.columns
+    property int rows: 0
+    property int columns: 0
+    property bool dynamicWrapping: true
+
+    onRowAdded: row => {
+                    console.debug("emit rowAdded(" + row + ")")
+                    printLayout()
+                }
+
+    onRowRemoved: row => {
+                      console.debug("emit rowRemoved(" + row + ")")
+                      printLayout()
+                  }
+
+    onColumnAdded: column => {
+                       console.debug("emit columnAdded(" + column + ")")
+                       printLayout()
+                   }
+
+    onColumnRemoved: column => {
+                         console.debug("emit columnRemoved(" + column + ")")
+                         printLayout()
+                     }
 
     onTileAdded: (tile, index) => {
                      console.debug(
@@ -19,9 +44,9 @@ QtObject {
                      printLayout()
                  }
 
-    onTileMoved: (fromIndex, toIndex) => {
+    onTileMoved: (tile, fromIndex, toIndex) => {
                      console.debug(
-                         "emit tileMoved(" + fromIndex + ", " + toIndex + ")")
+                         "emit tileMoved(" + tile + ", " + fromIndex + ", " + toIndex + ")")
                      printLayout()
                  }
 
@@ -31,23 +56,62 @@ QtObject {
                        printLayout()
                    }
 
-    onDataChanged: {
+    function avoidCollision(model, tile, index, intersections) {
 
-        for (let key in logic._private.data.tiles) {
-            if (!logic.data.tiles.hasOwnProperty(key)) {
-                // Tile was removed
-                tileRemoved(logic._private.data.tiles[key])
+        for (let key in intersections) {
+            let tileRow = model.toPosition(index).row
+            let tileColumn = model.toPosition(index).column
+            let tileMove = intersections[key].tile
+            let intersection = intersections[key].intersection
+            let tileRowSpan = Math.min(Math.max(Math.round(tile.rowSpan), 1),
+                                       model.rows)
+            let tileColumnSpan = Math.min(Math.max(Math.round(tile.columnSpan),
+                                                   1), model.columns)
+            let tileMoveRowSpan = Math.min(Math.max(Math.round(
+                                                        tileMove.rowSpan), 1),
+                                           model.rows)
+            let tileMoveColumnSpan = Math.min(
+                    Math.max(Math.round(tileMove.columnSpan), 1), model.columns)
+            let maxWidthTile = tile.columnSpan > tileMove.columnSpan ? tile : tileMove
+            let maxHeightTile = tile.rowSpan > tileMove.rowSpan ? tile : tileMove
+
+            let moveDownIndex = model.toIndex(tileRow + tileRowSpan,
+                                              tileMove.column)
+            let moveRightIndex = model.toIndex(tileMove.row,
+                                               tileColumn + tileColumnSpan)
+
+            if (model.toPosition(
+                        moveRightIndex).column + tileMoveColumnSpan < logic.data.columns) {
+                // Move right
+                let followingIntersections = model.detectIntersections(
+                        tileMove, moveRightIndex)
+                avoidCollision(model, tileMove, moveRightIndex,
+                               followingIntersections)
+                model.moveTile(tileMove, moveRightIndex, [])
             } else {
-
-                // Check if tile was moved
+                // Move down
+                if (model.toPosition(
+                            moveRightIndex).row + tileMoveRowSpan >= logic.data.rows) {
+                    // Add new row(s)
+                    logic.data.rows += logic.data.rows - model.toPosition(
+                                moveRightIndex).row + tileMoveRowSpan
+                }
+                let followingIntersections = model.detectIntersections(
+                        tileMove, moveDownIndex)
+                avoidCollision(model, tileMove, moveDownIndex,
+                               followingIntersections)
+                model.moveTile(tileMove, moveDownIndex, [])
             }
         }
     }
 
     onCollisionDetected: (model, tile, index, intersections) => {
 
+                             console.debug(
+                                 "emit collisionDetected(" + tile + ", " + index
+                                 + ", " + JSON.stringify(intersections) + ")")
+
                              for (let key in intersections) {
-                                 // Some constants
                                  let tileRow = model.toPosition(index).row
                                  let tileColumn = model.toPosition(index).column
                                  let tileMove = intersections[key].tile
@@ -79,19 +143,8 @@ QtObject {
                                  let moveRightIndex = model.toIndex(
                                      tileMove.row, tileColumn + tileColumnSpan)
 
-                                 // Determine the affinity where the 'tileMove' wants to move
+                                 // Determine where is enough place to move
                                  let preferedMoveAffinity = []
-
-                                 if (model.canMoveTile(tileMove,
-                                                       moveRightIndex,
-                                                       [tile])) {
-                                     preferedMoveAffinity.push(moveRightIndex)
-                                 }
-
-                                 if (model.canMoveTile(tileMove, moveLeftIndex,
-                                                       [tile])) {
-                                     preferedMoveAffinity.push(moveLeftIndex)
-                                 }
 
                                  if (model.canMoveTile(tileMove, moveDownIndex,
                                                        [tile])) {
@@ -103,6 +156,18 @@ QtObject {
                                      preferedMoveAffinity.push(moveUpIndex)
                                  }
 
+                                 if (model.canMoveTile(tileMove, moveLeftIndex,
+                                                       [tile])) {
+                                     preferedMoveAffinity.push(moveLeftIndex)
+                                 }
+
+                                 if (model.canMoveTile(tileMove,
+                                                       moveRightIndex,
+                                                       [tile])) {
+                                     preferedMoveAffinity.push(moveRightIndex)
+                                 }
+
+                                 // Prefer the smallest move distance
                                  preferedMoveAffinity.sort(
                                      function (leftIndex, rightIndex) {
                                          let leftDistance = Math.abs(
@@ -120,131 +185,13 @@ QtObject {
                                          return leftDistance - rightDistance
                                      })
 
-                                 console.warn(
-                                     "ääääääääää " + preferedMoveAffinity)
-
                                  if (preferedMoveAffinity.length > 0) {
 
                                      model.moveTile(tileMove,
                                                     preferedMoveAffinity[0],
                                                     [tile])
                                  }
-
-                                 // The horizontal move affinity is inverted if the width of 'tile' is bigger than 'tileMove'
                              }
-
-
-                             /*
-                             console.debug(
-                                 "emit collisionDetected(" + tile + ", " + index + ")")
-
-                             for (let key in intersections) {
-                                 // Some constants
-                                 let tileRow = model.toPosition(index).row
-                                 let tileColumn = model.toPosition(index).column
-                                 let tileMove = intersections[key].tile
-                                 let intersection = intersections[key].intersection
-                                 let tileRowSpan = Math.min(
-                                     Math.max(Math.round(tile.rowSpan), 1),
-                                     model.rows)
-                                 let tileColumnSpan = Math.min(
-                                     Math.max(Math.round(tile.columnSpan), 1),
-                                     model.columns)
-                                 let tileMoveRowSpan = Math.min(
-                                     Math.max(Math.round(tileMove.rowSpan), 1),
-                                     model.rows)
-                                 let tileMoveColumnSpan = Math.min(
-                                     Math.max(Math.round(tileMove.columnSpan),
-                                              1), model.columns)
-                                 let maxWidthTile = tile.columnSpan
-                                 > tileMove.columnSpan ? tile : tileMove
-                                 let maxHeightTile = tile.rowSpan
-                                 > tileMove.rowSpan ? tile : tileMove
-
-                                 // Determine the affinity where the 'tileMove' wants to move
-                                 let tileMoveLeftAffinity = intersection.x + intersection.width / 2
-                                 > maxWidthTile.column + maxWidthTile.columnSpan / 2
-                                 let tileMoveRightAffinity = intersection.x + intersection.width / 2
-                                 < maxWidthTile.column + maxWidthTile.columnSpan / 2
-                                 let tileMoveTopAffinity = intersection.y + intersection.height / 2
-                                 > maxHeightTile.row + maxHeightTile.rowSpan / 2
-                                 let tileMoveBottomAffinity = intersection.y + intersection.height
-                                 / 2 < maxHeightTile.row + maxHeightTile.rowSpan / 2
-
-                                 // The horizontal move affinity is inverted if the width of 'tile' is bigger than 'tileMove'
-                                 if (maxWidthTile.equals(tile)) {
-                                     let tmpTileMoveLeftAffinity = tileMoveLeftAffinity
-                                     tileMoveLeftAffinity = tileMoveRightAffinity
-                                     tileMoveRightAffinity = tmpTileMoveLeftAffinity
-                                 }
-
-                                 // The vertical move affinity is inverted if the height of 'tile' is bigger than 'tileMove'
-                                 if (maxHeightTile.equals(tile)) {
-                                     let tmpTileMoveTopAffinity = tileMoveTopAffinity
-                                     tileMoveTopAffinity = tileMoveBottomAffinity
-                                     tileMoveBottomAffinity = tmpTileMoveTopAffinity
-                                 }
-
-                                 if (!tileMoveLeftAffinity
-                                     && !tileMoveRightAffinity
-                                     && !tileMoveTopAffinity
-                                     && !tileMoveBottomAffinity) {
-                                     tileMoveLeftAffinity = tileMoveRightAffinity
-                                     = tileMoveTopAffinity = tileMoveBottomAffinity = true
-                                 }
-
-                                 console.warn(
-                                     "------- left " + tileMoveLeftAffinity + " rigth "
-                                     + tileMoveRightAffinity + " top " + tileMoveTopAffinity
-                                     + " bottom " + tileMoveBottomAffinity)
-
-                                 // Calculate all intexes where 'tileMove' can potentially move (ignore collisions for now)
-                                 let moveDownIndex = model.toIndex(
-                                     tileRow + tileRowSpan, tileMove.column)
-                                 let moveUpIndex = model.toIndex(
-                                     tileRow - tileRowSpan, tileMove.column)
-                                 let moveLeftIndex = model.toIndex(
-                                     tileRow, tileColumn - tileColumnSpan)
-                                 let moveRightIndex = model.toIndex(
-                                     tileRow, tileColumn + tileColumnSpan)
-
-                                 console.warn(
-                                     "########### " + moveDownIndex + " " + moveUpIndex
-                                     + " " + moveLeftIndex + " " + moveRightIndex
-                                     + " --tileRow " + tileRow + " tileColumn " + tileColumn
-                                     + " tileMove.column " + tileMove.column
-                                     + " tileMove.row " + tileMove.row
-                                     + " tileRowSpan " + tileRowSpan
-                                     + " tileColumnSpan " + tileColumnSpan)
-
-                                 if (tileMoveRightAffinity && model.canMoveTile(
-                                         tileMove, moveRightIndex, [tile])) {
-                                     model.moveTile(tileMove,
-                                                    moveRightIndex, [])
-                                     console.warn("-------- move right")
-                                 } else if (tileMoveLeftAffinity
-                                            && model.canMoveTile(tileMove,
-                                                                 moveLeftIndex,
-                                                                 [tile])) {
-                                     model.moveTile(tileMove, moveLeftIndex, [])
-                                     console.warn("-------- move left")
-                                 } else if (tileMoveBottomAffinity
-                                            && model.canMoveTile(tileMove,
-                                                                 moveDownIndex,
-                                                                 [tile])) {
-                                     model.moveTile(tileMove, moveDownIndex, [])
-                                     console.warn("-------- move down")
-                                 } else if (tileMoveTopAffinity
-                                            && model.canMoveTile(tileMove,
-                                                                 moveUpIndex,
-                                                                 [tile])) {
-                                     model.moveTile(tileMove, moveUpIndex, [])
-                                     console.warn("-------- move up")
-                                 } else {
-                                     console.warn("-------- nowhere to move")
-                                 }
-                             }
-                             */
                          }
 
     function undo() {
@@ -257,7 +204,43 @@ QtObject {
         logic._private.redo()
     }
 
+
+    /**
+     * Check if at 'targetIndex' is enough space available for the 'tile' without causing a collision with other tiles or leaving the grid
+     * This function does not change anything
+     *
+     * @param type:object tile The tile that should do the hypothetical move
+     * @param type:int targetIndex The index where to check if there is enough space for 'tile'
+     * @param type:array ignoreTiles An array of tiles that should be ignored while doing the check
+     * @return type:boolean The result of the check
+     */
     function canMoveTile(tile, targetIndex, ignoreTiles) {
+
+        let hasTile = function (ignore, tiles) {
+
+            let ret = false
+            for (var i = 0; i < tiles.length; i++) {
+                let otherTile = tiles[i]
+                if (otherTile) {
+                    let isIgnored = false
+                    for (var ii = 0; ii < ignore.length; ii++) {
+                        let ignoreTile = ignore[ii]
+                        if (ignoreTile) {
+                            if (otherTile.equals(ignoreTile)) {
+                                isIgnored = true
+                                break
+                            }
+                        }
+                    }
+                    if (!isIgnored) {
+                        ret = true
+                        break
+                    }
+                }
+            }
+
+            return ret
+        }
 
         if (tile) {
             let row = logic.toPosition(targetIndex).row
@@ -275,10 +258,10 @@ QtObject {
             for (var i = column; i < column + columnSpan && hasSpace; i++) {
                 for (var ii = row; ii < row + rowSpan && hasSpace; ii++) {
                     let tileHolder = logic.tileHolderAt(logic.toIndex(ii, i))
-                    if (!tileHolder || (tileHolder && tileHolder.tile
-                                        && !ignore.some(
-                                            iterTile => iterTile.equals(
-                                                tileHolder.tile)))) {
+                    if (!tileHolder) {
+                        hasSpace = false
+                    } else if (tileHolder.tiles && hasTile(ignore,
+                                                           tileHolder.tiles)) {
                         hasSpace = false
                     }
                 }
@@ -288,6 +271,14 @@ QtObject {
         return false
     }
 
+
+    /**
+     * Add the 'tile' to the grid at 'targetIndex' but only if the check 'canMoveTile()' was successfull (otherwise nothing happens).
+     *
+     * @param type:object tile The tile that should be added to the grid
+     * @param type:int targetIndex The index where to add the 'tile'
+     * @param type:array ignoreTiles An array of tiles that should be ignored (passed on to 'canMoveTile()'). This may lead to overlapping tiles
+     */
     function addTile(tile, targetIndex, ignoreTiles) {
 
         let tileHolderTarget = logic.tileHolderAt(targetIndex)
@@ -296,44 +287,53 @@ QtObject {
                 && tileHolderTarget && logic.canMoveTile(tile, targetIndex,
                                                          ignoreTiles)) {
             let oldIndex = logic.toIndex(tile.row, tile.column)
-            console.warn("add oldindex ----- " + tile)
             logic._private.pushUndoRedoCommand(function () {
                 logic._moveTile(tile, targetIndex, ignoreTiles)
             }, function () {
-                let movedTile = logic.tileAt(targetIndex)
-                logic._moveTile(movedTile, oldIndex, ignoreTiles)
+                logic._moveTile(tile, oldIndex, ignoreTiles)
             })
         }
         moveTile(tile, targetIndex, ignoreTiles)
     }
 
+
+    /**
+     * Move the 'tile' to 'targetIndex' but only if the check 'canMoveTile()' was successfull (otherwise nothing happens).
+     *
+     * @param type:object tile The tile that should be added to the grid
+     * @param type:int targetIndex The index where to move the 'tile' to
+     * @param type:array ignoreTiles An array of tiles that should be ignored (passed on to 'canMoveTile()'). This may lead to overlapping tiles
+     */
     function moveTile(tile, targetIndex, ignoreTiles) {
 
         let tileHolderTarget = logic.tileHolderAt(targetIndex)
 
-        if (tile && tileHolderTarget && logic.canMoveTile(tile, targetIndex,
-                                                          ignoreTiles)) {
+        if (tile && tileHolderTarget && targetIndex !== logic.toIndex(
+                    tile.row, tile.column) && logic.canMoveTile(tile,
+                                                                targetIndex,
+                                                                ignoreTiles)) {
             let oldIndex = logic.toIndex(tile.row, tile.column)
             logic._private.pushUndoRedoCommand(function () {
                 logic._moveTile(tile, targetIndex, ignoreTiles)
             }, function () {
-                let movedTile = logic.tileAt(targetIndex)
-                logic._moveTile(movedTile, oldIndex, ignoreTiles)
+                //let movedTile = logic.tileAt(targetIndex)
+                logic._moveTile(tile, oldIndex, ignoreTiles)
             })
         }
     }
 
 
     /**
-     * The given tile is not moved at all but the tile at index (if there is one) will make place.
+     * The given 'tile' is not moved at all but the tile(s) at 'targetIndex' will make place.
      * This function can be called several times in succession for the same tile but you have to finish it off
-     * either by calling finishProposeMoveTile() or cancelProposeMoveTile().
+     * either by calling 'finishProposeMoveTile()' or 'cancelProposeMoveTile()'.
      * The typical use case is if a user drags a tile over another tile which then moves out of the way
      *
-     * @param type:tile tile The tile object
-     * @param type:int index The index where to move the tile
+     * @param type:object tile The tile that should do the hypothetical move
+     * @param type:int targetIndex The index where to move the tile
+     * @return type:boolean True if there is enough space for 'tile' to move. False otherwise
      */
-    function proposeMoveTile(tile, index) {
+    function proposeMoveTile(tile, targetIndex) {
 
         if (logic._private.proposeMoveTile
                 && logic._private.proposeMoveTile.equals(tile)) {
@@ -343,12 +343,23 @@ QtObject {
             logic._private.proposeMoveUndoStackIndex = logic._private.index()
         }
 
+        let intersections = detectIntersections(tile, targetIndex)
+
+        if (intersections.length > 0)
+            logic.collisionDetected(d.model, tile, targetIndex, intersections)
+
+        return logic.canMoveTile(tile, targetIndex, [])
+    }
+
+    function detectIntersections(tile, targetIndex) {
+
         let detectIntersection = function (tileHolder) {
-            if (tile && tileHolder && tileHolder.tile && !tile.equals(
-                        tileHolder.tile)) {
+            if (tile && tileHolder && tileHolder.tiles
+                    && tileHolder.tiles.length > 0 && !tile.equals(
+                        tileHolder.tiles[0])) {
 
                 let intersections = []
-                let tileMove = tileHolder.tile
+                let tileMove = tileHolder.tiles[0]
 
                 let tileRowSpan = tile.rowSpan
                 let tileColumnSpan = tile.columnSpan
@@ -360,8 +371,8 @@ QtObject {
                 let targetBottom = tileMove.row + tileMoveRowSpan
                 let targetRight = tileMove.column + tileMoveColumnSpan
 
-                let srcTop = logic.toPosition(index).row
-                let srcLeft = logic.toPosition(index).column
+                let srcTop = logic.toPosition(targetIndex).row
+                let srcLeft = logic.toPosition(targetIndex).column
                 let srcBottom = srcTop + tileRowSpan
                 let srcRight = srcLeft + tileColumnSpan
 
@@ -379,8 +390,8 @@ QtObject {
             }
         }
 
-        let row = logic.toPosition(index).row
-        let column = logic.toPosition(index).column
+        let row = logic.toPosition(targetIndex).row
+        let column = logic.toPosition(targetIndex).column
         let tileRowSpan = tile.rowSpan
         let tileColumnSpan = tile.columnSpan
         let intersections = []
@@ -392,40 +403,38 @@ QtObject {
                 if (intersection) {
                     let newIntersection = true
                     for (var key in intersections) {
-                        if (intersections[key].tile.equals(tileHolder.tile)) {
+                        if (intersections[key].tile.equals(
+                                    tileHolder.tiles[0])) {
                             newIntersection = false
                             break
                         }
                     }
                     if (newIntersection) {
                         let intersectionobj = {
-                            "tile": tileHolder.tile,
+                            "tile": tileHolder.tiles[0],
                             "intersection": intersection
                         }
                         intersections.push(intersectionobj)
-                        console.warn("------- intersection ",
-                                     JSON.stringify(intersectionobj))
                     }
                 }
             }
         }
 
-        if (intersections.length > 0)
-            logic.collisionDetected(d.model, tile, index, intersections)
+        return intersections
     }
 
 
     /**
-     * The given tile is finally moved and the proposed layout is applyd
+     * The given 'tile' is finally moved and the proposed layout is applyed
      *
-     * @param type:tile tile The tile object
-     * @param type:int index The index where to move the tile
+     * @param type:object tile The tile object to move
+     * @param type:int targetIndex The index where to move the tile
      */
-    function finishProposeMoveTile(tile, index) {
+    function finishProposeMoveTile(tile, targetIndex) {
 
         if (logic._private.proposeMoveTile
                 && logic._private.proposeMoveTile.equals(tile)) {
-            moveTile(tile, index, [])
+            moveTile(tile, targetIndex, [])
         }
         logic._private.proposeMoveTile = null
         logic._private.proposeMoveUndoStackIndex = 0
@@ -433,7 +442,7 @@ QtObject {
 
 
     /**
-     * The layout is reverted to the state before proposeMoveTile() was called
+     * The layout is reverted to the state before 'proposeMoveTile()' was called
      */
     function cancelProposeMoveTile() {
 
@@ -470,8 +479,16 @@ QtObject {
                 if (!isNewTile) {
                     for (var i = columnOrigin; i < columnOrigin + columnSpan; i++) {
                         for (var ii = rowOrigin; ii < rowOrigin + rowSpan; ii++) {
-                            delete logic.data.tiles[logic._private.toModelKey(
-                                                        ii, i)]
+                            let tiles = logic.data.tiles[logic._private.toModelKey(
+                                                             ii, i)]
+                            if (Array.isArray(tiles)) {
+                                for (var iii = 0; iii < tiles.length; iii++) {
+                                    if (tiles[iii].id === tile.id) {
+                                        tiles.splice(iii, 1)
+                                        break
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -485,25 +502,31 @@ QtObject {
                     // Attach the tile to its new tileHolder
                     for (var i = rowTarget; i < rowTarget + rowSpan; i++) {
                         for (var ii = columnTarget; ii < columnTarget + columnSpan; ii++) {
-                            logic.data.tiles[logic._private.toModelKey(
-                                                 i, ii)] = tile
+                            let tiles = logic.data.tiles[logic._private.toModelKey(
+                                                             i, ii)]
+                            if (Array.isArray(tiles)) {
+                                tiles.push(tile)
+                            } else {
+                                logic.data.tiles[logic._private.toModelKey(
+                                                     i, ii)] = [tile]
+                            }
                         }
                     }
                 }
 
                 if (isNewTile) {
-                    console.log("Added " + tile + " to " + targetIndex)
+                    console.debug("Added " + tile + " to " + targetIndex)
                     logic.tileAdded(tile, targetIndex)
                 } else if (isRemovedTile) {
-                    console.log("Removed " + tile)
+                    console.debug("Removed " + tile)
                     logic.tileRemoved(tile)
                 } else {
-                    console.log("Moved " + tile + " to " + targetIndex)
-                    logic.tileMoved(logic.toIndex(oldRow, oldColumn),
+                    console.debug("Moved " + tile + " to " + targetIndex)
+                    logic.tileMoved(tile, logic.toIndex(oldRow, oldColumn),
                                     targetIndex)
                 }
             } else {
-                console.info("Tile is added and removed at the same time")
+                console.warn("Tile is added and removed at the same time")
             }
         }
     }
@@ -513,22 +536,31 @@ QtObject {
         if (index < logic.data.rows * logic.data.columns && index >= 0) {
             let position = logic.toPosition(index)
 
-            let tile = logic.data.tiles[logic._private.toModelKey(
-                                            position.row, position.column)]
+            let tiles = logic.data.tiles[logic._private.toModelKey(
+                                             position.row, position.column)]
+
             return {
                 "row": position.row,
                 "column": position.column,
-                "tile": tile,
-                "tileIndex": tile ? (position.row - tile.row) * logic.data.columns
-                                    + (position.column - tile.column) : 0
+                "tiles": Array.isArray(tiles) ? tiles : []
             }
         }
     }
 
-    function tileAt(index) {
+    function tilesAt(index) {
 
-        if (logic.tileHolderAt(index))
-            return logic.tileHolderAt(index).tile
+        if (logic.tileHolderAt(index)) {
+            return logic.tileHolderAt(index).tiles
+        }
+    }
+
+    function tileAt(index, z) {
+
+        let zIndex = z != null ? z : 0
+
+        if (logic.tileHolderAt(index)) {
+            return logic.tileHolderAt(index).tiles[zIndex]
+        }
     }
 
     function toIndex(row, column) {
@@ -561,24 +593,143 @@ QtObject {
             for (var ii = 0; ii < logic.data.columns; ii++) {
                 let index = logic.toIndex(i, ii)
                 let tileHolder = logic.tileHolderAt(index)
-                if (tileHolder && tileHolder.tile) {
-                    for (var iii = 0; iii < 2; iii++)
-                        printLine += "█"
+                if (tileHolder && tileHolder.tiles.length > 0) {
+                    for (var iii = 0; iii < 2; iii++) {
+                        if (tileHolder.tiles.length === 1)
+                            printLine += "░"
+                        else if (tileHolder.tiles.length === 2)
+                            printLine += "▓"
+                        else if (tileHolder.tiles.length === 3)
+                            printLine += "█"
+                    }
                     printLine += " "
                 } else {
                     let indexString = String(index)
-                    for (var iii = 0; iii < 2 - indexString.length; iii++)
+                    for (var iiii = 0; iiii < 2 - indexString.length; iiii++)
                         printLine += "0"
                     printLine += indexString + " "
                 }
             }
-            console.info(printLine)
+            console.debug(printLine)
+        }
+    }
+
+    onDataChanged: {
+
+        console.debug("Data changed")
+        if (logic.data) {
+            logic._private.handleRowsChanged(logic.rows)
+            logic._private.handleColumnsChanged(logic.columns)
+        }
+    }
+
+    onRowsChanged: {
+
+        if (logic.data) {
+            logic._private.handleRowsChanged(logic.rows)
+        }
+    }
+
+    onColumnsChanged: {
+
+        if (logic.data) {
+            logic._private.handleColumnsChanged(logic.columns)
         }
     }
 
     readonly property QtObject _private: QtObject {
 
-        property TileLayoutData data: logic.data
+        property TilesGridData data: logic.data
+
+        function handleRowsChanged(numRows) {
+
+            if (numRows < 0)
+                return
+
+            let currentNumRows = logic.data.rows
+
+            console.debug(
+                        "Number of rows changed from " + currentNumRows + " to "
+                        + numRows + " (current number of columns " + logic.data.columns + ")")
+
+            if (currentNumRows < numRows) {
+                // we have to add rows
+                let numRowsToAdd = numRows - currentNumRows
+                console.debug("Adding " + numRowsToAdd + " rows to model")
+                for (var i = currentNumRows; i < numRows; i++) {
+                    logic.rowAdded(i)
+                }
+            } else if (currentNumRows > numRows) {
+                // we have to remove rows
+                let numRowsToRemove = currentNumRows - numRows
+                console.debug("Removing " + numRowsToRemove + "rows from model")
+                for (var i = currentNumRows - 1; i >= numRows; i--) {
+                    logic.rowRemoved(i)
+                }
+            }
+
+            logic.data.rows = numRows
+        }
+
+        function handleColumnsChanged(numColumns) {
+
+            if (numColumns < 0)
+                return
+
+            let currentNumColumns = logic.data.columns
+
+            console.debug(
+                        "Number of columns changed from " + currentNumColumns + " to " + numColumns
+                        + " (current number of rows " + logic.data.rows + ")")
+
+            if (currentNumColumns < numColumns) {
+                // We have to add columns
+                let numColumnsToAdd = numColumns - currentNumColumns
+                console.debug("Adding " + numColumnsToAdd + " columns to model")
+                for (var i = currentNumColumns; i < numColumns; i++) {
+                    logic.columnAdded(i)
+                }
+            } else if (currentNumColumns > numColumns) {
+                // we have to remove columns
+                let numColumnsToRemove = currentNumColumns - numColumns
+                console.debug(
+                            "Removing " + numColumnsToRemove + " columns from model")
+                for (var i = currentNumColumns - 1; i >= numColumns; i--) {
+                    if (logic.dynamicWrapping) {
+                        for (var ii = 0; ii < logic.data.rows; ii++) {
+                            let tiles = logic.data.tiles[logic._private.toModelKey(
+                                                             ii, i)]
+                            let tile = tiles ? tiles[0] : null
+                            if (tile) {
+                                console.warn("---------------- remove tile "
+                                             + tile + " " + (ii + tile.rowSpan))
+
+                                if (tile.row + tile.rowSpan >= logic.data.rows) {
+                                    logic.data.rows += logic.data.rows - (tile.row + tile.rowSpan)
+                                }
+
+                                logic.avoidCollision(logic, tile, logic.toIndex(
+                                                         ii + tile.rowSpan, 0),
+                                                     logic.detectIntersections(
+                                                         tile, logic.toIndex(
+                                                             ii + tile.rowSpan,
+                                                             0)))
+
+                                logic.moveTile(tile,
+                                               logic.toIndex(ii + tile.rowSpan,
+                                                             0))
+                            }
+                        }
+
+                        logic.columnRemoved(i)
+                    } else {
+                        logic.columnRemoved(i)
+                    }
+                }
+            }
+
+            logic.data.columns = numColumns
+        }
 
         property int proposeMoveUndoStackIndex: 0
         property var proposeMoveTile: null
@@ -676,15 +827,23 @@ QtObject {
             let tilesCopy = {}
             if (logic.data.tiles) {
                 for (let key in logic.data.tiles) {
-                    let tile = logic.data.tiles[key]
-                    if (tile && tile.hasOwnProperty("id")
-                            && tile.hasOwnProperty("row")
-                            && tile.hasOwnProperty("column")
-                            && tile.hasOwnProperty("rowSpan")
-                            && tile.hasOwnProperty("columnSpan")) {
-                        tilesCopy[key] = newTile(tile.row, tile.column,
-                                                 tile.rowSpan, tile.columnSpan)
-                        tilesCopy[key].id = tile.id
+                    let tileArray = logic.data.tiles[key]
+                    if (Array.isArray(tileArray)) {
+                        let tileArrayCopy = []
+                        tileArray.forEach(function (tile) {
+                            if (tile && tile.hasOwnProperty("id")
+                                    && tile.hasOwnProperty("row")
+                                    && tile.hasOwnProperty("column")
+                                    && tile.hasOwnProperty("rowSpan")
+                                    && tile.hasOwnProperty("columnSpan")) {
+                                let tileCopy = newTile(tile.row, tile.column,
+                                                       tile.rowSpan,
+                                                       tile.columnSpan)
+                                tileCopy.id = tile.id
+                                tileArrayCopy.push(tileCopy)
+                            }
+                        })
+                        tilesCopy[key] = tileArrayCopy
                     }
                 }
             }
@@ -700,7 +859,7 @@ QtObject {
                                                   "tiles": tilesCopy
                                               })
             if (data == null) {
-                console.log("Error copying tile layout data")
+                console.error("Error copying tile layout data")
             }
 
             return data

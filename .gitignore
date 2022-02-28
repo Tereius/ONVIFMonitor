@@ -174,3 +174,5 @@ compile_commands.json
 *.code-workspace
 
 # End of https://www.toptal.com/developers/gitignore/api/vscode,clion,conan,qt
+
+workspace/*

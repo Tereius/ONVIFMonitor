@@ -5,23 +5,7 @@
 #include <QtConcurrent>
 
 
-TopicSetModel::TopicSetModel(QObject *pParent /*= nullptr*/) : AbstractListModel(pParent), mTopics(), mDeviceId() {
-
-	connect(
-	 DeviceM, &DeviceManager::deviceRemoved, this,
-	 [this](const QUuid &rDeviceId) {
-		 if(rDeviceId == mDeviceId) {
-			 auto size = mTopics.size();
-			 beginRemoveRows(QModelIndex(), 0, size - 1);
-			 mTopics.clear();
-			 endRemoveRows();
-		 }
-	 },
-	 Qt::QueuedConnection);
-
-	connect(
-	 DeviceM, &DeviceManager::deviceChanged, this, [this](const QUuid &rDeviceId) { setDeviceId(rDeviceId); }, Qt::QueuedConnection);
-}
+TopicSetModel::TopicSetModel(QObject *pParent /*= nullptr*/) : AbstractListModel(pParent), mTopics(), mDeviceId() {}
 
 int TopicSetModel::rowCount(const QModelIndex &parent /*= QModelIndex()*/) const {
 

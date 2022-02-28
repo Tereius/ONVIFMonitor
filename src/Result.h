@@ -1,8 +1,8 @@
 #pragma once
 #include "Response.h"
-#include <QString>
 #include <QDebug>
 #include <QMetaObject>
+#include <QString>
 
 
 #define RESULT_OK 0
@@ -24,6 +24,7 @@ class Result {
 	inline bool operator==(const Result &rOther) const { return mValue == rOther.mValue; }
 	inline bool operator!=(const Result &rOther) const { return mValue != rOther.mValue; }
 	inline int getErrorCode() const { return mValue; }
+	inline void setErrorCode(int code) { mValue = code; }
 	Q_INVOKABLE inline QString getLabel() const { return mLabel; }
 	Q_INVOKABLE inline QString getDetails() const { return mDetails; }
 	QString toString() const;

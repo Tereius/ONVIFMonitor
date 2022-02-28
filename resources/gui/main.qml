@@ -2,6 +2,7 @@ import QtQml 2.12
 import QtQuick 2.12
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12
+import QtQuick.Controls.Material 2.12
 import Qt.labs.settings 1.0
 import org.onvif.device 1.0
 import org.onvif.event 1.0
@@ -17,7 +18,7 @@ Kirigami.ApplicationWindow {
     //pageStack.globalToolBar.minimumHeight: Kirigami.Units.gridUnit * 2
     //pageStack.globalToolBar.preferredHeight: Kirigami.Units.gridUnit * 2
     //pageStack.globalToolBar.maximumHeight: Kirigami.Units.gridUnit * 2
-    pageStack.initialPage: Qt.resolvedUrl("MonitoringPage.qml")
+    pageStack.initialPage: Qt.resolvedUrl("Style.qml")
     pageStack.interactive: false
 
     Settings {
@@ -32,7 +33,7 @@ Kirigami.ApplicationWindow {
         DeviceManager.initialize()
     }
 
-    onActiveFocusItemChanged: console.warn("activeFocus: " + activeFocusItem)
+    onActiveFocusItemChanged: console.debug("activeFocus: " + activeFocusItem)
 
     globalDrawer: Kirigami.GlobalDrawer {
         title: Qt.application.name
@@ -71,6 +72,10 @@ Kirigami.ApplicationWindow {
             Kirigami.Action {
                 text: qsTr("About")
                 onTriggered: pageStack.replace(aboutPage)
+            },
+            Kirigami.Action {
+                text: qsTr("Style")
+                onTriggered: pageStack.replace(Qt.resolvedUrl("Style.qml"))
             }
         ]
     }
@@ -166,7 +171,7 @@ Kirigami.ApplicationWindow {
         Connections {
 
             target: DeviceManager
-            onUnauthorized: {
+            function onUnauthorized() {
 
                 credentialsDialog.deviceId = rDeviceId
                 credentialsDialog.open()

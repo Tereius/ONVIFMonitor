@@ -1,41 +1,18 @@
-#include "DeviceDiscoveryModel.h"
-#include "DeviceInfo.h"
-#include "DevicesModel.h"
-#include "Error.h"
-#include "EventBindingModel.h"
-#include "EventHandler.h"
+#include "App.h"
 #include "EventHandlerModel.h"
-#include "AdvancedQmlApplicationEngine.h"
-#include "MediaManager.h"
 #include "MediaProfile.h"
-#include "MediaProfilesModel.h"
 #include "OnvifDiscovery.h"
 #include "OnvifMessageFilterItems.h"
-#include "ProfileId.h"
-#include "PropertyInfo.h"
-#include "Result.h"
-#include "info.h"
-
 #include <QCommandLineParser>
-#include <QtPlugin>
-#include <QDebug>
-#include <QDir>
 #include <QFile>
-#include <QGlobalStatic>
-#ifdef Q_OS_ANDROID
-#include <QGuiApplication>
-#else
-#include <QApplication>
-#endif
-#include <QIcon>
-#include <QQmlApplicationEngine>
 #include <QFontDatabase>
-#include <QQuickStyle>
-#include <QSettings>
-#include <QStandardPaths>
+#include <QGlobalStatic>
+#include <QIcon>
 #include <QString>
 #include <QTextStream>
 #include <QtAV/QtAV>
+#include <QtGlobal>
+#include <QtPlugin>
 
 #ifdef QT_OS_WINDOWS
 #include "qt_windows.h"
@@ -120,68 +97,13 @@ static void dbug_msg_handler(QtMsgType type, const QMessageLogContext &rContext,
 	}
 }
 
-void writeSettings() {
-
-	QSettings settings;
-	settings.setValue("version", QString("%1.%2.%3").arg(INFO_VERSION_MAJOR).arg(INFO_VERSION_MINOR).arg(INFO_VERSION_PATCH));
-	settings.sync();
-}
-
 int main(int argc, char *argv[]) {
-
-	QSettings::setDefaultFormat(QSettings::IniFormat);
-	QCoreApplication::setApplicationName(INFO_PROJECTNAME);
-	QCoreApplication::setApplicationVersion(QString("%1.%2.%3").arg(INFO_VERSION_MAJOR).arg(INFO_VERSION_MINOR).arg(INFO_VERSION_PATCH));
-	QCoreApplication::setOrganizationName("");
-	QCoreApplication::setOrganizationDomain("com.github.Tereius");
-	QCoreApplication::setLibraryPaths(QString::fromLocal8Bit(QT_PLUGIN_PATHS).split(',', Qt::SkipEmptyParts) +
-	                                  QCoreApplication::libraryPaths());
-	QCoreApplication::addLibraryPath("./");
-	QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-	QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
-
+	
 	//#ifndef NDEBUG
 	//	QString storagePath = QCoreApplication::applicationDirPath();
 	//#else
-	QDir storagePath(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation));
-	auto path = storagePath.absolutePath();
-	QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, storagePath.absolutePath());
-	QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope, storagePath.absolutePath());
-	writeSettings();
+
 	//#endif
-
-#ifdef Q_OS_ANDROID
-	QGuiApplication app(argc, argv);
-	// QQuickStyle::setStyle(QStringLiteral("Material"));
-#else
-	// Default to org.kde.desktop style unless the user forces another style
-	QApplication app(argc, argv);
-#endif
-
-	// QQuickStyle::setStyle("Kirigami.BasicThemeDefinition");
-	QIcon::setThemeName("onvif");
-
-	QCommandLineParser parser;
-	parser.addOption({"u", "Uninstall persistent data."});
-	parser.parse(app.arguments());
-
-	if(parser.isSet("u")) {
-
-		// Delete the persistence
-		exit(storagePath.removeRecursively() ? 0 : 1);
-	}
-
-	QFontDatabase fontDb;
-	if(fontDb.families().isEmpty()) {
-		auto fontId = QFontDatabase::addApplicationFont(":/fonts/LiberationSans-Regular.ttf");
-		if(fontId >= 0) {
-			qInfo() << "Fallback font registered:" << QFontDatabase::applicationFontFamilies(fontId);
-			QFont font(QFontDatabase::applicationFontFamilies(fontId).first());
-			QGuiApplication::setFont(font);
-		} else {
-			qWarning() << "Couldn't install fallback font.";
-		}
-	}
 
 	// open log file
 	if(log_file.size() > 5000) {
@@ -189,39 +111,6 @@ int main(int argc, char *argv[]) {
 		qWarning() << "Log file was resized.";
 	}
 
-	/*
-	log_file.setFileName(storagePath.absoluteFilePath("test.log"));
-	auto success = log_file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text);
-	if(success) {
-	  qInstallMessageHandler(dbug_msg_handler);
-	} else {
-	  qWarning() << "Couldn't open log file: " << log_file.errorString() << log_file.fileName();
-	  qInstallMessageHandler(fatal_dbug_msg_handler);
-	}*/
-
-	// Event handler
-	// EventManager::registerEventHandler<LogEventHandler>();
-
-	// Event sources
-	// EventManager::registerEventSource<TimerEventSource>();
-	// EventManager::registerEventSource<OnvifDeviceMessage>();
-	// EventManager::registerEventSource<FilteredOnvifDeviceMessage>();
-
-	AdvancedQmlApplicationEngine engine;
-#if !defined(NDEBUG)
-	auto qmlMainFile = QString("%1/main.qml").arg(QML_BASE_PATH);
-	if(QFile::exists(qmlMainFile)) {
-		qInfo() << "QML hot reloading enabled";
-		engine.setHotReload(true);
-		engine.loadRootItem(qmlMainFile);
-	} else {
-		engine.setHotReload(false);
-		engine.loadRootItem("qrc:///gui/main.qml");
-	}
-#else
-	engine.setHotReload(false);
-	engine.loadRootItem("qrc:///gui/main.qml");
-#endif
-
-	return app.exec();
+	App app;
+	return app.start(argc, argv);
 }

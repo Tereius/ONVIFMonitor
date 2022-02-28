@@ -1,18 +1,17 @@
 #pragma once
-#include "Result.h"
-#include "MediaProfile.h"
-#include <QFuture>
 #include "DeviceInfo.h"
-#include <QObject>
-#include <QMap>
-#include <QUrl>
-#include <QMutex>
+#include "MediaProfile.h"
+#include "Result.h"
 #include <QAtomicInteger>
+#include <QFuture>
+#include <QMap>
+#include <QMutex>
+#include <QObject>
 #include <QPointer>
 #include <QSharedPointer>
+#include <QSize>
+#include <QUrl>
 
-
-#define DeviceM DeviceManager::getGlobal()
 
 class AbstractDevice;
 class DeviceInfo;
@@ -41,9 +40,11 @@ class DeviceManager : public QObject {
 	                                                 bool save = false);
 	Q_INVOKABLE bool isDeviceInitialized(const QUuid &rDeviceId);
 	Q_INVOKABLE QFuture<DetailedResult<QList<MediaProfile>>> getMediaProfiles(const QUuid &rDeviceId);
-	Q_INVOKABLE QFuture<DetailedResult<QImage>> getSnapshot(const QUuid &rDeviceId, const QString &rMediaProfile);
+	Q_INVOKABLE QUrl getStreamUrl(const QUuid &rDeviceId, const QString &rMediaProfileToken);
+	Q_INVOKABLE QFuture<DetailedResult<QImage>> getSnapshot(const QUuid &rDeviceId, const QString &rMediaProfileToken,
+	                                                        const QSize &rSize = QSize());
 
-	static DeviceManager *getGlobal();
+	QSharedPointer<AbstractDevice> getDevice(const QUuid &rDeviceId);
 
  signals:
 	void unauthorized(const QUuid &rDeviceId);

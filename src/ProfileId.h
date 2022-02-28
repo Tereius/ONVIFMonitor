@@ -8,7 +8,7 @@ class ProfileId {
 	Q_GADGET
 
  public:
-	ProfileId(const QUuid &rDeviceId = QUuid(), const QString &rProfileToken = QString());
+	explicit ProfileId(const QUuid &rDeviceId = QUuid(), const QString &rProfileToken = QString());
 	Q_INVOKABLE QUuid getDeviceId() const;
 	void setDeviceId(const QUuid &rVal);
 	Q_INVOKABLE QString getProfileToken() const;

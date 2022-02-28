@@ -6,6 +6,7 @@ import QuickFuture 1.0
 import org.onvif.device 1.0
 import org.kde.kirigami 2.14 as Kirigami
 import "helper.js" as Helper
+import "controls" as Controls
 
 Kirigami.ScrollablePage {
 
@@ -21,6 +22,10 @@ Kirigami.ScrollablePage {
     Keys.onEnterPressed: priv.addDevice()
     Keys.onReturnPressed: priv.addDevice()
 
+    signal accepted
+
+
+    /*
     actions.contextualActions: [
 
         Kirigami.Action {
@@ -53,8 +58,7 @@ Kirigami.ScrollablePage {
                 }
             }
         }
-    ]
-
+    ]*/
     onDeviceIdChanged: {
 
         message.visible = false
@@ -82,159 +86,154 @@ Kirigami.ScrollablePage {
 
     ColumnLayout {
 
+        id: form
+
+        //enabled: !mainAction.isRunning
+        spacing: 20
+
         Kirigami.InlineMessage {
             id: message
-            Layout.fillWidth: true
             type: Kirigami.MessageType.Information
+            Layout.fillWidth: true
         }
 
-        FormLayout {
+        Controls.TextField {
 
-            id: form
-            enabled: !mainAction.isRunning
+            id: deviceNameField
 
-            TextField {
-
-                id: deviceNameField
-
-                Component.onCompleted: {
-                    ensureVisible(0)
-                }
-
-                Kirigami.FormData.label: Helper.markRejectedLabel(
-                                             qsTr("Name"), acceptableInput)
-
-                text: priv.deviceName
-                focus: true
-                activeFocusOnTab: true
-                placeholderText: "Device Name"
-                selectByMouse: true
-                enabled: !credentialsDialog.deviceNameFixed
-                validator: RegExpValidator {
-                    regExp: /.+/
-                }
-            }
-
-            TextField {
-
-                id: hostField
-
-                Component.onCompleted: {
-                    ensureVisible(0)
-                }
-
-                Kirigami.FormData.label: Helper.markRejectedLabel(
-                                             qsTr("Host"), acceptableInput)
-
-                text: priv.deviceEndpoint
-                activeFocusOnTab: true
-                placeholderText: "Device Host"
-                selectByMouse: true
-                enabled: !credentialsDialog.deviceEndpointFixed
-                validator: RegExpValidator {
-                    regExp: /.+/
-                }
-            }
-
-            Kirigami.Separator {
-                Kirigami.FormData.label: qsTr("Credentials")
-                Kirigami.FormData.isSection: true
-            }
-
-            TextField {
-
-                id: userField
-
-                Kirigami.FormData.label: qsTr("User")
-
-                text: priv.user
-                placeholderText: qsTr("User")
-                activeFocusOnTab: true
-                selectByMouse: true
-            }
-
-            Kirigami.PasswordField {
-
-                id: passwordField
-
-                Kirigami.FormData.label: qsTr("Password")
-
-                text: priv.password
-                passwordCharacter: "\u2022"
-                placeholderText: qsTr("Password")
-                activeFocusOnTab: true
-                selectByMouse: true
-            }
-
-            Kirigami.Separator {
-                Kirigami.FormData.label: qsTr("Media")
-                Kirigami.FormData.isSection: true
-            }
-
-            BusyCombobox {
-
-                id: defaultMediaProfile
-
-                Kirigami.FormData.label: qsTr("Default Profile")
-
-                Layout.fillWidth: true
-
-                busy: priv.pendingProfilesRequest
-                busyText: qsTr("Searching profiles")
-                model: priv.profiles
-                textRole: "name"
-
-                displayText: priv.profiles.length > 0 ? priv.profiles[currentIndex][textRole] : (priv.pendingProfilesRequest ? qsTr("Searching profiles") : qsTr("No profiles found"))
-            }
-
-            CameraImage {
-
-                Layout.fillWidth: true
-                implicitHeight: 300
-                profileId: App.createProfileId(
-                               credentialsDialog.deviceId,
-                               priv.profiles[defaultMediaProfile.currentIndex]["profileToken"])
+            text: priv.deviceName
+            focus: true
+            activeFocusOnTab: true
+            Layout.fillWidth: true
+            placeholderText: "Device Name"
+            selectByMouse: true
+            enabled: !credentialsDialog.deviceNameFixed
+            validator: RegExpValidator {
+                regExp: /.+/
             }
         }
-    }
 
-    QtObject {
-        id: priv
+        Controls.TextField {
 
-        property string deviceName: ""
-        property string deviceEndpoint: ""
-        property string user: ""
-        property string password: ""
-        property bool pendingProfilesRequest: false
-        property var profiles: []
+            id: hostField
 
-        onPendingProfilesRequestChanged: {
-            console.warn("############### " + pendingProfilesRequest)
+            text: priv.deviceEndpoint
+            activeFocusOnTab: true
+            Layout.fillWidth: true
+            placeholderText: "Device Host"
+            selectByMouse: true
+            enabled: !credentialsDialog.deviceEndpointFixed
+            validator: RegExpValidator {
+                regExp: /.+/
+            }
         }
 
-        function addDevice() {
-            message.visible = false
-            let future = DeviceManager.addDevice(
-                    hostField.text, userField.text, passwordField.text,
-                    deviceNameField.text,
-                    credentialsDialog.deviceId ? credentialsDialog.deviceId : App.createUuid(
-                                                     ))
-            Future.sync(future, "isRunning", mainAction)
-            Future.onFinished(future, function (result) {
-                console.warn(result.getDetails())
-                if (result.isSuccess()) {
-                    pageStack.pop()
-                } else {
-                    message.text = result.getDetails()
-                    message.visible = true
-                }
-            })
+        Controls.TextField {
+
+            id: userField
+
+            text: priv.user
+            placeholderText: qsTr("User")
+            Layout.fillWidth: true
+            activeFocusOnTab: true
+            selectByMouse: true
         }
 
-        function deleteDevice() {
+        Controls.TextField {
 
-            DeviceManager.removeDevice(credentialsDialog.deviceId)
-            pageStack.pop()
+            id: passwordField
+
+            text: priv.password
+            echoMode: TextInput.Password
+            placeholderText: qsTr("Password")
+            Layout.fillWidth: true
+            activeFocusOnTab: true
+            selectByMouse: true
+        }
+
+        BusyCombobox {
+
+            id: defaultMediaProfile
+
+            busy: priv.pendingProfilesRequest
+            busyText: qsTr("Searching profiles")
+            Layout.fillWidth: true
+            model: priv.profiles
+            textRole: "name"
+
+            displayText: priv.profiles.length > 0 ? priv.profiles[currentIndex][textRole] : (priv.pendingProfilesRequest ? qsTr("Searching profiles") : qsTr("No profiles found"))
+        }
+
+        CameraImage {
+
+            implicitHeight: 200
+            implicitWidth: 200
+
+            Layout.alignment: Qt.AlignHCenter
+
+            profileId: App.createProfileId(
+                           credentialsDialog.deviceId,
+                           priv.profiles[defaultMediaProfile.currentIndex]["profileToken"])
+        }
+
+        Row {
+
+            spacing: 20
+
+            Controls.Button {
+
+                icon.name: "ic_delete"
+                text: "Delete"
+
+                onClicked: priv.deleteDevice()
+            }
+            Controls.Button {
+
+                icon.name: "ic_save"
+                text: "Save"
+
+                onClicked: priv.addDevice()
+            }
+        }
+
+        QtObject {
+            id: priv
+
+            property string deviceName: ""
+            property string deviceEndpoint: ""
+            property string user: ""
+            property string password: ""
+            property bool pendingProfilesRequest: false
+            property var profiles: []
+
+            onPendingProfilesRequestChanged: {
+                console.warn("############### " + pendingProfilesRequest)
+            }
+
+            function addDevice() {
+                message.visible = false
+                let future = DeviceManager.addDevice(
+                        hostField.text, userField.text, passwordField.text,
+                        deviceNameField.text,
+                        credentialsDialog.deviceId ? credentialsDialog.deviceId : App.createUuid(
+                                                         ))
+                Future.sync(future, "isRunning", mainAction)
+                Future.onFinished(future, function (result) {
+                    console.warn(result.getDetails())
+                    if (result.isSuccess()) {
+                        credentialsDialog.accepted()
+                    } else {
+                        message.text = result.getDetails()
+                        message.visible = true
+                    }
+                })
+            }
+
+            function deleteDevice() {
+
+                DeviceManager.removeDevice(credentialsDialog.deviceId)
+                credentialsDialog.accepted()
+            }
         }
     }
 

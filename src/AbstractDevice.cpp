@@ -1,6 +1,11 @@
 #include "AbstractDevice.h"
+#include "HttpClient.h"
 #include "Util.h"
+#include "asyncfuture.h"
+#include "mdk/Player.h"
 #include <QCryptographicHash>
+#include <QSharedPointer>
+#include <QtConcurrent>
 #include <cstring>
 
 

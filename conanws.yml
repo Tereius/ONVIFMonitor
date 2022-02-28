@@ -1,7 +1,7 @@
 editables:
     ONVIFMonitor/1.0.0@tereius/stable:
         path: ./
-    libONVIF/2.0.0-SNAPSHOT@tereius/stable:
+    libONVIF/2.1.0-SNAPSHOT@tereius/stable:
         path: ../libONVIF
 
 layout: default

@@ -7,107 +7,152 @@ Item {
     id: conrol
 
     property var profileId
-    property alias fillMode: image.fillMode
-    property bool finished: image.status === Image.Ready ? true : false
+    property var fillMode: image.fillMode
+    property bool finished: true //image.status === Image.Ready ? true : false
+
+    property bool autoReload: false
+    property alias autoReloadInterval: autoReloadTimer.interval
 
     function refresh() {
 
         priv.load(profileId)
     }
 
-    height: image.status === Image.Ready ? image.implicitHeight / image.implicitWidth
-                                           * width : image.sourceSize.height
-                                           / image.sourceSize.width * width
+    function clear() {
+
+        for (var i = 0; i < imageContainer.children.length; i++) {
+            const child = imageContainer.children[i]
+                child.visible = false
+                child.destroy()
+        }
+    }
+
+    //height: image.status === Image.Ready ? image.implicitHeight / image.implicitWidth
+    //                                     * width : image.sourceSize.height
+    //                                   / image.sourceSize.width * width
+    height: 300
+
+    onVisibleChanged: {
+
+        if(!conrol.visible) clear()
+        else refresh()
+    }
 
     onProfileIdChanged: {
 
+        console.info("ProfileId changed")
         priv.load(profileId)
     }
 
-    Image {
+    Timer {
+        id: autoReloadTimer
+        running: autoReloadTimer.running && conrol.visible && conrol.profileId != null
+        interval: 10000
+        repeat: true
+        onTriggered: {
+            //if (image.status !== Image.Loading) {
+            conrol.refresh()
+            //}
+        }
+    }
 
-        id: image
+    Item {
+        id: imageContainer
 
         anchors.fill: parent
+    }
 
-        mipmap: true
-        asynchronous: false
-        cache: false
-        sourceSize.width: 1280
-        sourceSize.height: 720
+    Component {
 
-        Rectangle {
+        id: imageComponent
+
+        Image {
+
+            id: image
 
             anchors.fill: parent
 
-            color: palette.base
+            mipmap: true
+            asynchronous: false
+            cache: false
+            sourceSize.width: 720
+            sourceSize.height: 1280
 
-            visible: image.status === Image.Ready ? false : true
+            Rectangle {
 
-            Icon {
+                anchors.fill: parent
 
-                id: loadingIcon
+                color: palette.base
 
-                name: "ic_linked_camera"
+                visible: image.status === Image.Ready ? false : true
 
-                width: Math.round(Math.min(parent.width, parent.height) / 3.0)
-                height: width
+                Icon {
 
-                visible: image.status === Image.Loading ? true : false
+                    id: loadingIcon
 
-                anchors.centerIn: parent
+                    name: "ic_linked_camera"
 
-                SequentialAnimation {
+                    width: Math.round(Math.min(parent.width,
+                                               parent.height) / 3.0)
+                    height: width
 
-                    running: true
-                    loops: Animation.Infinite
-                    OpacityAnimator {
+                    visible: image.status === Image.Loading ? true : false
 
-                        target: loadingIcon
-                        from: 0
-                        to: 1
-                        duration: 1000
-                        easing.type: Easing.InOutSine
+                    anchors.centerIn: parent
+
+                    SequentialAnimation {
+
+                        running: true
+                        loops: Animation.Infinite
+                        OpacityAnimator {
+
+                            target: loadingIcon
+                            from: 0
+                            to: 1
+                            duration: 1000
+                            easing.type: Easing.InOutSine
+                        }
+
+                        OpacityAnimator {
+
+                            target: loadingIcon
+                            from: 1
+                            to: 0
+                            duration: 1000
+                            easing.type: Easing.InOutSine
+                        }
                     }
+                }
 
-                    OpacityAnimator {
+                Icon {
 
-                        target: loadingIcon
-                        from: 1
-                        to: 0
-                        duration: 1000
-                        easing.type: Easing.InOutSine
-                    }
+                    id: loadingFailedIcon
+
+                    name: "ic_warning"
+
+                    width: Math.round(Math.min(parent.width,
+                                               parent.height) / 3.0)
+                    height: width
+
+                    visible: image.status === Image.Error ? true : false
+
+                    anchors.centerIn: parent
                 }
             }
 
-            Icon {
+            WRoundButton {
 
-                id: loadingFailedIcon
+                anchors.right: parent.right
+                anchors.margins: 10
+                anchors.bottom: parent.bottom
 
-                name: "ic_warning"
+                visible: image.status === Image.Loading ? false : true
+                icon.name: "ic_refresh"
 
-                width: Math.round(Math.min(parent.width, parent.height) / 3.0)
-                height: width
+                onClicked: {
 
-                visible: image.status === Image.Error ? true : false
-
-                anchors.centerIn: parent
-            }
-        }
-
-        WRoundButton {
-
-            anchors.right: parent.right
-            anchors.margins: 10
-            anchors.bottom: parent.bottom
-
-            visible: image.status === Image.Loading ? false : true
-            icon.name: "ic_refresh"
-
-            onClicked: {
-
-                priv.load(priv.profileId)
+                    image.source = priv.createImageUrl(priv.profileId)
+                }
             }
         }
     }
@@ -117,10 +162,8 @@ Item {
         id: priv
         property var profileId
 
-        function load(profileId, timestamp) {
+        function createImageUrl(profileId, timestamp) {
 
-            console.debug("Camera snapshot requested for profile: " + profileId)
-            priv.profileId = profileId
             if (!timestamp) {
                 timestamp = new Date()
             }
@@ -129,8 +172,34 @@ Item {
                 console.warn("No profile id given")
             }
 
-            image.source = "image://profile/" + profileId.getDeviceId(
+            return "image://profile/" + profileId.getDeviceId(
                         ) + "/" + profileId.getProfileToken() + "/" + timestamp
+        }
+
+        function load(profileId) {
+
+            console.debug("Camera snapshot requested for profile: " + profileId)
+            priv.profileId = profileId
+
+            const imageSource = priv.createImageUrl(profileId)
+
+            let image = imageComponent.createObject(imageContainer, {
+                                                        "source": imageSource,
+                                                        "z": -1
+                                                    })
+
+            image.onStatusChanged.connect(function (status) {
+                if (status === Image.Ready || status === Image.Error) {
+                    image.z = 0
+                    for (var i = 0; i < imageContainer.children.length; i++) {
+                        const child = imageContainer.children[i]
+                        if (child !== image) {
+                            child.visible = false
+                            child.destroy()
+                        }
+                    }
+                }
+            })
         }
     }
 }

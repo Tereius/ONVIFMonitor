@@ -1,7 +1,10 @@
 #pragma once
 #include "ProfileId.h"
-#include <QQmlApplicationEngine>
+#include <QDir>
 #include <QFileSystemWatcher>
+#include <QList>
+#include <QQmlApplicationEngine>
+#include <QString>
 #include <QUrl>
 #include <QUuid>
 
@@ -33,12 +36,11 @@ class AdvancedQmlApplicationEngine : public QQmlApplicationEngine {
 
  private:
 	Q_DISABLE_COPY(AdvancedQmlApplicationEngine)
-	static void registerMetatypes();
-	static void registerQmlTypes();
 
 	void init();
 	void connectWatcher();
 	void disconnectWatcher();
+	QList<QString> findQmlFilesRecursive(const QDir &dir) const;
 
 	QUrl mRootUrl;
 	bool mHotReloading;

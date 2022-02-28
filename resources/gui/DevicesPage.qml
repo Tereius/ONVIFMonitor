@@ -5,6 +5,7 @@ import org.onvif.device 1.0
 import org.onvif.common 1.0
 import org.kde.kirigami 2.14 as Kirigami
 import "helper.js" as Helper
+import "controls" as Controls
 
 Kirigami.ScrollablePage {
 
@@ -45,6 +46,24 @@ Kirigami.ScrollablePage {
         repeat: false
     }
 
+    Controls.Popup {
+        id: dialog
+        title: "Title"
+
+        onAboutToShow: {
+            dialogLoader.active = true
+        }
+
+        onClosed: {
+            dialogLoader.active = false
+        }
+
+        Loader {
+            id: dialogLoader
+            anchors.fill: parent
+        }
+    }
+
     Column {
 
         ListView {
@@ -70,18 +89,26 @@ Kirigami.ScrollablePage {
                     font.pixelSize: 15
                 }
 
-                Button {
+                Controls.Button {
 
                     text: qsTr("Add")
                     icon.name: "ic_add"
+                    flat: true
                     onClicked: {
 
-                        pageStack.push(Qt.resolvedUrl("NewDevicePage.qml"), {
-                                           "deviceName": qsTr("New Device"),
-                                           "deviceEndpoint": "",
-                                           "deviceNameFixed": false,
-                                           "deviceEndpointFixed": false
-                                       })
+                        dialogLoader.setSource(Qt.resolvedUrl(
+                                                   "NewDevicePage.qml"), {
+                                                   "deviceName": qsTr("New Device"),
+                                                   "deviceEndpoint": "",
+                                                   "deviceNameFixed": false,
+                                                   "deviceEndpointFixed": false
+                                               })
+
+                        dialogLoader.item.accepted.connect(function () {
+                            dialog.close()
+                        })
+
+                        dialog.open()
                     }
                 }
             }
@@ -103,7 +130,10 @@ Kirigami.ScrollablePage {
                 console.log("count changed" + count)
             }
 
-            model: deviceModel
+            model: DevicesModel {
+                deviceManager: DeviceManager
+            }
+
             delegate: ItemDelegate {
 
                 width: parent.width
@@ -113,11 +143,17 @@ Kirigami.ScrollablePage {
 
                 onClicked: {
 
-                    pageStack.push(Qt.resolvedUrl("DevicePage.qml"), {
-                                       "deviceId": id,
-                                       "deviceNameFixed": false,
-                                       "deviceEndpointFixed": false
-                                   })
+                    dialogLoader.setSource(Qt.resolvedUrl("DevicePage.qml"), {
+                                               "deviceId": id,
+                                               "deviceNameFixed": false,
+                                               "deviceEndpointFixed": false
+                                           })
+
+                    dialogLoader.item.accepted.connect(function () {
+                        dialog.close()
+                    })
+
+                    dialog.open()
                 }
                 rightPadding: settingsButton.width + errorButton.width
 
@@ -169,10 +205,11 @@ Kirigami.ScrollablePage {
                     font.pixelSize: 15
                 }
 
-                Button {
+                Controls.Button {
 
                     id: refreshButton
                     text: "Search"
+                    flat: true
                     icon.name: "ic_refresh"
                     visible: false
                     onClicked: {
@@ -241,13 +278,19 @@ Kirigami.ScrollablePage {
                 text: name
                 onClicked: {
 
-                    pageStack.push(Qt.resolvedUrl("NewDevicePage.qml"), {
-                                       "deviceName": name,
-                                       "deviceEndpoint": endpoint,
-                                       "deviceId": id,
-                                       "deviceNameFixed": false,
-                                       "deviceEndpointFixed": true
-                                   })
+                    dialogLoader.setSource(Qt.resolvedUrl("NewDevicePage.qml"),
+                                           {
+                                               "deviceName": name,
+                                               "deviceEndpoint": endpoint,
+                                               "deviceId": id,
+                                               "deviceNameFixed": false,
+                                               "deviceEndpointFixed": true
+                                           })
+                    dialogLoader.item.accepted.connect(function () {
+                        dialog.close()
+                    })
+
+                    dialog.open()
                 }
             }
         }
@@ -284,11 +327,6 @@ Kirigami.ScrollablePage {
         filterFunctor: function (value) {
             return !DeviceManager.containsDevice(value)
         }
-    }
-
-    DeviceModel {
-
-        id: deviceModel
     }
 
     DeviceSettingsDialog {

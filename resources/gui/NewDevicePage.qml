@@ -6,6 +6,7 @@ import QuickFuture 1.0
 import org.onvif.device 1.0
 import org.kde.kirigami 2.14 as Kirigami
 import "helper.js" as Helper
+import "controls" as Controls
 
 Kirigami.ScrollablePage {
 
@@ -22,6 +23,10 @@ Kirigami.ScrollablePage {
     Keys.onEnterPressed: priv.addDevice()
     Keys.onReturnPressed: priv.addDevice()
 
+    signal accepted
+
+
+    /*
     actions.main: Kirigami.Action {
 
         id: mainAction
@@ -45,113 +50,96 @@ Kirigami.ScrollablePage {
                 onClicked: priv.addDevice()
             }
         }
-    }
-
-    QtObject {
-        id: priv
-
-        function addDevice() {
-            message.visible = false
-            let future = DeviceManager.addDevice(
-                    hostField.text, userField.text, passwordField.text,
-                    deviceNameField.text,
-                    credentialsDialog.deviceId ? credentialsDialog.deviceId : App.createUuid(
-                                                     ))
-            Future.sync(future, "isRunning", mainAction)
-            Future.onFinished(future, function (result) {
-                console.warn(result.getDetails())
-                if (result.isSuccess()) {
-                    pageStack.pop()
-                } else {
-                    message.text = result.getDetails()
-                    message.visible = true
-                }
-            })
-        }
-    }
-
+    }*/
     ColumnLayout {
+
+        spacing: 20
 
         Kirigami.InlineMessage {
             id: message
-            Layout.fillWidth: true
             type: Kirigami.MessageType.Information
+            Layout.fillWidth: true
         }
 
-        FormLayout {
+        Controls.TextField {
 
-            enabled: !mainAction.isRunning
+            id: deviceNameField
+
+            text: credentialsDialog.deviceName
+            focus: true
             Layout.fillWidth: true
-
-            TextField {
-
-                id: deviceNameField
-
-                Component.onCompleted: {
-                    ensureVisible(0)
-                }
-
-                Kirigami.FormData.label: Helper.markRejectedLabel(
-                                             qsTr("Name"), acceptableInput)
-
-                text: credentialsDialog.deviceName
-                focus: true
-                activeFocusOnTab: true
-                placeholderText: "Device Name"
-                selectByMouse: true
-                enabled: !credentialsDialog.deviceNameFixed
-                validator: RegExpValidator {
-                    regExp: /.+/
-                }
+            activeFocusOnTab: true
+            placeholderText: "Device Name"
+            selectByMouse: true
+            enabled: !credentialsDialog.deviceNameFixed
+            validator: RegExpValidator {
+                regExp: /.+/
             }
+        }
 
-            TextField {
+        Controls.TextField {
 
-                id: hostField
+            id: hostField
 
-                Component.onCompleted: {
-                    ensureVisible(0)
-                }
-
-                Kirigami.FormData.label: Helper.markRejectedLabel(
-                                             qsTr("Host"), acceptableInput)
-
-                text: credentialsDialog.deviceEndpoint
-                activeFocusOnTab: true
-                placeholderText: "Device Host"
-                selectByMouse: true
-                enabled: !credentialsDialog.deviceEndpointFixed
-                validator: RegExpValidator {
-                    regExp: /.+/
-                }
+            text: credentialsDialog.deviceEndpoint
+            Layout.fillWidth: true
+            activeFocusOnTab: true
+            placeholderText: "Device Host"
+            selectByMouse: true
+            enabled: !credentialsDialog.deviceEndpointFixed
+            validator: RegExpValidator {
+                regExp: /.+/
             }
+        }
 
-            Kirigami.Separator {
-                Kirigami.FormData.label: qsTr("Credentials")
-                Kirigami.FormData.isSection: true
-            }
+        Controls.TextField {
 
-            TextField {
+            id: userField
 
-                id: userField
+            Layout.fillWidth: true
+            placeholderText: qsTr("User")
+            activeFocusOnTab: true
+            selectByMouse: true
+        }
 
-                Kirigami.FormData.label: qsTr("User")
+        Controls.TextField {
 
-                placeholderText: qsTr("User")
-                activeFocusOnTab: true
-                selectByMouse: true
-            }
+            id: passwordField
 
-            Kirigami.PasswordField {
+            echoMode: TextInput.Password
+            Layout.fillWidth: true
+            placeholderText: qsTr("Password")
+            activeFocusOnTab: true
+            selectByMouse: true
+        }
 
-                id: passwordField
+        Controls.Button {
 
-                passwordCharacter: "\u2022"
-                Kirigami.FormData.label: qsTr("Password")
+            icon.name: "ic_add"
+            text: "Add"
+            onClicked: priv.addDevice()
+        }
 
-                placeholderText: qsTr("Password")
-                activeFocusOnTab: true
-                selectByMouse: true
+        QtObject {
+            id: priv
+
+            function addDevice() {
+                message.visible = false
+                let future = DeviceManager.addDevice(
+                        hostField.text, userField.text, passwordField.text,
+                        deviceNameField.text,
+                        credentialsDialog.deviceId ? credentialsDialog.deviceId : App.createUuid(
+                                                         ))
+                Future.sync(future, "isRunning", mainAction)
+                Future.onFinished(future, function (result) {
+                    console.warn(result.getDetails())
+                    if (result.isSuccess()) {
+                        credentialsDialog.accepted()
+                    } else {
+                        message.text = result.getDetails()
+                        message.visible = true
+                    }
+                })
             }
         }
     }

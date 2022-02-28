@@ -8,23 +8,7 @@
 #include <QtConcurrent>
 
 
-MediaProfilesModel::MediaProfilesModel(QObject *pParent /*= nullptr*/) : AbstractListModel(pParent), mProfiles(), mDeviceId() {
-
-	connect(
-	 DeviceM, &DeviceManager::deviceRemoved, this,
-	 [this](const QUuid &rDeviceId) {
-		 if(rDeviceId == mDeviceId) {
-			 auto size = mProfiles.size();
-			 beginRemoveRows(QModelIndex(), 0, size - 1);
-			 mProfiles.clear();
-			 endRemoveRows();
-		 }
-	 },
-	 Qt::QueuedConnection);
-
-	connect(
-	 DeviceM, &DeviceManager::deviceChanged, this, [this](const QUuid &rDeviceId) { setDeviceId(rDeviceId); }, Qt::QueuedConnection);
-}
+MediaProfilesModel::MediaProfilesModel(QObject *pParent /*= nullptr*/) : AbstractListModel(pParent), mProfiles(), mDeviceId() {}
 
 int MediaProfilesModel::rowCount(const QModelIndex &parent /*= QModelIndex()*/) const {
 

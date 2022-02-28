@@ -1,6 +1,8 @@
 <RCC>
 <qresource prefix="/">
 <file>icons/onvif/index.theme</file>
+<file>icons/onvif/48x48/cctv-off.svg</file>
+<file>icons/onvif/48x48/cctv.svg</file>
 <file>icons/onvif/48x48/dialog-error.svg</file>
 <file>icons/onvif/48x48/dialog-information.svg</file>
 <file>icons/onvif/48x48/dialog-positive.svg</file>
@@ -14,6 +16,7 @@
 <file>icons/onvif/48x48/go-previous.svg</file>
 <file>icons/onvif/48x48/go-up.svg</file>
 <file>icons/onvif/48x48/handle-sort.svg</file>
+<file>icons/onvif/48x48/harddisk.svg</file>
 <file>icons/onvif/48x48/ic_add.svg</file>
 <file>icons/onvif/48x48/ic_appbar_link.svg</file>
 <file>icons/onvif/48x48/ic_appbar_speakerphone.svg</file>
@@ -34,6 +37,7 @@
 <file>icons/onvif/48x48/ic_settings_applications.svg</file>
 <file>icons/onvif/48x48/ic_video_library.svg</file>
 <file>icons/onvif/48x48/ic_warning.svg</file>
+<file>icons/onvif/48x48/information.svg</file>
 <file>icons/onvif/48x48/mail-sent.svg</file>
 <file>icons/onvif/48x48/overflow-menu-left.svg</file>
 <file>icons/onvif/48x48/overflow-menu-right.svg</file>

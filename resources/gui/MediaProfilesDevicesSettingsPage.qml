@@ -10,7 +10,9 @@ Kirigami.ScrollablePage {
 
     ListView {
 
-        model: devicesModel
+        model: DevicesModel {
+            deviceManager: DeviceManager
+        }
 
         delegate: ItemDelegate {
 
@@ -33,9 +35,5 @@ Kirigami.ScrollablePage {
                 anchors.verticalCenter: parent.verticalCenter
             }
         }
-    }
-
-    DeviceModel {
-        id: devicesModel
     }
 }

@@ -1,13 +1,13 @@
 #pragma once
-#include "Result.h"
-#include "MediaProfile.h"
 #include "DeviceInfo.h"
-#include <QString>
-#include <QUuid>
+#include "MediaProfile.h"
+#include "Result.h"
 #include <QDateTime>
-#include <QUrl>
-#include <QList>
 #include <QImage>
+#include <QList>
+#include <QString>
+#include <QUrl>
+#include <QUuid>
 
 
 class AbstractDevice {
@@ -22,6 +22,6 @@ class AbstractDevice {
 	QString getHost() const;
 	int getPort() const;
 	virtual DeviceInfo getDeviceInfo() const = 0;
-	virtual DetailedResult<QList<MediaProfile>> getyMediaProfiles() = 0;
-	virtual DetailedResult<QImage> getSnapshot(const QString &rMediaProfile) = 0;
+	virtual DetailedResult<QList<MediaProfile>> getMediaProfiles() = 0;
+	virtual QFuture<DetailedResult<QImage>> getSnapshot(const MediaProfile &rMediaProfile, const QSize &rSize) = 0;
 };

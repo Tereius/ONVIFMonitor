@@ -1,8 +1,9 @@
 import QtQuick 2.12
 import QtQml 2.12
 import QtQuick.Controls 2.5
+import "controls" as Controls
 
-ComboBox {
+Controls.ComboBox {
 
     id: component
     property bool busy: false
@@ -12,7 +13,6 @@ ComboBox {
     enabled: !busy && count > 0
 
     indicator.visible: !busy
-
     displayText: busy ? busyText : (count == 0 ? emptyText : (textRole ? ((Array.isArray(model) ? modelData[textRole] : model[textRole])) : modelData))
 
     BusyIndicator {

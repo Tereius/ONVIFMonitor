@@ -1,10 +1,10 @@
 #pragma once
 #include "MediaProfile.h"
-#include <QString>
+#include <QList>
 #include <QObject>
+#include <QString>
 #include <QUrl>
 #include <QUuid>
-#include <QList>
 
 
 class DeviceInfo {

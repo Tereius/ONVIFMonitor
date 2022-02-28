@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>TilesGrid/qmldir</file>
+        <file>TilesGrid/Tile.qml</file>
+        <file>TilesGrid/TilesGrid.qml</file>
+        <file>TilesGrid/TilesGridData.qml</file>
+        <file>TilesGrid/TilesGridLogic.qml</file>
+        <file>TilesGrid/TilesGridLayout.qml</file>
+        <file>TilesGrid/UndoStack.qml</file>
+    </qresource>
+</RCC>

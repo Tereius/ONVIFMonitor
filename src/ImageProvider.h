@@ -1,38 +1,48 @@
 #pragma once
 #include "ProfileId.h"
 #include "Result.h"
-#include <QQuickAsyncImageProvider>
+#include <QFuture>
 #include <QObject>
+#include <QPointer>
+#include <QQuickAsyncImageProvider>
 #include <QQuickImageResponse>
-#include <QRunnable>
 
 
 class QQuickTextureFactory;
+class DeviceManager;
 
 class ImageProvider : public QObject, public QQuickAsyncImageProvider {
 
 	Q_OBJECT
 
  public:
-	explicit ImageProvider(QObject *pParent = nullptr);
+	explicit ImageProvider(DeviceManager *pManager);
 	QQuickImageResponse *requestImageResponse(const QString &id, const QSize &requestedSize) override;
 
  private:
 	Q_DISABLE_COPY(ImageProvider)
+
+	QPointer<DeviceManager> mpManager;
 };
 
 
-class AsyncImageResponse : public QQuickImageResponse, public QRunnable {
+class AsyncImageResponse : public QQuickImageResponse {
+
+	Q_OBJECT
 
  public:
-	AsyncImageResponse(const ProfileId &rProfileId, const QSize &requestedSize);
+	AsyncImageResponse(ProfileId rProfileId, const QSize &requestedSize, QPointer<DeviceManager> pManager);
 	QQuickTextureFactory *textureFactory() const override;
-	void run() override;
 	QString errorString() const override;
+
+ public slots:
+	void cancel() override;
 
  private:
 	ProfileId mProfileId;
 	QSize mSize;
 	QImage mImage;
 	Result mResult;
+	QPointer<DeviceManager> mpManager;
+	QFuture<DetailedResult<QImage>> mSnapshotFuture;
 };
