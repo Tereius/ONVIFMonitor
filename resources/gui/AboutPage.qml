@@ -1,9 +1,8 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.12
-import org.kde.kirigami 2.14 as Kirigami
 import "controls" as Controls
 
-Kirigami.ScrollablePage {
+Controls.ScrollablePage {
 
     id: aboutPage
     title: qsTr("About")
@@ -29,6 +28,10 @@ Kirigami.ScrollablePage {
 
             Label {
                 text: "Material Studies Rally: Google"
+            }
+
+            Label {
+                text: "Roboto Condensed: Google"
             }
         }
     }

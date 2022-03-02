@@ -3,11 +3,10 @@ import QtQuick.Controls 2.3
 import QtQuick.Layouts 1.3
 import org.onvif.device 1.0
 import org.onvif.common 1.0
-import org.kde.kirigami 2.14 as Kirigami
 import "helper.js" as Helper
 import "controls" as Controls
 
-Kirigami.ScrollablePage {
+Controls.ScrollablePage {
 
     id: settingsPage
     title: qsTr("Devices")

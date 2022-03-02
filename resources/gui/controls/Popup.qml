@@ -25,19 +25,40 @@ T.Dialog {
         control.open()
     }
 
-    header: T.ToolBar {
+    header: ToolBar {
 
         y: control.yStart
-
-        Material.elevation: 0
-
-        background: Item {}
 
         T.RoundButton {
             icon.name: "ic_arrow_back"
             flat: true
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
             onClicked: {
                 control.close()
+            }
+        }
+
+        T.Label {
+            anchors.centerIn: parent
+            text: control.title
+            font.pixelSize: 16
+            font.letterSpacing: 1.1
+        }
+
+        Row {
+
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+
+            T.ToolButton {
+                id: toolButton1
+                icon.name: "check"
+                text: "save"
+            }
+            T.ToolButton {
+                id: toolButton2
+                icon.name: "ic_arrow_back"
             }
         }
     }

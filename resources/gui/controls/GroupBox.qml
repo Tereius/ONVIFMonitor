@@ -11,7 +11,7 @@ T.GroupBox {
     background: Rectangle {
         width: parent.width
         height: parent.height
-        color: "#3a3a44"
+        color: "#373740"
     }
 
     label: T.Label {

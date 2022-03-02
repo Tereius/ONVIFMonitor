@@ -57,7 +57,7 @@ ApplicationWindow {
         id: mainMenuModel
 
         ListElement {
-            title: qsTr("Monitoring")
+            title: qsTr("Overview")
             iconName: "cctv"
             defaultChecked: true
             qmlSource: "MonitoringPage.qml"
@@ -88,10 +88,7 @@ ApplicationWindow {
         }
     }
 
-    header: ToolBar {
-
-        Material.elevation: 0
-        background: Item {}
+    header: Controls.ToolBar {
 
         Controls.TabBarFolding {
 
@@ -114,6 +111,26 @@ ApplicationWindow {
         }
     }
 
+    ProgressBar {
+        anchors.top: root.header
+        width: root.header.width
+        indeterminate: true
+
+        visible: loader.status === Loader.Loading
+
+        Material.accent: Material.iconColor
+
+        Component.onCompleted: {
+            contentItem.implicitHeight = 2
+        }
+
+        background: Rectangle {
+            implicitHeight: 2
+            color: Material.iconColor
+            opacity: 0.6
+        }
+    }
+
     SwipeView {
 
         id: view
@@ -122,6 +139,7 @@ ApplicationWindow {
         Repeater {
             model: mainMenuModel
             Loader {
+                id: loader
                 active: SwipeView.isCurrentItem || SwipeView.isNextItem
                         || SwipeView.isPreviousItem
                 asynchronous: true

@@ -5,32 +5,15 @@ import QtQuick.Layouts 1.3
 import QuickFuture 1.0
 import QtQuick.Controls.Material 2.12
 import org.onvif.device 1.0
-import org.kde.kirigami 2.14 as Kirigami
 import "helper.js" as Helper
 import "controls" as Controls
 
-Kirigami.ScrollablePage {
-
-    Controls.Popup {
-        id: popup
-
-        Label {
-            text: "Lorem ipsum"
-        }
-    }
+Controls.ScrollablePage {
 
     Column {
 
-        spacing: 10
-
-        Controls.Button {
-            text: "Show popup"
-
-            onClicked: {
-                popup.openWithAnimOffset(mapToItem(Overlay.overlay, 0,
-                                                   pressY).y)
-            }
-        }
+        padding: 0
+        spacing: 0
 
         Controls.GroupBox {
             title: "Test"
@@ -52,6 +35,15 @@ Kirigami.ScrollablePage {
                     placeholderText: "IP-Adresse"
                     text: "asdfaefw"
                 }
+            }
+        }
+
+        Controls.Button {
+            text: "Show popup"
+
+            onClicked: {
+                popup.openWithAnimOffset(mapToItem(Overlay.overlay, 0,
+                                                   pressY).y)
             }
         }
 

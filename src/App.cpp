@@ -95,15 +95,18 @@ int App::start(int &argc, char **argv, bool headless) {
 		return storagePath.removeRecursively() ? 0 : 1;
 	}
 
+	// Install fonts
 	QFontDatabase fontDb;
-	if(fontDb.families().isEmpty()) {
-		auto fontId = QFontDatabase::addApplicationFont(":/fonts/LiberationSans-Regular.ttf");
+	QDir fontsDir(":/fonts");
+	for(const auto &entry : fontsDir.entryList({"*.ttf", "*.otf"}, QDir::Files)) {
+		auto fontId = QFontDatabase::addApplicationFont(fontsDir.absoluteFilePath(entry));
 		if(fontId >= 0) {
-			qInfo() << "Fallback font registered:" << QFontDatabase::applicationFontFamilies(fontId);
-			QFont font(QFontDatabase::applicationFontFamilies(fontId).first());
-			QGuiApplication::setFont(font);
+			auto fontFamily = QFontDatabase::applicationFontFamilies(fontId);
+			qInfo() << "Font registered:" << QFontDatabase::applicationFontFamilies(fontId);
+			// QFont font(QFontDatabase::applicationFontFamilies(fontId).first());
+			// QGuiApplication::setFont(font);
 		} else {
-			qWarning() << "Couldn't install fallback font.";
+			qWarning() << "Couldn't install font.";
 		}
 	}
 

@@ -5,11 +5,10 @@ import QtQml.Models 2.12
 import TilesGrid 1.0
 import org.onvif.device 1.0
 import org.onvif.monitoring 1.0
-import org.kde.kirigami 2.14 as Kirigami
 import QtQuick.Controls.Material 2.12
 import "controls" as Controls
 
-Kirigami.ScrollablePage {
+Controls.ScrollablePage {
 
     id: monitoringPage
     title: qsTr("Monitoring")
@@ -21,7 +20,7 @@ Kirigami.ScrollablePage {
 
     Controls.Popup {
         id: dialog
-        title: "Title"
+        title: "Add Monitor"
 
         property var index
 

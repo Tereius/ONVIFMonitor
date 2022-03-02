@@ -2,9 +2,9 @@ import QtQuick 2.10
 import QtQuick.Controls 2.3
 import QtQuick.Layouts 1.3
 import org.onvif.device 1.0
-import org.kde.kirigami 2.14 as Kirigami
+import "controls" as Controls
 
-Kirigami.ScrollablePage {
+Controls.ScrollablePage {
 
     title: "Devices"
 

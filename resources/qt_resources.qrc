@@ -48,7 +48,6 @@
         <file>gui/OnvifMessageFilterBuilder.qml</file>
         <file>gui/FilterBuilder/BaseFilterComponent.qml</file>
         <file>gui/FilterBuilder/DropLine.qml</file>
-        <file>fonts/LiberationSans-Regular.ttf</file>
         <file>gui/helper.js</file>
         <file>gui/DevicePage.qml</file>
         <file>gui/FormLayout.qml</file>
@@ -68,5 +67,7 @@
         <file>gui/PlaceholderPage.qml</file>
         <file>gui/controls/Icon.qml</file>
         <file>gui/controls/Popup.qml</file>
+        <file>gui/controls/ToolBar.qml</file>
+        <file>gui/controls/ScrollablePage.qml</file>
     </qresource>
 </RCC>

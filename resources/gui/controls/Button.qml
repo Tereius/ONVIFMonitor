@@ -24,8 +24,7 @@ T.Button {
         implicitHeight: control.Material.buttonHeight
 
         radius: 4
-        color: !control.enabled ? control.Material.buttonDisabledColor :
-                control.highlighted ? control.Material.highlightedButtonColor : control.Material.buttonColor
+        color: !control.enabled ? control.Material.buttonDisabledColor : control.highlighted ? control.Material.highlightedButtonColor : control.Material.buttonColor
 
         Ripple {
             clipRadius: 2
@@ -34,7 +33,8 @@ T.Button {
             pressed: control.pressed
             anchor: control
             active: control.down || control.visualFocus || control.hovered
-            color: control.flat && control.highlighted ? control.Material.highlightedRippleColor : control.Material.rippleColor
+            color: control.flat
+                   && control.highlighted ? control.Material.highlightedRippleColor : control.Material.rippleColor
         }
     }
 }

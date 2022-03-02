@@ -8,7 +8,7 @@ import org.kde.kirigami 2.14 as Kirigami
 import "helper.js" as Helper
 import "controls" as Controls
 
-Kirigami.ScrollablePage {
+Controls.ScrollablePage {
 
     id: credentialsDialog
     property string deviceName: ""

@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>fonts/LiberationSans-Regular.ttf</file>
+        <file>fonts/RobotoCondensed-Regular.ttf</file>
+    </qresource>
+</RCC>
+

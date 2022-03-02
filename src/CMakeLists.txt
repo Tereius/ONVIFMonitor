@@ -36,7 +36,7 @@ find_path(BreezeIcons_DIR NAMES icons/actions/32/application-menu.svg)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-set(qt_rcc_resources "${PROJECT_SOURCE_DIR}/resources/qt_resources.qrc;${PROJECT_SOURCE_DIR}/resources/quickpromise.qrc;${PROJECT_SOURCE_DIR}/resources/tilesgrid.qrc;${PROJECT_SOURCE_DIR}/resources/default_icons.qrc")
+set(qt_rcc_resources "${PROJECT_SOURCE_DIR}/resources/qt_resources.qrc;${PROJECT_SOURCE_DIR}/resources/quickpromise.qrc;${PROJECT_SOURCE_DIR}/resources/tilesgrid.qrc;${PROJECT_SOURCE_DIR}/resources/default_icons.qrc;${PROJECT_SOURCE_DIR}/resources/fonts.qrc")
 
 set(QML2_IMPORT_PATH "${EXTERNAL_QML2_PATH}")
 set(QML_IMPORT_PATH "${EXTERNAL_QML2_PATH}")
