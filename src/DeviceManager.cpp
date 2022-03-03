@@ -1,5 +1,6 @@
 #include "DeviceManager.h"
 #include "DeviceInfo.h"
+#include "GenericDevice.h"
 #include "OnvifDevice.h"
 #include "Window.h"
 #include "asyncfuture.h"
@@ -120,7 +121,12 @@ QFuture<DetailedResult<QUuid>> DeviceManager::addDevice(const QUrl &rEndpoint, c
 		if(!duplicateDeviceByEndpoint && duplicateDeviceById) duplicateDeviceId = rDeviceId;
 		mMutex.unlock();
 		if(!duplicateDeviceByEndpoint && !duplicateDeviceById) {
-			auto device = QSharedPointer<OnvifDevice>::create();
+			QSharedPointer<AbstractDevice> device;
+			if(rEndpoint.url().endsWith("onvif/device_service")) {
+				device = QSharedPointer<OnvifDevice>::create();
+			} else {
+				device = QSharedPointer<GenericDevice>::create();
+			}
 			auto initFuture = initDevice(device, rEndpoint, rUsername, rPassword);
 			return AsyncFuture::observe(initFuture)
 			 .subscribe([this, initFuture, device, rEndpoint, rUsername, rPassword, rDeviceName, rDeviceId]() {

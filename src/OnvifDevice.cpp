@@ -51,7 +51,7 @@ DetailedResult<QImage> getSnapshotInternal(const MediaProfile &profile, const QS
 	return result;
 }
 
-OnvifDevice::OnvifDevice() : mDeviceInfo(), mpDeviceClient(nullptr), mpEventClient(nullptr), mpMediaClient(nullptr) {
+OnvifDevice::OnvifDevice() : AbstractDevice(), mDeviceInfo(), mpDeviceClient(nullptr), mpEventClient(nullptr), mpMediaClient(nullptr) {
 
 	mpDeviceClient = new OnvifDeviceClient(QUrl(), SoapCtx::Builder()
 	                                                .SetUserAgent(App::getDefaultUserAgent())
@@ -292,8 +292,8 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getMediaProfiles() {
 								StreamUrl streamUrl;
 								streamUrl.mProtocol = StreamUrl::SP_UDP;
 								streamUrl.mUrl = streamUrl.mUrlWithCredentials = QUrl::fromUserInput(streamResult->MediaUri->Uri);
-								streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
-								streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
+								if(!mDeviceInfo.mUser.isEmpty()) streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
+								if(!mDeviceInfo.mPassword.isEmpty()) streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
 								retProfile.mStreamUrls.push_back(streamUrl);
 							}
 						}
@@ -309,8 +309,8 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getMediaProfiles() {
 									StreamUrl streamUrl;
 									streamUrl.mProtocol = StreamUrl::SP_UDP_MULTICAST;
 									streamUrl.mUrl = streamUrl.mUrlWithCredentials = QUrl::fromUserInput(streamResult->MediaUri->Uri);
-									streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
-									streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
+									if(!mDeviceInfo.mUser.isEmpty()) streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
+									if(!mDeviceInfo.mPassword.isEmpty()) streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
 									retProfile.mStreamUrls.push_back(streamUrl);
 								}
 							}
@@ -328,8 +328,8 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getMediaProfiles() {
 									StreamUrl streamUrl;
 									streamUrl.mProtocol = StreamUrl::SP_TCP;
 									streamUrl.mUrl = streamUrl.mUrlWithCredentials = QUrl::fromUserInput(streamResult->MediaUri->Uri);
-									streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
-									streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
+									if(!mDeviceInfo.mUser.isEmpty()) streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
+									if(!mDeviceInfo.mPassword.isEmpty()) streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
 									retProfile.mStreamUrls.push_back(streamUrl);
 								}
 							}
@@ -346,8 +346,8 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getMediaProfiles() {
 									StreamUrl streamUrl;
 									streamUrl.mProtocol = StreamUrl::SP_RTSP;
 									streamUrl.mUrl = streamUrl.mUrlWithCredentials = QUrl::fromUserInput(streamResult->MediaUri->Uri);
-									streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
-									streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
+									if(!mDeviceInfo.mUser.isEmpty()) streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
+									if(!mDeviceInfo.mPassword.isEmpty()) streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
 									retProfile.mStreamUrls.push_back(streamUrl);
 								}
 							}
@@ -364,8 +364,8 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getMediaProfiles() {
 									StreamUrl streamUrl;
 									streamUrl.mProtocol = StreamUrl::SP_HTTP;
 									streamUrl.mUrl = streamUrl.mUrlWithCredentials = QUrl::fromUserInput(streamResult->MediaUri->Uri);
-									streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
-									streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
+									if(!mDeviceInfo.mUser.isEmpty()) streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
+									if(!mDeviceInfo.mPassword.isEmpty()) streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
 									retProfile.mStreamUrls.push_back(streamUrl);
 								}
 							}

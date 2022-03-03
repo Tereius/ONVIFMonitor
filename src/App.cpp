@@ -103,8 +103,6 @@ int App::start(int &argc, char **argv, bool headless) {
 		if(fontId >= 0) {
 			auto fontFamily = QFontDatabase::applicationFontFamilies(fontId);
 			qInfo() << "Font registered:" << QFontDatabase::applicationFontFamilies(fontId);
-			// QFont font(QFontDatabase::applicationFontFamilies(fontId).first());
-			// QGuiApplication::setFont(font);
 		} else {
 			qWarning() << "Couldn't install font.";
 		}

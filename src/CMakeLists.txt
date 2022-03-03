@@ -61,6 +61,7 @@ set(src_files
 		DeviceManager.cpp
 		#Device.cpp
 		OnvifDevice.cpp
+		GenericDevice.cpp
 		AbstractDevice.cpp
 		Result.cpp
 		DevicesModel.cpp
@@ -108,6 +109,7 @@ set(header_files
 		#Device.h
 		AbstractDevice.h
 		OnvifDevice.h
+		GenericDevice.h
 		Result.h
 		DevicesModel.h
 		Roles.h

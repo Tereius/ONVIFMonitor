@@ -109,25 +109,25 @@ ApplicationWindow {
                 }
             }
         }
-    }
 
-    ProgressBar {
-        anchors.top: root.header
-        width: root.header.width
-        indeterminate: true
+        ProgressBar {
+            anchors.top: parent.bottom
+            width: parent.width
+            indeterminate: true
 
-        visible: loader.status === Loader.Loading
+            visible: false //loader.status != Loader.Ready
 
-        Material.accent: Material.iconColor
+            Material.accent: Material.iconColor
 
-        Component.onCompleted: {
-            contentItem.implicitHeight = 2
-        }
+            Component.onCompleted: {
+                contentItem.implicitHeight = 2
+            }
 
-        background: Rectangle {
-            implicitHeight: 2
-            color: Material.iconColor
-            opacity: 0.6
+            background: Rectangle {
+                implicitHeight: 2
+                color: Material.iconColor
+                opacity: 0.6
+            }
         }
     }
 
