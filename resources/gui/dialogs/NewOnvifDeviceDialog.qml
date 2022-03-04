@@ -128,7 +128,7 @@ Controls.Popup {
             Future.onFinished(future, function (result) {
                 console.warn(result.getDetails())
                 if (result.isSuccess()) {
-                    credentialsDialog.accepted()
+                    credentialsDialog.close()
                 } else {
                     message.text = result.getDetails()
                     message.visible = true
