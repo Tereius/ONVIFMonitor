@@ -142,6 +142,17 @@ Controls.ScrollablePage {
 
                 onClicked: {
 
+                    const dialog = Helper.createItem(
+                                     Qt.resolvedUrl(
+                                         "dialogs/NewOnvifDeviceDialog.qml"),
+                                     null, {
+                                         "deviceId": id,
+                                         "deviceNameFixed": false,
+                                         "deviceEndpointFixed": false
+                                     })
+
+
+                    /*
                     dialogLoader.setSource(Qt.resolvedUrl("DevicePage.qml"), {
                                                "deviceId": id,
                                                "deviceNameFixed": false,
@@ -151,7 +162,7 @@ Controls.ScrollablePage {
                     dialogLoader.item.accepted.connect(function () {
                         dialog.close()
                     })
-
+*/
                     dialog.open()
                 }
                 rightPadding: settingsButton.width + errorButton.width
@@ -277,6 +288,19 @@ Controls.ScrollablePage {
                 text: name
                 onClicked: {
 
+                    const dialog = Helper.createItem(
+                                     Qt.resolvedUrl(
+                                         "dialogs/NewOnvifDeviceDialog.qml"),
+                                     ApplicationWindow.window, {
+                                         "deviceName": name,
+                                         "deviceEndpoint": endpoint,
+                                         "deviceId": id,
+                                         "deviceNameFixed": false,
+                                         "deviceEndpointFixed": true
+                                     })
+
+
+                    /*
                     dialogLoader.setSource(Qt.resolvedUrl("NewDevicePage.qml"),
                                            {
                                                "deviceName": name,
@@ -287,9 +311,11 @@ Controls.ScrollablePage {
                                            })
                     dialogLoader.item.accepted.connect(function () {
                         dialog.close()
+                    })*/
+                    dialog.openWithAnimOffset()
+                    dialog.closed.connect(function () {
+                        dialog.destroy()
                     })
-
-                    dialog.open()
                 }
             }
         }

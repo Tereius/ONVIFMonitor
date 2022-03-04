@@ -21,6 +21,8 @@ ApplicationWindow {
         property alias height: root.height
     }
 
+    onActiveFocusItemChanged: console.debug("activeFocus: " + activeFocusItem)
+
     Label {
 
         id: sizeLabel

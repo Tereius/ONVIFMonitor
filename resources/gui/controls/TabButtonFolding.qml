@@ -35,6 +35,8 @@ T.Button {
         height: 0
     }
 
+    focusPolicy: Qt.NoFocus
+
     T.RoundButton {
 
         id: button

@@ -69,5 +69,8 @@
         <file>gui/controls/Popup.qml</file>
         <file>gui/controls/ToolBar.qml</file>
         <file>gui/controls/ScrollablePage.qml</file>
+        <file>gui/dialogs/NewOnvifDeviceDialog.qml</file>
+        <file>gui/controls/BusyAction.qml</file>
+        <file>gui/controls/InlineMessage.qml</file>
     </qresource>
 </RCC>

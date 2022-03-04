@@ -14,19 +14,21 @@ function createItem(url, parent, options) {
             let item = component.createObject(parent, options)
             if (item == null) {
                 // Error Handling
-                console.log("Error creating object")
+                console.warn("Error creating object")
             }
             return item
         } else if (component.status == QtQml.Component.Error) {
             // Error Handling
-            console.log("Error loading component:", component.errorString())
+            console.warn("Error loading component:", component.errorString())
         }
     }
 
     if (component.status == QtQml.Component.Ready)
         return finishCreation()
-    else
+    else if (component.status == QtQml.Component.Loading)
         component.statusChanged.connect(finishCreation)
+    else
+        console.warn("Error creating Item: " + component.errorString())
 }
 
 function markRejectedLabel(text, acceptedDecisionProperty) {

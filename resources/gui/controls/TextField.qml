@@ -9,7 +9,8 @@ T.TextField {
     id: control
     selectByMouse: true
 
-    placeholderTextColor: Material.secondaryTextColor
+    placeholderTextColor: control.acceptableInput ? Material.secondaryTextColor : Material.color(
+                                                        Material.Red)
     topPadding: control.placeholderText.length > 0 ? 22 : 10
     bottomPadding: control.placeholderText.length > 0 ? 10 : 10
     leftPadding: 12
@@ -61,7 +62,7 @@ T.TextField {
         transformOrigin: Item.TopLeft
         width: control.width - (control.leftPadding + control.rightPadding)
         height: control.height - (control.topPadding + control.bottomPadding)
-        text: control.placeholderText
+        text: control.placeholderText + (control.acceptableInput ? "" : "*")
         font: control.font
         color: control.placeholderTextColor
         verticalAlignment: Text.AlignVCenter
@@ -96,8 +97,29 @@ T.TextField {
                 }
             }
 
-            color: control.activeFocus ? control.Material.accentColor : (control.hovered
-                                                                         || backgr.manualHover ? control.Material.primaryTextColor : control.Material.hintTextColor)
+            color: {
+                if (control.activeFocus) {
+                    if (control.acceptableInput) {
+                        control.Material.accentColor
+                    } else {
+                        Material.color(Material.Red)
+                    }
+                } else {
+                    if (control.hovered || backgr.manualHover) {
+                        if (control.acceptableInput) {
+                            control.Material.primaryTextColor
+                        } else {
+                            Material.color(Material.Red)
+                        }
+                    } else {
+                        if (control.acceptableInput) {
+                            control.Material.hintTextColor
+                        } else {
+                            Material.color(Material.Red)
+                        }
+                    }
+                }
+            }
         }
     }
 }

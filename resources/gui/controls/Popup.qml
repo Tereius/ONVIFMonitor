@@ -10,9 +10,11 @@ T.Dialog {
     id: control
 
     readonly property real yStart: 80
+    property alias busy: progressBar.visible
 
     Material.elevation: 0
     topPadding: yStart
+    enabled: !busy
 
     parent: T.Overlay.overlay
     width: parent.width
@@ -21,9 +23,12 @@ T.Dialog {
 
     function openWithAnimOffset(yOffset) {
 
-        priv.yAnimOffset = yOffset
+        if (yOffset)
+            priv.yAnimOffset = yOffset
         control.open()
     }
+
+    property list<BusyAction> actions
 
     header: ToolBar {
 
@@ -40,6 +45,7 @@ T.Dialog {
         }
 
         T.Label {
+            id: titleLabel
             anchors.centerIn: parent
             text: control.title
             font.pixelSize: 16
@@ -47,18 +53,66 @@ T.Dialog {
         }
 
         Row {
-
+            id: titleActions
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-
-            T.ToolButton {
-                id: toolButton1
-                icon.name: "check"
-                text: "save"
+            visible: titleActions.x - (titleLabel.x + titleLabel.width) > 10
+            Repeater {
+                model: control.actions
+                T.ToolButton {
+                    action: control.actions[index]
+                    flat: true
+                    enabled: !action.busy
+                    T.BusyIndicator {
+                        width: 40
+                        height: 40
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: action.busy
+                    }
+                }
             }
-            T.ToolButton {
-                id: toolButton2
-                icon.name: "ic_arrow_back"
+        }
+
+        Row {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !titleActions.visible
+            Repeater {
+                model: control.actions
+                T.ToolButton {
+                    action: control.actions[index]
+                    flat: true
+                    display: T.AbstractButton.IconOnly
+                    enabled: !action.busy
+                    T.BusyIndicator {
+                        width: 40
+                        height: 40
+                        anchors.centerIn: parent.contentItem
+                        visible: action.busy
+                    }
+                }
+            }
+        }
+
+        T.ProgressBar {
+            id: progressBar
+            anchors.top: parent.bottom
+            width: parent.width
+            indeterminate: true
+
+            visible: false
+
+            Material.accent: Material.iconColor
+
+            Component.onCompleted: {
+                contentItem.implicitHeight = 2
+            }
+
+            background: Rectangle {
+                implicitHeight: 2
+                color: Material.iconColor
+                opacity: 0.6
             }
         }
     }
