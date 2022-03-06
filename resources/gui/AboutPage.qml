@@ -23,6 +23,10 @@ Controls.ScrollablePage {
             }
 
             Label {
+                text: "playlist-remov Icon: Cody @XT3000"
+            }
+
+            Label {
                 text: "Material Icons: Google"
             }
 

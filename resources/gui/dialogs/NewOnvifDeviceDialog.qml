@@ -41,12 +41,28 @@ Controls.Popup {
 
             width: parent.width
 
-            Controls.InlineMessage {
-                id: message
-                title: "test"
-                alert: true
-                visible: false
+            Item {
+
                 Layout.fillWidth: true
+                implicitHeight: message.count === 0 ? 0 : message.implicitHeight
+
+                Behavior on implicitHeight {
+                    NumberAnimation {
+                        duration: 300
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
+                Controls.InlineMessage {
+                    id: message
+                    title: qsTr("Error")
+                    alert: true
+                    width: parent.width
+
+                    Behavior on implicitHeight {
+                        enabled: false
+                    }
+                }
             }
 
             Controls.GroupBox {
@@ -118,7 +134,6 @@ Controls.Popup {
         id: priv
 
         function addDevice() {
-            message.visible = false
             credentialsDialog.busy = true
             let future = DeviceManager.addDevice(
                     hostField.text, userField.text, passwordField.text,
@@ -130,8 +145,7 @@ Controls.Popup {
                 if (result.isSuccess()) {
                     credentialsDialog.close()
                 } else {
-                    message.text = result.getDetails()
-                    message.visible = true
+                    message.pushMessage(result.getDetails())
                 }
                 credentialsDialog.busy = false
             }, function () {
