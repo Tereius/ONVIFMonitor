@@ -56,7 +56,6 @@ Controls.Popup {
                 Controls.InlineMessage {
                     id: message
                     title: qsTr("Error")
-                    alert: true
                     width: parent.width
 
                     Behavior on implicitHeight {
@@ -145,7 +144,7 @@ Controls.Popup {
                 if (result.isSuccess()) {
                     credentialsDialog.close()
                 } else {
-                    message.pushMessage(result.getDetails())
+                    message.pushMessage(result.getDetails(), "error")
                 }
                 credentialsDialog.busy = false
             }, function () {

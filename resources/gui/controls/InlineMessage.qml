@@ -3,6 +3,7 @@ import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12 as T
 import QtQuick.Controls.impl 2.12
 import QtQuick.Controls.Material 2.12
+import QtQml.Models 2.12
 import QtQuick.Controls.Material.impl 2.12
 
 GroupBox {
@@ -11,13 +12,18 @@ GroupBox {
 
     property bool fold: true
     property string text: ""
-    property bool alert: false
     property alias count: messageModel.count
 
-    //readonly property real yStart: 80
-    //topPadding: yStart
-    function pushMessage(message) {
+    // severity one of "error", "warning", "info"
+    function pushMessage(message, severity, title) {
+
+        if (!severity) {
+            severity = "info"
+        }
+
         messageModel.insert(0, {
+                                "title": title,
+                                "severity": severity,
                                 "displayMessage": message
                             })
         //propertyAnimIn.start()
@@ -51,15 +57,64 @@ GroupBox {
             Layout.maximumHeight: 22
             Layout.fillWidth: true
 
-            Icon {
-                icon.name: control.alert ? "ic_warning" : "information"
-                icon.color: control.alert ? Material.color(
-                                                Material.Red) : Material.accentColor
-            }
+            Repeater {
+                model: messageModel
 
-            T.Label {
-                text: control.title
-                Layout.fillWidth: true
+                Row {
+                    visible: index === 0
+                    spacing: 6
+                    Layout.fillWidth: true
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        icon.name: {
+
+                            switch (severity) {
+                            case "error":
+                                return "ic_warning"
+                            case "warning":
+                                return "ic_warning"
+                            case "info":
+                                return "information"
+                            default:
+                                return "information"
+                            }
+                        }
+                        icon.color: {
+
+                            switch (severity) {
+                            case "error":
+                                return Material.color(Material.Red)
+                            case "warning":
+                                return Material.color(Material.Yellow)
+                            case "info":
+                                return Material.accentColor
+                            default:
+                                return Material.accentColor
+                            }
+                        }
+                    }
+
+                    T.Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: {
+
+                            if (!title) {
+                                switch (severity) {
+                                case "error":
+                                    return qsTr("Error")
+                                case "warning":
+                                    return qsTr("Warning")
+                                case "info":
+                                    return qsTr("Info")
+                                default:
+                                    return ""
+                                }
+                            } else {
+                                return title
+                            }
+                        }
+                    }
+                }
             }
 
             Item {
