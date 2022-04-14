@@ -11,7 +11,7 @@ T.Button {
     flat: true
     checkable: true
     font.capitalization: Font.AllUppercase
-    font.weight: Font.Bold
+    font.styleName: "Bold"
     font.letterSpacing: 2.8
     icon.width: 22
     icon.height: 22

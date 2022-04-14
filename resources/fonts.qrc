@@ -2,6 +2,8 @@
     <qresource prefix="/">
         <file>fonts/LiberationSans-Regular.ttf</file>
         <file>fonts/RobotoCondensed-Regular.ttf</file>
+        <file>fonts/RobotoCondensed-Light.ttf</file>
+        <file>fonts/RobotoCondensed-Bold.ttf</file>
     </qresource>
 </RCC>
 

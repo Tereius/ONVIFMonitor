@@ -45,15 +45,35 @@ Controls.ScrollablePage {
         repeat: false
     }
 
-    Column {
+    GridLayout {
 
-        spacing: 10
+        //spacing: 10
+        width: parent.width
+        columns: Math.max(1, width / 300)
 
         Controls.GroupBox {
 
             title: qsTr("Available Devices")
+            mainAction: Action {
+                enabled: !timer.running
+                text: qsTr("Search again")
+                onTriggered: {
+                    settingsPage.refreshDevices()
+                }
+            }
+
+            Layout.fillWidth: true
 
             ColumnLayout {
+
+                width: parent.width
+
+                ProgressBar {
+                    indeterminate: true
+                    opacity: timer.running ? 1 : 0
+                    Layout.fillWidth: true
+                    enabled: timer.running
+                }
 
                 Repeater {
 
@@ -87,27 +107,16 @@ Controls.ScrollablePage {
                     }
                 }
 
-                ProgressBar {
-                    indeterminate: true
-                    visible: timer.running
-                }
-
                 RowLayout {
+
+                    Layout.fillWidth: true
                     visible: !timer.running
                              && deviceDiscoveryModelFiltered.count === 0
 
                     Label {
-                        text: qsTr("No devices found")
-                    }
-
-                    ToolButton {
-                        flat: true
-                        text: qsTr("Search again")
-                        icon.name: "ic_refresh"
-                        display: "IconOnly"
-                        onClicked: {
-                            settingsPage.refreshDevices()
-                        }
+                        text: qsTr("No devices found on your network. Please make sure you are on the same network as the device.")
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
                     }
                 }
             }
@@ -115,9 +124,12 @@ Controls.ScrollablePage {
 
         Controls.GroupBox {
 
-            title: qsTr("Devices")
+            title: qsTr("Configured Devices")
+            Layout.fillWidth: true
 
             ColumnLayout {
+
+                width: parent.width
 
                 Repeater {
 
@@ -127,7 +139,7 @@ Controls.ScrollablePage {
 
                     delegate: ItemDelegate {
 
-                        width: parent.width
+                        Layout.fillWidth: true
                         height: 50
 
                         icon.name: "ic_fiber_new"

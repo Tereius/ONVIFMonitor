@@ -143,5 +143,198 @@ Controls.ScrollablePage {
                 }
             }
         }
+
+        Label {
+            text: "font NativeRendering"
+            font.pixelSize: 20
+            font.styleName: "Light"
+            renderType: Text.NativeRendering
+        }
+
+        Label {
+            text: "font QtRendering"
+            font.pixelSize: 20
+            font.styleName: "Light"
+            renderType: Text.QtRendering
+        }
+
+        Label {
+            text: "font default rendering"
+            font.pixelSize: 20
+            font.styleName: "Light"
+        }
+
+        ComboBox {
+            model: ListModel {
+                id: model
+                ListElement {
+                    text: "Text.NativeRendering"
+                    value: Text.NativeRendering
+                }
+
+                ListElement {
+                    text: "Text.QtRendering"
+                    value: Text.QtRendering
+                }
+            }
+
+            textRole: "text"
+            valueRole: "value"
+
+            onActivated: {
+                fontsRow.renderType = model.get(index).value
+            }
+        }
+
+        Row {
+
+            id: fontsRow
+            spacing: 10
+
+            property var renderType: Text.NativeRendering
+
+            Column {
+
+                Label {
+                    text: "font default"
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font weight Thin"
+                    font.weight: Font.Thin
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font weight ExtraLight"
+                    font.weight: Font.ExtraLight
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font weight Light"
+                    font.weight: Font.Light
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font weight Normal"
+                    font.weight: Font.Normal
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font weight Medium"
+                    font.weight: Font.Medium
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font weight DemiBold"
+                    font.weight: Font.DemiBold
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font weight Bold"
+                    font.weight: Font.Bold
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font weight ExtraBold"
+                    font.weight: Font.ExtraBold
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font weight Black"
+                    font.weight: Font.Black
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+            }
+
+            Column {
+                Label {
+                    text: "font default"
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font style Thin"
+                    font.styleName: "Thin"
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font style ExtraLight"
+                    font.styleName: "ExtraLight"
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font style Light"
+                    font.styleName: "Light"
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font style Regular"
+                    font.styleName: "Regular"
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font style Medium"
+                    font.styleName: "Medium"
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font style DemiBold"
+                    font.styleName: "DemiBold"
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font style Bold"
+                    font.styleName: "Bold"
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font style ExtraBold"
+                    font.styleName: "ExtraBold"
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+
+                Label {
+                    text: "font style Black"
+                    font.styleName: "Black"
+                    font.pixelSize: 20
+                    renderType: fontsRow.renderType
+                }
+            }
+        }
     }
 }

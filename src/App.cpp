@@ -31,9 +31,11 @@
 #include <QDebug>
 #include <QDir>
 #include <QFontDatabase>
+#include <QFontInfo>
 #include <QFuture>
 #include <QIcon>
 #include <QQuickStyle>
+#include <QQuickWindow>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStyleHints>
@@ -84,6 +86,7 @@ int App::start(int &argc, char **argv, bool headless) {
 	QApplication app(argc, argv);
 #endif
 
+	QQuickWindow::setTextRenderType(QQuickWindow::QtTextRendering); // Use Qt rendering for constant quality beyond all platforms
 	QIcon::setThemeName("onvif");
 
 	QCommandLineParser parser;
