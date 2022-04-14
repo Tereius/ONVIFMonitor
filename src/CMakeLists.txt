@@ -4,9 +4,9 @@ if(NOT TARGET onvifcommon)
 endif()
 
 if(ANDROID)
-	find_package(Qt5 COMPONENTS AndroidExtras REQUIRED)
+        find_package(Qt5 REQUIRED COMPONENTS AndroidExtras)
 endif()
-find_package(Qt5 COMPONENTS Core Svg Quick Concurrent QuickControls2 QuickTemplates2 REQUIRED)
+find_package(Qt5 REQUIRED COMPONENTS Core Svg Quick Concurrent QuickControls2 QuickTemplates2 OPTIONAL_COMPONENTS QuickCompiler)
 find_path(Qt5_plugin_DIR NAMES platforms/qminimald.dll platforms/libqminimald.so platforms/qminimal.dll platforms/libqminimal.so PATH_SUFFIXES "plugins")
 find_path(Qt5_qml_DIR NAMES QtQml/qmldir PATH_SUFFIXES "lib" "lib/qml" "qml")
 
@@ -164,7 +164,14 @@ file(APPEND "${icons_rcc_file}" "</qresource>\n</RCC>")
 
 source_group("Resource Files" FILES ${qt_rcc_resources})
 
-qt5_add_resources(resSources ${qt_rcc_resources})
+
+if(Qt5QuickCompiler_DIR)
+	qtquick_compiler_add_resources(resSources ${qt_rcc_resources})
+else()
+	qt5_add_resources(resSources ${qt_rcc_resources})
+	message(STATUS "Disabled qml ahead of time compiler")
+endif()
+
 if(ANDROID)
 	add_library(ONVIFMonitor SHARED ${src_files} ${header_files} ${resSources})
 	target_link_libraries(ONVIFMonitor PUBLIC Qt5::AndroidExtras PRIVATE log.so)

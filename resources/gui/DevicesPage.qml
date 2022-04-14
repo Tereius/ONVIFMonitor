@@ -40,32 +40,124 @@ Controls.ScrollablePage {
     Timer {
 
         id: timer
-        interval: 15000
+        interval: 5000
         running: false
         repeat: false
     }
 
-    Controls.Popup {
-        id: dialog
-        title: "Title"
-
-        onAboutToShow: {
-            dialogLoader.active = true
-        }
-
-        onClosed: {
-            dialogLoader.active = false
-        }
-
-        Loader {
-            id: dialogLoader
-            anchors.fill: parent
-        }
-    }
-
     Column {
 
-        ListView {
+        spacing: 10
+
+        Controls.GroupBox {
+
+            title: qsTr("Available Devices")
+
+            ColumnLayout {
+
+                Repeater {
+
+                    model: deviceDiscoveryModelFiltered
+
+                    ItemDelegate {
+
+                        Layout.fillWidth: true
+                        height: 50
+
+                        icon.name: "ic_fiber_new"
+                        text: name
+                        onClicked: {
+
+                            const dialog = Helper.createItem(
+                                             Qt.resolvedUrl(
+                                                 "dialogs/NewOnvifDeviceDialog.qml"),
+                                             ApplicationWindow.window, {
+                                                 "deviceName": name,
+                                                 "deviceEndpoint": endpoint,
+                                                 "deviceId": id,
+                                                 "deviceNameFixed": false,
+                                                 "deviceEndpointFixed": true
+                                             })
+
+                            dialog.openWithAnimOffset()
+                            dialog.closed.connect(function () {
+                                dialog.destroy()
+                            })
+                        }
+                    }
+                }
+
+                ProgressBar {
+                    indeterminate: true
+                    visible: timer.running
+                }
+
+                RowLayout {
+                    visible: !timer.running
+                             && deviceDiscoveryModelFiltered.count === 0
+
+                    Label {
+                        text: qsTr("No devices found")
+                    }
+
+                    ToolButton {
+                        flat: true
+                        text: qsTr("Search again")
+                        icon.name: "ic_refresh"
+                        display: "IconOnly"
+                        onClicked: {
+                            settingsPage.refreshDevices()
+                        }
+                    }
+                }
+            }
+        }
+
+        Controls.GroupBox {
+
+            title: qsTr("Devices")
+
+            ColumnLayout {
+
+                Repeater {
+
+                    model: DevicesModel {
+                        deviceManager: DeviceManager
+                    }
+
+                    delegate: ItemDelegate {
+
+                        width: parent.width
+                        height: 50
+
+                        icon.name: "ic_fiber_new"
+                        text: name
+                        onClicked: {
+
+                            const dialog = Helper.createItem(
+                                             Qt.resolvedUrl(
+                                                 "dialogs/NewOnvifDeviceDialog.qml"),
+                                             ApplicationWindow.window, {
+                                                 "deviceName": name,
+                                                 "deviceEndpoint": endpoint,
+                                                 "deviceId": id,
+                                                 "deviceNameFixed": false,
+                                                 "deviceEndpointFixed": true
+                                             })
+
+                            dialog.openWithAnimOffset()
+                            dialog.closed.connect(function () {
+                                dialog.destroy()
+                            })
+                        }
+                    }
+                }
+            }
+        }
+
+
+        /*
+       ListView {
 
             height: contentHeight
             width: settingsPage.width
@@ -95,19 +187,18 @@ Controls.ScrollablePage {
                     flat: true
                     onClicked: {
 
-                        dialogLoader.setSource(Qt.resolvedUrl(
-                                                   "NewDevicePage.qml"), {
-                                                   "deviceName": qsTr("New Device"),
-                                                   "deviceEndpoint": "",
-                                                   "deviceNameFixed": false,
-                                                   "deviceEndpointFixed": false
-                                               })
+                        const dialog = Helper.createItem(
+                                         Qt.resolvedUrl(
+                                             "dialogs/NewOnvifDeviceDialog.qml"),
+                                         ApplicationWindow.window, {
+                                             "deviceName": qsTr("New Device"),
+                                         })
 
-                        dialogLoader.item.accepted.connect(function () {
-                            dialog.close()
+
+                        dialog.openWithAnimOffset()
+                        dialog.closed.connect(function () {
+                            dialog.destroy()
                         })
-
-                        dialog.open()
                     }
                 }
             }
@@ -152,17 +243,6 @@ Controls.ScrollablePage {
                                      })
 
 
-                    /*
-                    dialogLoader.setSource(Qt.resolvedUrl("DevicePage.qml"), {
-                                               "deviceId": id,
-                                               "deviceNameFixed": false,
-                                               "deviceEndpointFixed": false
-                                           })
-
-                    dialogLoader.item.accepted.connect(function () {
-                        dialog.close()
-                    })
-*/
                     dialog.open()
                 }
                 rightPadding: settingsButton.width + errorButton.width
@@ -300,18 +380,6 @@ Controls.ScrollablePage {
                                      })
 
 
-                    /*
-                    dialogLoader.setSource(Qt.resolvedUrl("NewDevicePage.qml"),
-                                           {
-                                               "deviceName": name,
-                                               "deviceEndpoint": endpoint,
-                                               "deviceId": id,
-                                               "deviceNameFixed": false,
-                                               "deviceEndpointFixed": true
-                                           })
-                    dialogLoader.item.accepted.connect(function () {
-                        dialog.close()
-                    })*/
                     dialog.openWithAnimOffset()
                     dialog.closed.connect(function () {
                         dialog.destroy()
@@ -319,6 +387,7 @@ Controls.ScrollablePage {
                 }
             }
         }
+    */
     }
 
     Connections {

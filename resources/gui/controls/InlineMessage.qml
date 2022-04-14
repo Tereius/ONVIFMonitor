@@ -158,7 +158,6 @@ GroupBox {
             add: Transition {
                 SequentialAnimation {
                     PauseAnimation {
-
                         duration: grid.columns > 1 ? 100 : 0
                     }
                     ParallelAnimation {
@@ -208,6 +207,7 @@ GroupBox {
                             wrapMode: Text.Wrap
                             Layout.fillWidth: true
                             Layout.topMargin: 4
+                            Layout.alignment: Qt.AlignTop
                         }
 
                         T.RoundButton {

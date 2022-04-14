@@ -20,11 +20,11 @@ Controls.Popup {
     actions: [
         Controls.BusyAction {
             id: addAction
-            text: "Add"
+            text: qsTr("Add")
             icon.name: "check"
             icon.color: "red"
-            enabled: deviceNameField.acceptableInput
-                     && hostField.acceptableInput
+            enabled: deviceNameField.acceptableInput && deviceNameField.text.length > 0
+                     && hostField.acceptableInput && hostField.text.length > 0
             onTriggered: {
                 priv.addDevice()
             }
@@ -81,7 +81,7 @@ Controls.Popup {
                         focus: true
                         Layout.fillWidth: true
                         activeFocusOnTab: true
-                        placeholderText: "Device Name"
+                        placeholderText: qsTr("Device Name")
                         selectByMouse: true
                         enabled: !credentialsDialog.deviceNameFixed
                         validator: RegExpValidator {
@@ -96,7 +96,7 @@ Controls.Popup {
                         text: credentialsDialog.deviceEndpoint
                         Layout.fillWidth: true
                         activeFocusOnTab: true
-                        placeholderText: "Device Host"
+                        placeholderText: qsTr("Device Host")
                         selectByMouse: true
                         enabled: !credentialsDialog.deviceEndpointFixed
                         validator: RegExpValidator {
