@@ -10,10 +10,7 @@ import "controls" as Controls
 
 Controls.ScrollablePage {
 
-    Column {
-
-        padding: 0
-        spacing: 0
+    ColumnLayout {
 
         Controls.GroupBox {
             title: "Test"
@@ -142,6 +139,36 @@ Controls.ScrollablePage {
                     onClicked: menu.open()
                 }
             }
+        }
+
+        Controls.Button {
+            text: "Add Error"
+            onClicked: {
+                inlineMessage.pushMessage("An Error message was pushed",
+                                          "error", "Error title")
+            }
+        }
+
+        Controls.Button {
+            text: "Add Warning"
+            onClicked: {
+                inlineMessage.pushMessage("An Warning message was pushed",
+                                          "warning", "Warning title")
+            }
+        }
+
+        Controls.Button {
+            text: "Add Info"
+            onClicked: {
+                inlineMessage.pushMessage("An Info message was pushed", "info",
+                                          "Info title")
+            }
+        }
+
+        Controls.InlineMessage {
+            id: inlineMessage
+            text: "Inline Message"
+            Layout.fillWidth: true
         }
 
         Label {
