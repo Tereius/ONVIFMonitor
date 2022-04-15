@@ -1,6 +1,6 @@
-import QtQuick 2.10
-import QtQuick.Controls 2.3
-import QtQuick.Layouts 1.3
+import QtQuick 2.12
+import QtQuick.Controls 2.12
+import QtQuick.Layouts 1.12
 import org.onvif.device 1.0
 import org.onvif.common 1.0
 import "helper.js" as Helper
@@ -40,20 +40,58 @@ Controls.ScrollablePage {
     Timer {
 
         id: timer
-        interval: 5000
+        interval: 2000
         running: false
         repeat: false
     }
 
+    Connections {
+
+        target: root
+        onCredentialsProvided: {
+            DeviceManager.reinitializeDevice(deviceId)
+        }
+    }
+
+    Connections {
+        target: DeviceManager
+        onDeviceAdded: {
+            deviceDiscoveryModelFiltered.invalidate()
+        }
+        onDeviceRemoved: {
+            deviceDiscoveryModelFiltered.invalidate()
+        }
+    }
+
+    DeviceDiscoverModel {
+
+        id: deviceDiscoveryModel
+    }
+
+    SortFilterProxyModel {
+
+        id: deviceDiscoveryModelFiltered
+        model: deviceDiscoveryModel
+        filterRole: Enums.IdRole
+        filterFunctor: function (value) {
+            return !DeviceManager.containsDevice(value)
+        }
+    }
+
     GridLayout {
 
-        //spacing: 10
         width: parent.width
         columns: Math.max(1, width / 300)
+
+        columnSpacing: 20
+        rowSpacing: 20
 
         Controls.GroupBox {
 
             title: qsTr("Available Devices")
+            infoText: qsTr("All devices found on the network are listed here.")
+            Layout.fillWidth: true
+
             mainAction: Action {
                 enabled: !timer.running
                 text: qsTr("Search again")
@@ -61,8 +99,6 @@ Controls.ScrollablePage {
                     settingsPage.refreshDevices()
                 }
             }
-
-            Layout.fillWidth: true
 
             ColumnLayout {
 
@@ -89,8 +125,7 @@ Controls.ScrollablePage {
                         onClicked: {
 
                             const dialog = Helper.createItem(
-                                             Qt.resolvedUrl(
-                                                 "dialogs/NewOnvifDeviceDialog.qml"),
+                                             "dialogs/NewOnvifDeviceDialog.qml",
                                              ApplicationWindow.window, {
                                                  "deviceName": name,
                                                  "deviceEndpoint": endpoint,
@@ -147,8 +182,7 @@ Controls.ScrollablePage {
                         onClicked: {
 
                             const dialog = Helper.createItem(
-                                             Qt.resolvedUrl(
-                                                 "dialogs/NewOnvifDeviceDialog.qml"),
+                                             "dialogs/NewOnvifDeviceDialog.qml",
                                              ApplicationWindow.window, {
                                                  "deviceName": name,
                                                  "deviceEndpoint": endpoint,
@@ -164,6 +198,18 @@ Controls.ScrollablePage {
                         }
                     }
                 }
+            }
+        }
+
+        Controls.GroupBox {
+
+            title: "test"
+            Layout.fillWidth: true
+
+            Label {
+                text: "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet."
+                wrapMode: Text.WordWrap
+                width: parent.width
             }
         }
 
@@ -400,43 +446,5 @@ Controls.ScrollablePage {
             }
         }
     */
-    }
-
-    Connections {
-
-        target: root
-        onCredentialsProvided: {
-            DeviceManager.reinitializeDevice(deviceId)
-        }
-    }
-
-    DeviceDiscoverModel {
-
-        id: deviceDiscoveryModel
-    }
-
-    Connections {
-        target: DeviceManager
-        onDeviceAdded: {
-            deviceDiscoveryModelFiltered.invalidate()
-        }
-        onDeviceRemoved: {
-            deviceDiscoveryModelFiltered.invalidate()
-        }
-    }
-
-    SortFilterProxyModel {
-
-        id: deviceDiscoveryModelFiltered
-        model: deviceDiscoveryModel
-        filterRole: Enums.IdRole
-        filterFunctor: function (value) {
-            return !DeviceManager.containsDevice(value)
-        }
-    }
-
-    DeviceSettingsDialog {
-
-        id: deviceSettingsDialog
     }
 }

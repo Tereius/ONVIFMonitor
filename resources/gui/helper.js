@@ -1,9 +1,27 @@
 .pragma library
 .import QtQml 2.12 as QtQml
 
+function createDialog(url, parent, options) {
+
+    const dialog = createItem(Qt.resolvedUrl(url), parent, options)
+
+    if (typeof dialog.open === "function") {
+        dialog.open()
+    }
+
+    if (typeof dialog.closed === "function") {
+        dialog.closed.connect(function () {
+            console.warn("-------ddddd")
+            dialog.destroy()
+        })
+    }
+
+    return dialog
+}
+
 function createItem(url, parent, options) {
 
-    let component = Qt.createComponent(url)
+    let component = Qt.createComponent(Qt.resolvedUrl(url))
 
     let finishCreation = function () {
         if (component.status == QtQml.Component.Ready) {

@@ -60,6 +60,7 @@
         <file>gui/controls/TextField.qml</file>
         <file>gui/controls/ComboBox.qml</file>
         <file>gui/controls/GroupBox.qml</file>
+        <file>gui/controls/InfoDialog.qml</file>
         <file>gui/root.qml</file>
         <file>gui/controls/TabButtonFolding.qml</file>
         <file>gui/controls/TabBarFolding.qml</file>

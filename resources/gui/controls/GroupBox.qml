@@ -4,66 +4,128 @@ import QtQuick.Controls.impl 2.12
 import QtQuick.Controls.Material 2.12
 import QtQuick.Controls.Material.impl 2.12
 import QtQuick.Layouts 1.12
+import "../helper.js" as Helper
 
 T.GroupBox {
 
     id: control
 
-    property T.Action mainAction: T.Action {}
+    property T.Action mainAction
+    property string infoText: ""
+    property alias icon: iconLabel.icon
 
     background: Rectangle {
         width: parent.width
         height: parent.height
-        color: "#373740"
+        color: "#393942"
     }
 
-    label: ToolBar {
+    topPadding: padding + control.implicitLabelHeight
+
+    label: Item {
 
         x: control.leftPadding
-        y: 0 //control.topPadding / 2 - height / 2
-        implicitHeight: visible ? control.Material.buttonHeight : 0
-        width: control.availableWidth
-        visible: control.title.length > 0
+        visible: control.title.length > 0 || control.mainAction
+        implicitWidth: visible ? control.availableWidth : 0
+        implicitHeight: visible ? control.Material.delegateHeight - 4 : 0
 
         RowLayout {
 
             id: row
-            width: parent.width
-            height: parent.height
+            anchors.fill: parent
 
-            T.Label {
-                text: control.title
-                height: parent.height
-                elide: Text.ElideRight
-                Layout.fillWidth: true
-                anchors.verticalCenter: parent.verticalCenter
+            Icon {
+                id: iconLabel
             }
 
-            ToolButton {
+            Item {
+
+                Layout.fillWidth: true
+
+                T.Label {
+                    id: label
+                    text: control.title
+                    elide: Text.ElideRight
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(
+                               implicitWidth,
+                               parent.width - (icon.visible ? icon.width : 0) - 2)
+                }
+
+                Icon {
+                    id: icon
+                    visible: control.infoText.length > 0
+                    icon.name: "information-outline"
+                    icon.width: 16
+                    icon.height: 16
+                    anchors.bottom: label.baseline
+                    anchors.bottomMargin: -3
+                    anchors.left: label.right
+                    anchors.leftMargin: 2
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            const dialog = Helper.createDialog(
+                                             "controls/InfoDialog.qml",
+                                             T.ApplicationWindow.window, {
+                                                 "text": control.infoText
+                                             })
+                        }
+                    }
+                }
+            }
+
+            T.ToolButton {
+                id: actionButton
+
                 action: control.mainAction
-                visible: action.text.length > 0
+                leftPadding: 0
+                rightPadding: 0
+                visible: action
                 implicitHeight: parent.height
-                anchors.verticalCenter: parent.verticalCenter
+
+                font.capitalization: Font.AllUppercase
+                font.styleName: "Bold"
+                font.letterSpacing: 2.8
+
+                background: Rectangle {
+
+                    T.Label {
+                        // TextMetrics does not work, retrns wrong width
+                        id: text
+                        text: actionButton.text
+                        font: actionButton.font
+                        visible: false
+                    }
+
+                    color: actionButton.icon.color
+                    anchors.bottom: actionButton.contentItem.bottom
+                    anchors.bottomMargin: 5
+                    anchors.right: actionButton.contentItem.right
+
+                    width: text.implicitWidth
+                    height: actionButton.hovered && actionButton.enabled ? 2 : 0
+
+                    antialiasing: true
+
+                    Behavior on height {
+                        enabled: actionButton.enabled
+                        SmoothedAnimation {
+                            duration: 250
+                            velocity: -1
+                        }
+                    }
+                }
             }
         }
 
         Rectangle {
-            width: parent.width
-            color: Material.background
-            height: 1
-            anchors.bottom: parent.bottom
+            id: devider
+            width: control.availableWidth
+            color: control.Material.backgroundColor
+            implicitHeight: 2
+            anchors.top: row.bottom
         }
     }
-
-
-    /*
-    label: T.Label {
-        x: control.leftPadding
-        y: control.topPadding / 2 - height / 2
-        width: control.availableWidth
-        text: control.title
-        elide: Text.ElideRight
-        font.capitalization: Font.AllUppercase
-        font.letterSpacing: 0.8
-    }*/
 }

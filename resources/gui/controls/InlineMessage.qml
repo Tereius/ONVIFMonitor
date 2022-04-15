@@ -33,7 +33,18 @@ GroupBox {
         //propertyAnimOut.start()
     }
 
-    label: Item {}
+    property T.Action action: T.Action {
+
+        //visible: messageModel.count > grid.columns
+        text: control.fold ? qsTr("SEE ALL") + " (" + messageModel.count + ")" : qsTr(
+                                 "SEE LESS")
+
+        onTriggered: {
+            control.fold = !control.fold
+        }
+    }
+
+    mainAction: messageModel.count > grid.columns ? action : null
 
     Behavior on implicitHeight {
         NumberAnimation {
@@ -44,6 +55,33 @@ GroupBox {
 
     ListModel {
         id: messageModel
+
+        onCountChanged: {
+
+            if (messageModel.count > 0) {
+                control.title = messageModel.get(0).title
+                const severity = messageModel.get(0).severity
+                switch (severity) {
+                case "error":
+                    control.icon.name = "ic_warning"
+                    control.icon.color = control.Material.color(Material.Red)
+                    break
+                case "warning":
+                    control.icon.name = "ic_warning"
+                    control.icon.color = control.Material.color(Material.Yellow)
+                    break
+                case "info":
+                    control.icon.name = "information"
+                    control.icon.color = control.Material.accentColor
+                    break
+                default:
+                    control.icon.name = "information"
+                    control.icon.color = control.Material.accentColor
+                }
+            } else {
+                control.title = ""
+            }
+        }
     }
 
     ColumnLayout {
@@ -51,98 +89,6 @@ GroupBox {
         id: columLayout
         width: parent.width
         spacing: 10
-
-        RowLayout {
-            Layout.minimumHeight: 22
-            Layout.maximumHeight: 22
-            Layout.fillWidth: true
-
-            Repeater {
-                model: messageModel
-
-                Row {
-                    visible: index === 0
-                    spacing: 6
-                    Layout.fillWidth: true
-                    Icon {
-                        anchors.verticalCenter: parent.verticalCenter
-                        icon.name: {
-
-                            switch (severity) {
-                            case "error":
-                                return "ic_warning"
-                            case "warning":
-                                return "ic_warning"
-                            case "info":
-                                return "information"
-                            default:
-                                return "information"
-                            }
-                        }
-                        icon.color: {
-
-                            switch (severity) {
-                            case "error":
-                                return Material.color(Material.Red)
-                            case "warning":
-                                return Material.color(Material.Yellow)
-                            case "info":
-                                return Material.accentColor
-                            default:
-                                return Material.accentColor
-                            }
-                        }
-                    }
-
-                    T.Label {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: {
-
-                            if (!title) {
-                                switch (severity) {
-                                case "error":
-                                    return qsTr("Error")
-                                case "warning":
-                                    return qsTr("Warning")
-                                case "info":
-                                    return qsTr("Info")
-                                default:
-                                    return ""
-                                }
-                            } else {
-                                return title
-                            }
-                        }
-                    }
-                }
-            }
-
-            Item {
-
-                implicitWidth: button.implicitWidth
-                implicitHeight: 22
-                Layout.fillHeight: true
-
-                T.ToolButton {
-                    id: button
-                    visible: messageModel.count > grid.columns
-                    text: control.fold ? qsTr("SEE ALL") + " (" + messageModel.count + ")" : qsTr(
-                                             "SEE LESS")
-                    anchors.verticalCenter: parent.verticalCenter
-                    implicitHeight: 22 + control.topPadding + columLayout.spacing
-
-                    onClicked: {
-                        control.fold = !control.fold
-                    }
-                }
-            }
-        }
-
-        Rectangle {
-            height: 2
-            Layout.fillWidth: true
-            color: control.Material.backgroundColor
-        }
 
         Grid {
 
@@ -222,7 +168,7 @@ GroupBox {
                     }
 
                     Rectangle {
-                        height: 2
+                        height: 1
                         color: control.Material.backgroundColor
                         Layout.fillWidth: true
                     }

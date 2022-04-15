@@ -3,6 +3,7 @@ import QtQuick.Controls 2.12 as T
 import QtQuick.Controls.impl 2.12
 import QtQuick.Controls.Material 2.12
 import QtQuick.Controls.Material.impl 2.12
+import QtGraphicalEffects 1.12
 
 T.Button {
 
@@ -55,6 +56,15 @@ T.Button {
         }
     }
 
+    DropShadow {
+        anchors.fill: button
+        radius: 4
+        samples: radius * 2 + 1
+        color: control.Material.dropShadowColor
+        source: button
+        visible: control.checked
+    }
+
     T.Label {
         id: label
         text: control.text
@@ -104,6 +114,15 @@ T.Button {
                 }
             }
         ]
+    }
+
+    DropShadow {
+        anchors.fill: label
+        radius: 4
+        samples: radius * 2 + 1
+        color: control.Material.dropShadowColor
+        source: label
+        opacity: label.opacity
     }
 
     Behavior on implicitWidth {

@@ -6,7 +6,8 @@ import QtQuick.Controls.Material.impl 2.12
 
 T.ToolButton {
 
+    id: control
     font.capitalization: Font.AllUppercase
     font.styleName: "Bold"
-    font.letterSpacing: 1.8
+    font.letterSpacing: 2.8
 }

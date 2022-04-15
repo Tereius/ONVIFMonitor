@@ -13,7 +13,19 @@ Controls.ScrollablePage {
     ColumnLayout {
 
         Controls.GroupBox {
-            title: "Test"
+            title: "asdfasf"
+            Layout.fillWidth: true
+            icon.name: "ic_save"
+
+            Rectangle {
+                implicitHeight: 60
+                implicitWidth: 60
+            }
+        }
+
+        Controls.GroupBox {
+            title: "Test with long test what happens"
+            Layout.fillWidth: true
             Column {
 
                 Switch {}
