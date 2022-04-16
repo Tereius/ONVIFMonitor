@@ -4,7 +4,7 @@ if(NOT TARGET onvifcommon)
 endif()
 
 if(ANDROID)
-        find_package(Qt5 REQUIRED COMPONENTS AndroidExtras)
+	find_package(Qt5 REQUIRED COMPONENTS AndroidExtras)
 endif()
 find_package(Qt5 REQUIRED COMPONENTS Core Svg Quick Concurrent QuickControls2 QuickTemplates2 OPTIONAL_COMPONENTS QuickCompiler)
 find_path(Qt5_plugin_DIR NAMES platforms/qminimald.dll platforms/libqminimald.so platforms/qminimal.dll platforms/libqminimal.so PATH_SUFFIXES "plugins")
@@ -183,7 +183,7 @@ target_compile_definitions(ONVIFMonitor PUBLIC QML_IMPORT_PATHS=$<BUILD_INTERFAC
 target_compile_definitions(ONVIFMonitor PUBLIC QT_PLUGIN_PATHS=$<BUILD_INTERFACE:"${Qt5_plugin_DIR}">$<INSTALL_INTERFACE:"">)
 target_compile_definitions(ONVIFMonitor PUBLIC QML_BASE_PATH=$<BUILD_INTERFACE:"${PROJECT_SOURCE_DIR}/resources/gui">$<INSTALL_INTERFACE:"">)
 target_compile_features(ONVIFMonitor PUBLIC cxx_strong_enums cxx_auto_type cxx_nullptr cxx_long_long_type cxx_explicit_conversions)
-target_link_libraries(ONVIFMonitor PUBLIC onvifcommon PUBLIC onvifdiscovery PUBLIC onvifdevice PUBLIC onvifevent PUBLIC onvifmedia
+target_link_libraries(ONVIFMonitor PUBLIC onvifcommon PUBLIC onvifdiscovery PUBLIC onvifdevice PUBLIC onvifevent PUBLIC onvifmedia PUBLIC onvifprobe
 											PUBLIC ${QtAvLib_PATH} PUBLIC Qt5::Core PUBLIC Qt5::Svg PUBLIC Qt5::Quick PUBLIC Qt5::Concurrent PUBLIC Qt5::QuickControls2
 											PUBLIC Qt5::QuickTemplates2 PUBLIC KF5::Kirigami2 PUBLIC mdk
 											PUBLIC ${libswresample_PATH} PUBLIC ${libavdevice_PATH} PUBLIC ${libavfilter_PATH} PUBLIC ${libavcodec_PATH}
