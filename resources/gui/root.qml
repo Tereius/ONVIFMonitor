@@ -33,7 +33,7 @@ ApplicationWindow {
 
         Connections {
             target: root
-            onWidthChanged: {
+            function onWidthChanged() {
                 sizeLabel.visible = true
                 sizeLabelTimer.restart()
             }

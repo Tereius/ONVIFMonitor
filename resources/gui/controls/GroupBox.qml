@@ -10,7 +10,7 @@ T.GroupBox {
 
     id: control
 
-    property T.Action mainAction
+    property BusyAction mainAction
     property string infoText: ""
     property alias icon: iconLabel.icon
 
@@ -21,6 +21,13 @@ T.GroupBox {
     }
 
     topPadding: padding + control.implicitLabelHeight
+
+    Behavior on implicitHeight {
+        NumberAnimation {
+            duration: 300
+            easing.type: Easing.OutCubic
+        }
+    }
 
     label: Item {
 
@@ -83,6 +90,7 @@ T.GroupBox {
                 leftPadding: 0
                 rightPadding: 0
                 visible: action
+                enabled: control.mainAction ? !control.mainAction.busy : false
                 implicitHeight: parent.height
 
                 font.capitalization: Font.AllUppercase
@@ -126,6 +134,19 @@ T.GroupBox {
             color: control.Material.backgroundColor
             implicitHeight: 2
             anchors.top: row.bottom
+
+            T.ProgressBar {
+
+                anchors.fill: parent
+
+                visible: control.mainAction ? control.mainAction.busy : false
+
+                indeterminate: true
+
+                Component.onCompleted: {
+                    contentItem.implicitHeight = 2
+                }
+            }
         }
     }
 }

@@ -12,16 +12,15 @@ Controls.ScrollablePage {
     title: qsTr("Devices")
     supportsRefreshing: true
 
-    Component.onCompleted: {
+    onIsCurrentPageChanged: {
 
-        deviceDiscoveryModel.start()
-        timer.start()
-    }
-
-    Component.onDestruction: {
-
-        timer.stop()
-        deviceDiscoveryModel.stop()
+        if (settingsPage.isCurrentPage) {
+            deviceDiscoveryModel.start()
+            timer.start()
+        } else {
+            timer.stop()
+            deviceDiscoveryModel.stop()
+        }
     }
 
     onRefreshingChanged: {
@@ -46,19 +45,11 @@ Controls.ScrollablePage {
     }
 
     Connections {
-
-        target: root
-        onCredentialsProvided: {
-            DeviceManager.reinitializeDevice(deviceId)
-        }
-    }
-
-    Connections {
         target: DeviceManager
-        onDeviceAdded: {
+        function onDeviceAdded() {
             deviceDiscoveryModelFiltered.invalidate()
         }
-        onDeviceRemoved: {
+        function onDeviceRemoved() {
             deviceDiscoveryModelFiltered.invalidate()
         }
     }
@@ -78,22 +69,17 @@ Controls.ScrollablePage {
         }
     }
 
-    GridLayout {
+    Controls.GridLayout {
 
         width: parent.width
-        columns: Math.max(1, width / 300)
-
-        columnSpacing: 20
-        rowSpacing: 20
 
         Controls.GroupBox {
 
             title: qsTr("Available Devices")
             infoText: qsTr("All devices found on the network are listed here.")
-            Layout.fillWidth: true
 
-            mainAction: Action {
-                enabled: !timer.running
+            mainAction: Controls.BusyAction {
+                busy: timer.running
                 text: qsTr("Search again")
                 onTriggered: {
                     settingsPage.refreshDevices()
@@ -104,13 +90,30 @@ Controls.ScrollablePage {
 
                 width: parent.width
 
-                ProgressBar {
-                    indeterminate: true
-                    opacity: timer.running ? 1 : 0
-                    Layout.fillWidth: true
-                    enabled: timer.running
+                DevicesListView {
+
+                    model: deviceDiscoveryModelFiltered
+
+                    onClicked: {
+                        const dialog = Helper.createItem(
+                                         "dialogs/NewOnvifDeviceDialog.qml",
+                                         ApplicationWindow.window, {
+                                             "deviceName": data.name,
+                                             "deviceEndpoint": data.endpoint,
+                                             "deviceId": data.id,
+                                             "deviceNameFixed": false,
+                                             "deviceEndpointFixed": true
+                                         })
+
+                        dialog.openWithAnimOffset()
+                        dialog.closed.connect(function () {
+                            dialog.destroy()
+                        })
+                    }
                 }
 
+
+                /*
                 Repeater {
 
                     model: deviceDiscoveryModelFiltered
@@ -121,7 +124,7 @@ Controls.ScrollablePage {
                         height: 50
 
                         icon.name: "ic_fiber_new"
-                        text: name
+                        text: name + " " + services
                         onClicked: {
 
                             const dialog = Helper.createItem(
@@ -140,8 +143,7 @@ Controls.ScrollablePage {
                             })
                         }
                     }
-                }
-
+                }*/
                 RowLayout {
 
                     Layout.fillWidth: true
@@ -160,7 +162,6 @@ Controls.ScrollablePage {
         Controls.GroupBox {
 
             title: qsTr("Configured Devices")
-            Layout.fillWidth: true
 
             ColumnLayout {
 
@@ -204,7 +205,6 @@ Controls.ScrollablePage {
         Controls.GroupBox {
 
             title: "test"
-            Layout.fillWidth: true
 
             Label {
                 text: "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet."

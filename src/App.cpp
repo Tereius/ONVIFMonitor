@@ -9,6 +9,7 @@
 #include "DeviceDiscoveryModel.h"
 #include "DeviceInfo.h"
 #include "DeviceManager.h"
+#include "DeviceProbe.h"
 #include "DevicesModel.h"
 #include "DiscoveryMatch.h"
 #include "Error.h"
@@ -218,6 +219,9 @@ void App::registerQmlTypes() {
 	qmlRegisterType<MediaPlayer>("org.onvif.media", 1, 0, "MediaPlayer");
 	qmlRegisterType<MonitorGridModel>("org.onvif.monitoring", 1, 0, "MonitorGridModel");
 	qmlRegisterUncreatableType<PropertyInfo>("org.onvif.event", 1, 0, "PropertyInfo", "Can't be created in QML");
+
+	// QML libONVIF tapes
+	qmlRegisterUncreatableType<DeviceProbe>("org.onvif.common", 1, 0, "DeviceProbe", "Can't be created in QML");
 
 	// QML future types
 	QuickFuture::registerType<DetailedResult<QUuid>>(

@@ -11,8 +11,11 @@ function createDialog(url, parent, options) {
 
     if (typeof dialog.closed === "function") {
         dialog.closed.connect(function () {
-            console.warn("-------ddddd")
-            dialog.destroy()
+            if (typeof dialog.destroy === "function") {
+                callDelayed(function () {
+                    dialog.destroy()
+                }, 1000)
+            }
         })
     }
 
@@ -47,6 +50,25 @@ function createItem(url, parent, options) {
         component.statusChanged.connect(finishCreation)
     else
         console.warn("Error creating Item: " + component.errorString())
+}
+
+var timer
+
+function callDelayed(functor, msDelay) {
+
+    if (functor) {
+        if (msDelay == null)
+            msDelay = 0
+
+        timer = Qt.createQmlObject(
+                    'import QtQml 2.12; Timer {running: false; repeat: false; interval: '
+                    + msDelay + '}', Qt.application)
+        timer.triggered.connect(function () {
+            functor()
+            timer.destroy()
+        })
+        timer.start()
+    }
 }
 
 function markRejectedLabel(text, acceptedDecisionProperty) {

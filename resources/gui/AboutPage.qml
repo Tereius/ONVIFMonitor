@@ -27,6 +27,26 @@ Controls.ScrollablePage {
             }
 
             Label {
+                text: "signal-distance-variant Icon: https://materialdesignicons.com/icon/signal-distance-variant"
+            }
+
+            Label {
+                text: "cursor-move Icon: https://materialdesignicons.com/icon/cursor-move"
+            }
+
+            Label {
+                text: "audio-video Icon: https://materialdesignicons.com/icon/audio-video"
+            }
+
+            Label {
+                text: "motion-sensor Icon: https://materialdesignicons.com/icon/motion-sensor"
+            }
+
+            Label {
+                text: "play-pause Icon: https://materialdesignicons.com/icon/play-pause"
+            }
+
+            Label {
                 text: "Material Icons: Google"
             }
 

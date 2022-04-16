@@ -10,6 +10,8 @@ enum Roles {
 	HostRole,
 	PortRole,
 	NameRole,
+	ManufacturerRole,
+	ServicesRole,
 	DescriptionRole,
 	ProfileRole,
 	IdRole,

@@ -4,6 +4,7 @@ import QtQuick.Controls.impl 2.12
 import QtQuick.Controls.Material 2.12
 import QtQuick.Controls.Material.impl 2.12
 import QtQuick.Window 2.12
+import QtGraphicalEffects 1.12
 
 T.Dialog {
 
@@ -19,14 +20,42 @@ T.Dialog {
 
     closePolicy: Popup.CloseOnEscape
 
-    T.Overlay.modal: Rectangle {
-
-        color: "#40000000"
+    T.Overlay.modal: Item {
 
         Behavior on opacity {
             NumberAnimation {
-                duration: 100
+                duration: 120
             }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: control.Material.backgroundColor
+        }
+
+        FastBlur {
+            id: headerBlur
+            width: T.ApplicationWindow.window ? T.ApplicationWindow.window.header.width : 0
+            height: T.ApplicationWindow.window ? T.ApplicationWindow.window.header.height : 0
+            source: T.ApplicationWindow.window ? T.ApplicationWindow.window.header : null
+            radius: 32
+            transparentBorder: true
+        }
+
+        FastBlur {
+            id: mainBlur
+            width: T.ApplicationWindow.window ? T.ApplicationWindow.window.contentItem.width : 0
+            height: T.ApplicationWindow.window ? T.ApplicationWindow.window.contentItem.height : 0
+            source: T.ApplicationWindow.window ? T.ApplicationWindow.window.contentItem : null
+            radius: 32
+            transparentBorder: true
+            anchors.top: headerBlur.bottom
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: "black"
+            opacity: 0.1
         }
     }
 

@@ -1,9 +1,12 @@
 #include "DeviceDiscoveryModel.h"
+#include "DeviceProbe.h"
 #include "OnvifDiscovery.h"
 #include "Roles.h"
 #include "Util.h"
+#include "asyncfuture.h"
 #include <QHash>
 #include <QLoggingCategory>
+#include <QtConcurrent>
 #include <algorithm>
 
 Q_LOGGING_CATEGORY(ddm, "DeviceDiscoveryModel")
@@ -16,9 +19,28 @@ DeviceDiscoveryModel::DeviceDiscoveryModel(QObject *pParent /*= nullptr*/) :
 	 [this](const DiscoveryMatch &rMatch) {
 		 auto oldSize = this->mMatches.size();
 		 if(!rMatch.GetDeviceEndpoints().isEmpty() && rMatch.GetDeviceEndpoints().first().isValid()) {
+
 			 beginInsertRows(QModelIndex(), oldSize, oldSize);
-			 mMatches.push_back(rMatch);
+			 mMatches.push_back(qMakePair<DiscoveryMatch, DeviceProbe>(rMatch, {}));
 			 endInsertRows();
+
+			 AsyncFuture::observe(QtConcurrent::run([rMatch]() { return DeviceProbe::create(rMatch.GetDeviceEndpoints().first()); }))
+			  .subscribe([this, rMatch](QFuture<DeviceProbe> probe) {
+				  auto foundIndex = -1;
+				  for(auto i = 0; i < mMatches.size(); ++i) {
+					  if(mMatches.at(i).first == rMatch) {
+						  foundIndex = i;
+						  break;
+					  }
+				  }
+				  if(foundIndex >= 0) {
+					  auto other = qMakePair<DiscoveryMatch, DeviceProbe>(rMatch, probe.result());
+					  mMatches[foundIndex].swap(other);
+					  emit dataChanged(createIndex(foundIndex, 0), createIndex(foundIndex, 0),
+					                   {Enums::Roles::ServicesRole, Enums::Roles::ManufacturerRole});
+				  }
+			  });
+
 		 } else {
 			 qInfo(ddm) << "Skipping device with empty or invalid device endpoint";
 		 }
@@ -44,7 +66,8 @@ QVariant DeviceDiscoveryModel::data(const QModelIndex &index, int role /*= Qt::D
 
 	if(index.isValid() && column == 0 && mMatches.size() > row) {
 
-		auto match = mMatches.at(row);
+		auto match = mMatches.at(row).first;
+		auto probe = mMatches.at(row).second;
 		auto endpoints = match.GetDeviceEndpoints();
 		auto endpoint = !endpoints.isEmpty() ? endpoints.first() : QUrl();
 		if(endpoint.isEmpty() || !endpoint.isValid()) {
@@ -82,6 +105,17 @@ QVariant DeviceDiscoveryModel::data(const QModelIndex &index, int role /*= Qt::D
 			case Enums::Roles::IdRole:
 				ret = !match.GetEndpointReference().isNull() ? match.GetEndpointReference() : QVariant();
 				break;
+			case Enums::Roles::ManufacturerRole:
+				ret = probe.GetManufacturer();
+				break;
+			case Enums::Roles::ServicesRole: {
+				QVariantList list;
+				for(const auto &service : probe.GetServices()) {
+					list.push_back(static_cast<int>(service));
+				}
+				ret = list;
+				break;
+			}
 			default:
 				ret = QVariant();
 				break;
@@ -97,6 +131,8 @@ QHash<int, QByteArray> DeviceDiscoveryModel::roleNames() const {
 	ret.insert(Enums::Roles::HostRole, "host");
 	ret.insert(Enums::Roles::PortRole, "port");
 	ret.insert(Enums::Roles::NameRole, "name");
+	ret.insert(Enums::Roles::ManufacturerRole, "manufacturer");
+	ret.insert(Enums::Roles::ServicesRole, "services");
 	ret.insert(Enums::Roles::IdRole, "id");
 	return ret;
 }
@@ -122,18 +158,18 @@ void DeviceDiscoveryModel::reset() {
 
 void DeviceDiscoveryModel::sortList() {
 
-	std::sort(mMatches.begin(), mMatches.end(), [](DiscoveryMatch left, DiscoveryMatch right) {
-		auto leftHost = !left.GetDeviceEndpoints().isEmpty() ? left.GetDeviceEndpoints().first().host() : "";
-		auto rightHost = !right.GetDeviceEndpoints().isEmpty() ? right.GetDeviceEndpoints().first().host() : "";
+	std::sort(mMatches.begin(), mMatches.end(), [](QPair<DiscoveryMatch, DeviceProbe> left, QPair<DiscoveryMatch, DeviceProbe> right) {
+		auto leftHost = !left.first.GetDeviceEndpoints().isEmpty() ? left.first.GetDeviceEndpoints().first().host() : "";
+		auto rightHost = !right.first.GetDeviceEndpoints().isEmpty() ? right.first.GetDeviceEndpoints().first().host() : "";
 		QString leftName(leftHost);
 		QString rightName(rightHost);
-		for(const auto &scope : left.GetScopes()) {
+		for(const auto &scope : left.first.GetScopes()) {
 			if(scope.startsWith("onvif://www.onvif.org/name/")) {
 				leftName = scope.mid(27);
 				break;
 			}
 		}
-		for(const auto &scope : right.GetScopes()) {
+		for(const auto &scope : right.first.GetScopes()) {
 			if(scope.startsWith("onvif://www.onvif.org/name/")) {
 				rightName = scope.mid(27);
 				break;

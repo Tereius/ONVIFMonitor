@@ -40,6 +40,7 @@
         <file>gui/WRoundButton.qml</file>
         <file>gui/EventSettingsPage.qml</file>
         <file>gui/NewEventBindingDialog.qml</file>
+        <file>gui/DevicesListView.qml</file>
         <file>gui/PingAnimation.qml</file>
         <file>gui/ListItem.qml</file>
         <file>gui/ExpandableListView.qml</file>
@@ -68,6 +69,7 @@
         <file>gui/PlaceholderPage.qml</file>
         <file>gui/controls/Icon.qml</file>
         <file>gui/controls/Popup.qml</file>
+        <file>gui/controls/GridLayout.qml</file>
         <file>gui/controls/ToolBar.qml</file>
         <file>gui/controls/ScrollablePage.qml</file>
         <file>gui/controls/ToolButton.qml</file>

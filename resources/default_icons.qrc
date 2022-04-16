@@ -1,9 +1,13 @@
 <RCC>
 <qresource prefix="/">
 <file>icons/onvif/index.theme</file>
+<file>icons/onvif/48x48/audio-video.svg</file>
 <file>icons/onvif/48x48/cctv-off.svg</file>
 <file>icons/onvif/48x48/cctv.svg</file>
+<file>icons/onvif/48x48/cctv1.svg</file>
+<file>icons/onvif/48x48/cctv2.svg</file>
 <file>icons/onvif/48x48/check.svg</file>
+<file>icons/onvif/48x48/cursor-move.svg</file>
 <file>icons/onvif/48x48/dialog-error.svg</file>
 <file>icons/onvif/48x48/dialog-information.svg</file>
 <file>icons/onvif/48x48/dialog-positive.svg</file>
@@ -41,10 +45,16 @@
 <file>icons/onvif/48x48/information-outline.svg</file>
 <file>icons/onvif/48x48/information.svg</file>
 <file>icons/onvif/48x48/mail-sent.svg</file>
+<file>icons/onvif/48x48/monitor.svg</file>
+<file>icons/onvif/48x48/motion-sensor.svg</file>
+<file>icons/onvif/48x48/open_with.svg</file>
 <file>icons/onvif/48x48/overflow-menu-left.svg</file>
 <file>icons/onvif/48x48/overflow-menu-right.svg</file>
 <file>icons/onvif/48x48/overflow-menu.svg</file>
+<file>icons/onvif/48x48/play-pause.svg</file>
 <file>icons/onvif/48x48/playlist-remove.svg</file>
+<file>icons/onvif/48x48/signal-distance-variant.svg</file>
+<file>icons/onvif/48x48/tune-vertical.svg</file>
 <file>icons/onvif/48x48/user.svg</file>
 <file>icons/onvif/48x48/view-left-close.svg</file>
 <file>icons/onvif/48x48/view-right-close.svg</file>

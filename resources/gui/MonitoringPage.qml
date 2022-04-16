@@ -63,19 +63,19 @@ Controls.ScrollablePage {
     ]*/
     Connections {
         target: monitoringPage.flickable
-        onContentXChanged: {
+        function onContentXChanged() {
             Qt.callLater(monitoringPage.updateVisibleArea)
         }
 
-        onContentYChanged: {
+        function onContentYChanged() {
             Qt.callLater(monitoringPage.updateVisibleArea)
         }
 
-        onHeightChanged: {
+        function onHeightChanged() {
             Qt.callLater(monitoringPage.updateVisibleArea)
         }
 
-        onWidthChanged: {
+        function onWidthChanged() {
             Qt.callLater(monitoringPage.updateVisibleArea)
         }
     }

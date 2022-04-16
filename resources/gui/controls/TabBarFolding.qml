@@ -11,7 +11,10 @@ Row {
     property int currentIndex: 0
 
     onCurrentIndexChanged: {
-        group.buttons[control.currentIndex].checked = true
+        const button = group.buttons[control.currentIndex]
+        if (button) {
+            button.checked = true
+        }
     }
 
     readonly property int count: group.buttons.length

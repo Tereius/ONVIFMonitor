@@ -1,7 +1,9 @@
 #pragma once
 #include "AbstractListModel.h"
+#include "DeviceProbe.h"
 #include "DiscoveryMatch.h"
 #include <QList>
+#include <QPair>
 
 
 class OnvifDiscovery;
@@ -26,5 +28,5 @@ class DeviceDiscoveryModel : public AbstractListModel {
 	void sortList();
 
 	OnvifDiscovery *mpDiscovery;
-	QList<DiscoveryMatch> mMatches;
+	QList<QPair<DiscoveryMatch, DeviceProbe>> mMatches;
 };

@@ -16,6 +16,9 @@ T.Dialog {
     topPadding: yStart
     enabled: !busy
 
+    focus: true
+    modal: true
+
     parent: T.Overlay.overlay
     width: parent.width
 
@@ -29,6 +32,8 @@ T.Dialog {
     }
 
     property list<BusyAction> actions
+
+    T.Overlay.modal: Item {}
 
     header: ToolBar {
 
