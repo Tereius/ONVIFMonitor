@@ -56,7 +56,7 @@ T.GroupBox {
                     anchors.verticalCenter: parent.verticalCenter
                     width: Math.min(
                                implicitWidth,
-                               parent.width - (icon.visible ? icon.width : 0) - 2)
+                               parent.width - (icon.visible ? icon.width : 0) - 6)
                 }
 
                 Icon {
@@ -65,10 +65,9 @@ T.GroupBox {
                     icon.name: "information-outline"
                     icon.width: 16
                     icon.height: 16
-                    anchors.bottom: label.baseline
-                    anchors.bottomMargin: -3
+                    anchors.verticalCenter: parent.verticalCenter
                     anchors.left: label.right
-                    anchors.leftMargin: 2
+                    anchors.leftMargin: 6
 
                     MouseArea {
                         anchors.fill: parent

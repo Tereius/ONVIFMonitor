@@ -10,30 +10,21 @@ Controls.ScrollablePage {
 
     id: settingsPage
     title: qsTr("Devices")
-    supportsRefreshing: true
 
     onIsCurrentPageChanged: {
 
         if (settingsPage.isCurrentPage) {
-            deviceDiscoveryModel.start()
-            timer.start()
+            refreshDevices()
         } else {
             timer.stop()
             deviceDiscoveryModel.stop()
         }
     }
 
-    onRefreshingChanged: {
-        if (refreshing) {
-            refreshDevices()
-        }
-        refreshing = false
-    }
-
     function refreshDevices() {
         deviceDiscoveryModel.reset()
         deviceDiscoveryModel.start()
-        timer.start()
+        timer.restart()
     }
 
     Timer {
@@ -42,6 +33,10 @@ Controls.ScrollablePage {
         interval: 2000
         running: false
         repeat: false
+
+        onTriggered: {
+            deviceDiscoveryModel.stop()
+        }
     }
 
     Connections {
@@ -63,9 +58,10 @@ Controls.ScrollablePage {
 
         id: deviceDiscoveryModelFiltered
         model: deviceDiscoveryModel
+        sortOrder: Qt.AscendingOrder
         filterRole: Enums.IdRole
         filterFunctor: function (value) {
-            return !DeviceManager.containsDevice(value)
+            return true //!DeviceManager.containsDevice(value)
         }
     }
 
@@ -75,6 +71,7 @@ Controls.ScrollablePage {
 
         Controls.GroupBox {
 
+            id: group
             title: qsTr("Available Devices")
             infoText: qsTr("All devices found on the network are listed here.")
 
@@ -88,19 +85,29 @@ Controls.ScrollablePage {
 
             ColumnLayout {
 
-                width: parent.width
+                x: -group.leftPadding
 
+                anchors.fill: parent
+
+                //width: parent.width + group.leftPadding + group.rightPadding
                 DevicesListView {
 
+                    //implicitWidth: group.width
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
                     model: deviceDiscoveryModelFiltered
 
                     onClicked: {
+
+                        const modelData = deviceDiscoveryModelFiltered.get(
+                                            index)
+
                         const dialog = Helper.createItem(
                                          "dialogs/NewOnvifDeviceDialog.qml",
                                          ApplicationWindow.window, {
-                                             "deviceName": data.name,
-                                             "deviceEndpoint": data.endpoint,
-                                             "deviceId": data.id,
+                                             "deviceName": modelData.name,
+                                             "deviceEndpoint": modelData.endpoint,
+                                             "deviceId": modelData.id,
                                              "deviceNameFixed": false,
                                              "deviceEndpointFixed": true
                                          })
@@ -112,38 +119,6 @@ Controls.ScrollablePage {
                     }
                 }
 
-
-                /*
-                Repeater {
-
-                    model: deviceDiscoveryModelFiltered
-
-                    ItemDelegate {
-
-                        Layout.fillWidth: true
-                        height: 50
-
-                        icon.name: "ic_fiber_new"
-                        text: name + " " + services
-                        onClicked: {
-
-                            const dialog = Helper.createItem(
-                                             "dialogs/NewOnvifDeviceDialog.qml",
-                                             ApplicationWindow.window, {
-                                                 "deviceName": name,
-                                                 "deviceEndpoint": endpoint,
-                                                 "deviceId": id,
-                                                 "deviceNameFixed": false,
-                                                 "deviceEndpointFixed": true
-                                             })
-
-                            dialog.openWithAnimOffset()
-                            dialog.closed.connect(function () {
-                                dialog.destroy()
-                            })
-                        }
-                    }
-                }*/
                 RowLayout {
 
                     Layout.fillWidth: true

@@ -12,6 +12,7 @@
 <file>icons/onvif/48x48/dialog-information.svg</file>
 <file>icons/onvif/48x48/dialog-positive.svg</file>
 <file>icons/onvif/48x48/dialog-warning.svg</file>
+<file>icons/onvif/48x48/door-closed-lock.svg</file>
 <file>icons/onvif/48x48/globe.svg</file>
 <file>icons/onvif/48x48/go-next-symbolic-rtl.svg</file>
 <file>icons/onvif/48x48/go-next-symbolic.svg</file>
@@ -44,6 +45,7 @@
 <file>icons/onvif/48x48/ic_warning.svg</file>
 <file>icons/onvif/48x48/information-outline.svg</file>
 <file>icons/onvif/48x48/information.svg</file>
+<file>icons/onvif/48x48/lock-smart.svg</file>
 <file>icons/onvif/48x48/mail-sent.svg</file>
 <file>icons/onvif/48x48/monitor.svg</file>
 <file>icons/onvif/48x48/motion-sensor.svg</file>

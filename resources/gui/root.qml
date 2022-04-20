@@ -11,7 +11,7 @@ ApplicationWindow {
     id: root
     visible: true
 
-    minimumWidth: 290
+    minimumWidth: 100 //290
     minimumHeight: 290 + root.header.height
 
     Settings {

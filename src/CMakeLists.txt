@@ -142,7 +142,8 @@ set(header_files
 		SortFilterProxyModel.h
 		HttpClient.h
 		MonitorGridModel.cpp
-		FrameExtractor.h BlockingQueue.h)
+		FrameExtractor.h
+		BlockingQueue.h)
 
 add_subdirectory(AsyncFuture)
 add_subdirectory(QuickFuture)

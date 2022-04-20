@@ -5,132 +5,192 @@ import QtQuick.Controls.Material 2.12
 import org.onvif.common 1.0
 import "./controls" as Controls
 
-Column {
+ListView {
 
     id: control
 
-    property alias model: repeater.model
+    signal clicked(var index)
 
-    signal clicked(var data)
+    implicitWidth: contentWidth
+    implicitHeight: contentHeight
+    interactive: false
 
-    Repeater {
-
-        id: repeater
-
-        anchors.fill: parent
-
-        delegate: ItemDelegate {
-
-            implicitWidth: rowLayout.implicitWidth + leftPadding + rightPadding
-            implicitHeight: column.implicitHeight + topPadding + bottomPadding
-
-            onClicked: {
-                control.clicked(control.model.get(index))
+    add: Transition {
+        id: transition
+        SequentialAnimation {
+            PropertyAction {
+                property: "opacity"
+                value: 0
             }
+            PropertyAction {
+                property: "scale"
+                value: 0.9
+            }
+            PauseAnimation {
+                duration: transition.ViewTransition.index * 20
+            }
+            NumberAnimation {
+                properties: "opacity, scale"
+                to: 1.0
+                duration: 200
+                easing.type: Easing.OutQuad
+            }
+        }
+    }
 
-            Column {
+    displaced: Transition {
+        id: transition1
+        SequentialAnimation {
+            PauseAnimation {
+                duration: transition1.ViewTransition.index * 20
+            }
+            NumberAnimation {
+                properties: "opacity, scale"
+                to: 1.0
+                duration: 200
+                easing.type: Easing.OutQuad
+            }
+        }
+    }
 
-                id: column
-                x: parent.leftPadding
-                y: parent.topPadding
+    delegate: ItemDelegate {
 
-                RowLayout {
+        id: delegate
+        width: ListView.view.width
+        height: column.implicitHeight + topPadding + bottomPadding
 
-                    id: rowLayout
+        onClicked: {
+            control.clicked(index)
+        }
 
-                    Label {
-                        text: name
-                        Layout.fillWidth: true
-                    }
+        GridLayout {
 
-                    Repeater {
-                        model: services
+            id: column
+            x: parent.leftPadding
+            y: parent.topPadding
 
-                        delegate: Controls.Icon {
+            width: parent.width - parent.rightPadding - parent.leftPadding
+            columns: 3
+            rows: 2
 
-                            icon.name: {
-                                switch (modelData) {
-                                case DeviceProbe.ONVIF_EVENT:
-                                    return "signal-distance-variant"
-                                case DeviceProbe.ONVIF_MEDIA:
-                                    return "cctv1"
-                                case DeviceProbe.ONVIF_MEDIA2:
-                                    return "cctv2"
-                                case DeviceProbe.ONVIF_ANALYTICS:
-                                    return "motion-sensor"
-                                case DeviceProbe.ONVIF_DISPLAY:
-                                    return "monitor"
-                                case DeviceProbe.ONVIF_IMAGING:
-                                    return "tune-vertical"
-                                case DeviceProbe.ONVIF_PTZ:
-                                    return "cursor-move"
-                                case DeviceProbe.ONVIF_RECEIVER:
-                                    return "audio-video"
-                                case DeviceProbe.ONVIF_RECORDING:
-                                    return "harddisk"
-                                case DeviceProbe.ONVIF_REPLAY:
-                                    return "play-pause"
-                                default:
-                                    return ""
+            Row {
+                Layout.column: 1
+                Layout.rowSpan: 2
+
+                Layout.rightMargin: Math.max(
+                                        delegate.width / 2 - implicitWidth - 40,
+                                        0)
+
+                Repeater {
+                    id: iconRepeater
+                    model: profiles
+                    Controls.Icon {
+                        width: visible ? implicitWidth : 0
+                        opacity: 0.5
+                        visible: {
+                            if (icon.name.length > 0) {
+                                for (var i = 0; i < iconRepeater.count; i++) {
+                                    if (i !== index) {
+                                        const otherIcon = iconRepeater.itemAt(i)
+                                        if (otherIcon && otherIcon.visible
+                                                && otherIcon.icon.name === icon.name) {
+                                            return false
+                                        }
+                                    }
                                 }
+                                return true
+                            } else {
+                                return false
                             }
-
-                            visible: icon.name.length > 0
-
-                            ToolTip.delay: 1000
-                            ToolTip.visible: ma.containsMouse
-                            ToolTip.text: {
-                                switch (modelData) {
-                                case DeviceProbe.ONVIF_EVENT:
-                                    return qsTr("Event Service")
-                                case DeviceProbe.ONVIF_MEDIA:
-                                    return qsTr("Media Service Ver. 1")
-                                case DeviceProbe.ONVIF_MEDIA2:
-                                    return qsTr("Media Service Ver. 2")
-                                case DeviceProbe.ONVIF_ANALYTICS:
-                                    return qsTr("Analytics Service")
-                                case DeviceProbe.ONVIF_DISPLAY:
-                                    return qsTr("Display Service")
-                                case DeviceProbe.ONVIF_IMAGING:
-                                    return qsTr("Imaging Service")
-                                case DeviceProbe.ONVIF_PTZ:
-                                    return qsTr("PTZ Service")
-                                case DeviceProbe.ONVIF_RECEIVER:
-                                    return qsTr("Receiver Service")
-                                case DeviceProbe.ONVIF_RECORDING:
-                                    return qsTr("Recording Service")
-                                case DeviceProbe.ONVIF_REPLAY:
-                                    return qsTr("Replay Service")
-                                default:
-                                    return ""
-                                }
+                        }
+                        icon.color: Material.secondaryTextColor
+                        icon.name: {
+                            switch (modelData) {
+                            case "s":
+                            case "S":
+                            case "Streaming":
+                            case "streaming":
+                            case "t":
+                            case "T":
+                                // streaming
+                                return "cctv"
+                            case "g":
+                            case "G":
+                                // edge storage and retrieval
+                                return "harddisk"
+                            case "m":
+                            case "M":
+                                // Metadata and events for analytics applications
+                                return "motion-sensor"
+                            case "d":
+                            case "D":
+                            case "c":
+                            case "C":
+                            case "a":
+                            case "A":
+                                // access control
+                                return "lock-smart"
+                            default:
+                                return ""
                             }
+                        }
 
-                            MouseArea {
-                                id: ma
-                                anchors.fill: parent
-                                acceptedButtons: Qt.NoButton
-                                hoverEnabled: true
+                        ToolTip.delay: 1000
+                        ToolTip.visible: ma.containsMouse
+                        ToolTip.text: {
+                            switch (icon.name) {
+                            case "cctv":
+                                return qsTr("Streaming")
+                            case "harddisk":
+                                return qsTr("Recording")
+                            case "motion-sensor":
+                                return qsTr("Metadata and events")
+                            case "lock-smart":
+                                return qsTr("Access control")
                             }
+                        }
+
+                        MouseArea {
+                            id: ma
+                            anchors.fill: parent
+                            acceptedButtons: Qt.NoButton
+                            hoverEnabled: true
                         }
                     }
                 }
-
-                RowLayout {
-
-                    Label {
-                        text: manufacturer
-                        Layout.fillWidth: true
-                    }
-                }
             }
 
-            Rectangle {
-                height: 1
-                color: Material.backgroundColor
-                width: parent.width
-                anchors.bottom: parent.bottom
+            Label {
+                id: nameLabel
+                Layout.column: 0
+                Layout.row: 0
+                Layout.fillWidth: true
+                text: name
+                elide: Text.ElideRight
             }
+
+            Controls.Icon {
+                Layout.column: 2
+                Layout.rowSpan: 2
+                icon.name: "ic_chevron_right"
+            }
+
+            Label {
+                id: hostLabel
+                Layout.column: 0
+                Layout.row: 1
+                Layout.fillWidth: true
+                text: host
+                elide: Text.ElideRight
+                color: Material.secondaryTextColor
+            }
+        }
+
+        Rectangle {
+            height: 1
+            color: Material.backgroundColor
+            width: parent.width
+            anchors.bottom: parent.bottom
         }
     }
 }

@@ -11,7 +11,7 @@ enum Roles {
 	PortRole,
 	NameRole,
 	ManufacturerRole,
-	ServicesRole,
+	OnvifProfilesRole,
 	DescriptionRole,
 	ProfileRole,
 	IdRole,

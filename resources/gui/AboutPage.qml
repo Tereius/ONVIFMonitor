@@ -47,6 +47,14 @@ Controls.ScrollablePage {
             }
 
             Label {
+                text: "door-closed-lock Icon: https://materialdesignicons.com/icon/door-closed-lock"
+            }
+
+            Label {
+                text: "lock-smart Icon: https://materialdesignicons.com/icon/lock-smart"
+            }
+
+            Label {
                 text: "Material Icons: Google"
             }
 

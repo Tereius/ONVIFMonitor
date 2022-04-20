@@ -33,7 +33,7 @@ GroupBox {
         //propertyAnimOut.start()
     }
 
-    property T.Action action: T.Action {
+    readonly property BusyAction action: BusyAction {
 
         //visible: messageModel.count > grid.columns
         text: control.fold ? qsTr("SEE ALL") + " (" + messageModel.count + ")" : qsTr(
@@ -45,13 +45,6 @@ GroupBox {
     }
 
     mainAction: messageModel.count > grid.columns ? action : null
-
-    Behavior on implicitHeight {
-        NumberAnimation {
-            duration: 300
-            easing.type: Easing.OutCubic
-        }
-    }
 
     ListModel {
         id: messageModel
@@ -102,36 +95,57 @@ GroupBox {
             rowSpacing: 10
 
             add: Transition {
+                id: transition
                 SequentialAnimation {
-                    PauseAnimation {
-                        duration: grid.columns > 1 ? 100 : 0
+                    PropertyAction {
+                        property: "opacity"
+                        value: 0
                     }
+                    PropertyAction {
+                        property: "scale"
+                        value: 0.9
+                    }
+                    PauseAnimation {
+                        duration: grid.columns > 1
+                                  && messageModel.count > 1 ? 200 : 0
+                    }
+                    NumberAnimation {
+                        properties: "opacity, scale"
+                        to: 1.0
+                        duration: 200
+                        easing.type: Easing.OutQuad
+                    }
+                }
+            }
+
+            move: Transition {
+                id: transition1
+                SequentialAnimation {
                     ParallelAnimation {
                         NumberAnimation {
-                            property: "opacity"
-                            from: 0
+                            properties: "opacity, scale"
                             to: 1.0
-                            duration: 300
-                        }
-                        ScaleAnimator {
-                            from: 0.85
-                            to: 1
-                            duration: 300
-                            running: false
+                            duration: 200
                             easing.type: Easing.OutQuad
+                        }
+                        NumberAnimation {
+                            properties: "x,y"
+                            duration: 300
+                            easing.type: Easing.OutCubic
                         }
                     }
                 }
             }
 
+
+            /*
             move: Transition {
                 NumberAnimation {
                     properties: "x,y"
                     duration: 300
                     easing.type: Easing.OutCubic
                 }
-            }
-
+            }*/
             Repeater {
 
                 id: rep

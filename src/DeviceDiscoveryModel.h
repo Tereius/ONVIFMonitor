@@ -3,7 +3,6 @@
 #include "DeviceProbe.h"
 #include "DiscoveryMatch.h"
 #include <QList>
-#include <QPair>
 
 
 class OnvifDiscovery;
@@ -26,7 +25,8 @@ class DeviceDiscoveryModel : public AbstractListModel {
 	Q_DISABLE_COPY(DeviceDiscoveryModel);
 
 	void sortList();
+	static QStringList extractFromScope(const QStringList &scopes, const QString &name);
 
 	OnvifDiscovery *mpDiscovery;
-	QList<QPair<DiscoveryMatch, DeviceProbe>> mMatches;
+	QList<DiscoveryMatch> mMatches;
 };

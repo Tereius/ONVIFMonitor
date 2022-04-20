@@ -120,6 +120,9 @@ Result OnvifDevice::initDevice(const QUrl &rEndpoint, const QString &rUser, cons
 				qWarning() << "Couldn't extract device date time";
 			}
 
+			Request<_tds__GetScopes> deviceScopeRequest;
+			auto scopeResponse = mpDeviceClient->GetScopes(deviceScopeRequest);
+
 			Request<_tds__GetDeviceInformation> deviceInfoRequest;
 			auto infoResponse = mpDeviceClient->GetDeviceInformation(deviceInfoRequest);
 			if(infoResponse) {
