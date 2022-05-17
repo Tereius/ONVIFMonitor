@@ -128,6 +128,11 @@ QModelIndex SortFilterProxyModel::invokableMapToSource(const QModelIndex &proxyI
 	return mapToSource(proxyIndex);
 }
 
+void SortFilterProxyModel::reload() {
+
+    beginResetModel();
+    endResetModel();
+}
 
 bool SortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const {
 

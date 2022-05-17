@@ -72,19 +72,27 @@ Item {
             from: 0
             to: 1.0
             duration: 400
-            alwaysRunToEnd: true
         }
         NumberAnimation {
             property: "scale"
             from: 0
             to: 1.0
             duration: 400
-            alwaysRunToEnd: true
         }
     }
 
     property Transition move: Transition {
         id: moveTransition
+        NumberAnimation {
+            property: "opacity"
+            to: 1.0
+            duration: 400
+        }
+        NumberAnimation {
+            property: "scale"
+            to: 1.0
+            duration: 400
+        }
         NumberAnimation {
             properties: "x,y"
             easing.type: Easing.OutCubic

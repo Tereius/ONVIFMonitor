@@ -17,6 +17,14 @@ GroupBox {
     // severity one of "error", "warning", "info"
     function pushMessage(message, severity, title) {
 
+        if (!message) {
+            message = ""
+        }
+
+        if (!title) {
+            title = ""
+        }
+
         if (!severity) {
             severity = "info"
         }
@@ -51,7 +59,7 @@ GroupBox {
 
         onCountChanged: {
 
-            if (messageModel.count > 0) {
+            if (messageModel.count > 0 && messageModel.get(0)) {
                 control.title = messageModel.get(0).title
                 const severity = messageModel.get(0).severity
                 switch (severity) {

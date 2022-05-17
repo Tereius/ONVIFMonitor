@@ -31,6 +31,7 @@ class SortFilterProxyModel : public QSortFilterProxyModel {
 	bool lessThan(const QModelIndex &left, const QModelIndex &right) const override;
 	Q_INVOKABLE QVariantMap get(int row);
 	Q_INVOKABLE QModelIndex invokableMapToSource(const QModelIndex &proxyIndex);
+    Q_INVOKABLE void reload();
 
  signals:
 	void childModelChanged();

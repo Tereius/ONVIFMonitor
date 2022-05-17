@@ -200,7 +200,7 @@ Controls.ScrollablePage {
                                         id: tile
 
                                         draggable: monitoringPage.editable
-                                        implicitWidth: grid.effectiveAtomicWidth + Number.EPSILON // On Linux there seems to be a bug. If Number.EPSILON is missing some elements are invisible
+                                        implicitWidth: grid.effectiveAtomicWidth
 
                                         onImplicitWidthChanged: {
 

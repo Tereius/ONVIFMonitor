@@ -189,8 +189,11 @@ ListView {
         Rectangle {
             height: 1
             color: Material.backgroundColor
-            width: parent.width
             anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: parent.leftPadding
+            anchors.rightMargin: parent.rightPadding
         }
     }
 }

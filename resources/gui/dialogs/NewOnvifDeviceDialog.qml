@@ -144,7 +144,7 @@ Controls.Popup {
                 if (result.isSuccess()) {
                     credentialsDialog.close()
                 } else {
-                    message.pushMessage(result.getDetails(), "error")
+                    message.pushMessage(result.getDetails(), "error", "Error")
                 }
                 credentialsDialog.busy = false
             }, function () {

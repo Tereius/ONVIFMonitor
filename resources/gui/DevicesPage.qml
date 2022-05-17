@@ -42,10 +42,10 @@ Controls.ScrollablePage {
     Connections {
         target: DeviceManager
         function onDeviceAdded() {
-            deviceDiscoveryModelFiltered.invalidate()
+            deviceDiscoveryModelFiltered.reload()
         }
         function onDeviceRemoved() {
-            deviceDiscoveryModelFiltered.invalidate()
+            deviceDiscoveryModelFiltered.reload()
         }
     }
 
@@ -61,7 +61,7 @@ Controls.ScrollablePage {
         sortOrder: Qt.AscendingOrder
         filterRole: Enums.IdRole
         filterFunctor: function (value) {
-            return true //!DeviceManager.containsDevice(value)
+            return !DeviceManager.containsDevice(value)
         }
     }
 
@@ -85,14 +85,12 @@ Controls.ScrollablePage {
 
             ColumnLayout {
 
-                x: -group.leftPadding
-
                 anchors.fill: parent
+                anchors.leftMargin: -group.leftPadding
+                anchors.rightMargin: -group.rightPadding
 
-                //width: parent.width + group.leftPadding + group.rightPadding
                 DevicesListView {
 
-                    //implicitWidth: group.width
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     model: deviceDiscoveryModelFiltered
@@ -122,6 +120,10 @@ Controls.ScrollablePage {
                 RowLayout {
 
                     Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.leftMargin: group.leftPadding
+                    Layout.rightMargin: group.rightPadding
+
                     visible: !timer.running
                              && deviceDiscoveryModelFiltered.count === 0
 
@@ -136,42 +138,39 @@ Controls.ScrollablePage {
 
         Controls.GroupBox {
 
+            id: group1
             title: qsTr("Configured Devices")
 
             ColumnLayout {
 
-                width: parent.width
+                anchors.fill: parent
+                anchors.leftMargin: -group1.leftPadding
+                anchors.rightMargin: -group1.rightPadding
 
-                Repeater {
+                DevicesListView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
 
                     model: DevicesModel {
                         deviceManager: DeviceManager
                     }
 
-                    delegate: ItemDelegate {
+                    onClicked: {
 
-                        Layout.fillWidth: true
-                        height: 50
+                        const dialog = Helper.createItem(
+                                         "dialogs/NewOnvifDeviceDialog.qml",
+                                         ApplicationWindow.window, {
+                                             "deviceName": name,
+                                             "deviceEndpoint": endpoint,
+                                             "deviceId": id,
+                                             "deviceNameFixed": false,
+                                             "deviceEndpointFixed": true
+                                         })
 
-                        icon.name: "ic_fiber_new"
-                        text: name
-                        onClicked: {
-
-                            const dialog = Helper.createItem(
-                                             "dialogs/NewOnvifDeviceDialog.qml",
-                                             ApplicationWindow.window, {
-                                                 "deviceName": name,
-                                                 "deviceEndpoint": endpoint,
-                                                 "deviceId": id,
-                                                 "deviceNameFixed": false,
-                                                 "deviceEndpointFixed": true
-                                             })
-
-                            dialog.openWithAnimOffset()
-                            dialog.closed.connect(function () {
-                                dialog.destroy()
-                            })
-                        }
+                        dialog.openWithAnimOffset()
+                        dialog.closed.connect(function () {
+                            dialog.destroy()
+                        })
                     }
                 }
             }
