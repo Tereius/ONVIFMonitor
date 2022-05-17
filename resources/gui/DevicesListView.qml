@@ -58,6 +58,7 @@ ListView {
         id: delegate
         width: ListView.view.width
         height: column.implicitHeight + topPadding + bottomPadding
+        bottomInset: 1
 
         onClicked: {
             control.clicked(index)

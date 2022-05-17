@@ -51,8 +51,7 @@ Controls.ScrollablePage {
             text: "Show popup"
 
             onClicked: {
-                popup.openWithAnimOffset(mapToItem(Overlay.overlay, 0,
-                                                   pressY).y)
+                popup.openWithAnimOffset(mapToItem(popup, 0, pressY).y)
             }
         }
 
@@ -74,11 +73,15 @@ Controls.ScrollablePage {
 
         BusyIndicator {}
 
+        Controls.Popup {
+            id: popup
+        }
+
         Controls.Button {
             text: "Button"
             onClicked: {
-                popup.openWithAnimOffset(mapToItem(Overlay.overlay, 0,
-                                                   pressY).y)
+
+                popup.openWithAnimOffset(mapToItem(popup, 0, pressY).y)
             }
         }
 

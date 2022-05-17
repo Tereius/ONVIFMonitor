@@ -5,7 +5,9 @@ function createDialog(url, parent, options) {
 
     const dialog = createItem(Qt.resolvedUrl(url), parent, options)
 
-    if (typeof dialog.open === "function") {
+    if (typeof dialog.openWithAnimOffset === "function") {
+        dialog.openWithAnimOffset()
+    } else if (typeof dialog.open === "function") {
         dialog.open()
     }
 

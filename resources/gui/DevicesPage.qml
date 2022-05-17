@@ -100,38 +100,29 @@ Controls.ScrollablePage {
                         const modelData = deviceDiscoveryModelFiltered.get(
                                             index)
 
-                        const dialog = Helper.createItem(
-                                         "dialogs/NewOnvifDeviceDialog.qml",
-                                         ApplicationWindow.window, {
-                                             "deviceName": modelData.name,
-                                             "deviceEndpoint": modelData.endpoint,
-                                             "deviceId": modelData.id,
-                                             "deviceNameFixed": false,
-                                             "deviceEndpointFixed": true
-                                         })
-
-                        dialog.openWithAnimOffset()
-                        dialog.closed.connect(function () {
-                            dialog.destroy()
-                        })
+                        Helper.createDialog("dialogs/NewOnvifDeviceDialog.qml",
+                                            ApplicationWindow.window, {
+                                                "deviceName": modelData.name,
+                                                "deviceEndpoint": modelData.endpoint,
+                                                "deviceId": modelData.id,
+                                                "deviceNameFixed": false,
+                                                "deviceEndpointFixed": true
+                                            })
                     }
                 }
 
-                RowLayout {
+                Label {
 
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.leftMargin: group.leftPadding
                     Layout.rightMargin: group.rightPadding
 
+                    text: qsTr("No devices found on your network. Please make sure you are on the same network as the device.")
+                    wrapMode: Text.WordWrap
+
                     visible: !timer.running
                              && deviceDiscoveryModelFiltered.count === 0
-
-                    Label {
-                        text: qsTr("No devices found on your network. Please make sure you are on the same network as the device.")
-                        wrapMode: Text.WordWrap
-                        Layout.fillWidth: true
-                    }
                 }
             }
         }
@@ -157,20 +148,16 @@ Controls.ScrollablePage {
 
                     onClicked: {
 
-                        const dialog = Helper.createItem(
-                                         "dialogs/NewOnvifDeviceDialog.qml",
-                                         ApplicationWindow.window, {
-                                             "deviceName": name,
-                                             "deviceEndpoint": endpoint,
-                                             "deviceId": id,
-                                             "deviceNameFixed": false,
-                                             "deviceEndpointFixed": true
-                                         })
+                        const modelData = model.get(index)
 
-                        dialog.openWithAnimOffset()
-                        dialog.closed.connect(function () {
-                            dialog.destroy()
-                        })
+                        Helper.createDialog("dialogs/NewOnvifDeviceDialog.qml",
+                                            ApplicationWindow.window, {
+                                                "deviceName": modelData.name,
+                                                "deviceEndpoint": modelData.endpoint,
+                                                "deviceId": modelData.id,
+                                                "deviceNameFixed": false,
+                                                "deviceEndpointFixed": true
+                                            })
                     }
                 }
             }
