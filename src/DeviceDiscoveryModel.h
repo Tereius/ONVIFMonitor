@@ -21,11 +21,12 @@ class DeviceDiscoveryModel : public AbstractListModel {
 	Q_INVOKABLE void reset();
 	Q_INVOKABLE void stop();
 
+	static QStringList extractFromScope(const QStringList &scopes, const QString &name);
+
  private:
 	Q_DISABLE_COPY(DeviceDiscoveryModel);
 
 	void sortList();
-	static QStringList extractFromScope(const QStringList &scopes, const QString &name);
 
 	OnvifDiscovery *mpDiscovery;
 	QList<DiscoveryMatch> mMatches;

@@ -92,6 +92,7 @@ Result OnvifDevice::initDevice(const QUrl &rEndpoint, const QString &rUser, cons
 	mDeviceInfo.mEndpoint = rEndpoint;
 	mDeviceInfo.mUser = rUser;
 	mDeviceInfo.mPassword = rPassword;
+	mDeviceInfo.mScopes = QStringList();
 	mDeviceInfo.mModel = QObject::tr("Unnamed ONVIF device");
 	mDeviceInfo.mManufacturer = QString();
 	mDeviceInfo.mSerialNumber = QString();
@@ -122,6 +123,15 @@ Result OnvifDevice::initDevice(const QUrl &rEndpoint, const QString &rUser, cons
 
 			Request<_tds__GetScopes> deviceScopeRequest;
 			auto scopeResponse = mpDeviceClient->GetScopes(deviceScopeRequest);
+			if(scopeResponse) {
+				if(auto scopeResult=scopeResponse.GetResultObject()) {
+					for(auto scope : scopeResult->Scopes) {
+						if(scope) {
+							mDeviceInfo.mScopes.push_back(scope->ScopeItem);
+						}
+					}
+				}
+			}
 
 			Request<_tds__GetDeviceInformation> deviceInfoRequest;
 			auto infoResponse = mpDeviceClient->GetDeviceInformation(deviceInfoRequest);

@@ -1,4 +1,5 @@
 #include "DevicesModel.h"
+#include "DeviceDiscoveryModel.h"
 #include "DeviceManager.h"
 #include "Roles.h"
 #include "Util.h"
@@ -41,6 +42,11 @@ QVariant DevicesModel::data(const QModelIndex &index, int role /*= Qt::DisplayRo
 			case Enums::Roles::IdRole:
 				ret = mDevices.at(row);
 				break;
+			case Enums::Roles::OnvifProfilesRole: {
+				auto profiles = DeviceDiscoveryModel::extractFromScope(deviceInfo.mScopes, "profile");
+				ret = !profiles.isEmpty() ? profiles : QVariant();
+				break;
+			}
 			case Enums::Roles::InitializedRole:
 				if(mpManager) {
 					ret = mpManager->isDeviceInitialized(mDevices.at(row));
@@ -62,6 +68,7 @@ QHash<int, QByteArray> DevicesModel::roleNames() const {
 	ret.insert(Enums::Roles::PortRole, "port");
 	ret.insert(Enums::Roles::NameRole, "name");
 	ret.insert(Enums::Roles::IdRole, "id");
+	ret.insert(Enums::Roles::OnvifProfilesRole, "profiles");
 	ret.insert(Enums::Roles::InitializedRole, "initialized");
 	return ret;
 }
