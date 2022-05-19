@@ -150,14 +150,13 @@ Controls.ScrollablePage {
 
                         const modelData = model.get(index)
 
-                        Helper.createDialog("dialogs/NewOnvifDeviceDialog.qml",
-                                            ApplicationWindow.window, {
-                                                "deviceName": modelData.name,
-                                                "deviceEndpoint": modelData.endpoint,
-                                                "deviceId": modelData.id,
-                                                "deviceNameFixed": false,
-                                                "deviceEndpointFixed": true
-                                            })
+                        Helper.createDialog(
+                                    "dialogs/EditOnvifDeviceDialog.qml",
+                                    ApplicationWindow.window, {
+                                        "deviceId": modelData.id,
+                                        "deviceNameFixed": false,
+                                        "deviceEndpointFixed": true
+                                    })
                     }
                 }
             }

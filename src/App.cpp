@@ -42,6 +42,7 @@
 #include <QStyleHints>
 #include <QSysInfo>
 
+
 Q_DECLARE_METATYPE(DetailedResult<QUrl>)
 Q_DECLARE_METATYPE(QFuture<DetailedResult<QUrl>>)
 Q_DECLARE_METATYPE(DetailedResult<QUuid>)
@@ -171,6 +172,7 @@ void App::registerMetatypes() {
 	qRegisterMetaType<Error>();
 	QMetaType::registerConverter<ProfileId, QString>(&ProfileId::toString);
 	qRegisterMetaType<Result>();
+	qRegisterMetaType<QFuture<Result>>();
 	QMetaType::registerConverter<Result, QString>(&Result::toString);
 	// qRegisterMetaType<Uuid>();
 	// QMetaType::registerConverter<Uuid, QString>(&Uuid::toString);
@@ -224,6 +226,9 @@ void App::registerQmlTypes() {
 	qmlRegisterUncreatableType<DeviceProbe>("org.onvif.common", 1, 0, "DeviceProbe", "Can't be created in QML");
 
 	// QML future types
+	QuickFuture::registerType<Result>(
+	 [](Result value) -> QVariant { return QVariant(); });
+
 	QuickFuture::registerType<DetailedResult<QUuid>>(
 	 [](DetailedResult<QUuid> value) -> QVariant { return value.isSuccess() ? value.GetResultObject() : QVariant(); });
 

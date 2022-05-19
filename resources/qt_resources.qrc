@@ -77,5 +77,6 @@
         <file>gui/controls/BusyAction.qml</file>
         <file>gui/controls/InlineMessage.qml</file>
         <file alias="qt/etc/qt.conf">qt.conf</file>
+        <file>gui/dialogs/EditOnvifDeviceDialog.qml</file>
     </qresource>
 </RCC>

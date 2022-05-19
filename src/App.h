@@ -15,3 +15,4 @@ class App : public QObject {
 	static void registerMetatypes();
 	static void registerQmlTypes();
 };
+

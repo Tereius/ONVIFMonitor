@@ -181,7 +181,7 @@ QFuture<Result> DeviceManager::initDevice(QSharedPointer<AbstractDevice> device,
 		return initFuture;
 	}
 	auto d = AsyncFuture::deferred<Result>();
-	d.complete(Result(Result::OK, tr("Can't initialize device. The device doesn't exist.")));
+	d.complete(Result(Result::FAULT, tr("Can't initialize device. The device doesn't exist.")));
 	return d.future();
 }
 
@@ -244,7 +244,7 @@ QFuture<Result> DeviceManager::setDeviceCredentials(const QUuid &rDeviceId, cons
 		mMutex.unlock();
 	}
 	auto d = AsyncFuture::deferred<Result>();
-	d.complete(Result(Result::OK, tr("Can't change credentials. The device doesn't exist.")));
+	d.complete(Result(Result::FAULT, tr("Can't change credentials. The device doesn't exist.")));
 	return d.future();
 }
 
@@ -265,7 +265,7 @@ QFuture<DetailedResult<QList<MediaProfile>>> DeviceManager::getMediaProfiles(con
 		return QtConcurrent::run([deviceEntry]() { return deviceEntry.mDevice->getMediaProfiles(); });
 	}
 	auto d = AsyncFuture::deferred<DetailedResult<QList<MediaProfile>>>();
-	d.complete(DetailedResult<QList<MediaProfile>>(Result::OK, tr("Can't get media profiles. The device doesn't exist.")));
+	d.complete(DetailedResult<QList<MediaProfile>>(Result::FAULT, tr("Can't get media profiles. The device doesn't exist.")));
 	return d.future();
 }
 
@@ -306,7 +306,7 @@ QFuture<DetailedResult<QImage>> DeviceManager::getSnapshot(const QUuid &rDeviceI
 		return deviceEntry.mDevice->getSnapshot(profile, rSize);
 	}
 	auto d = AsyncFuture::deferred<DetailedResult<QImage>>();
-	d.complete(DetailedResult<QImage>(Result::OK, tr("Can't get snapshot. The device doesn't exist.")));
+	d.complete(DetailedResult<QImage>(Result::FAULT, tr("Can't get snapshot. The device doesn't exist.")));
 	return d.future();
 }
 

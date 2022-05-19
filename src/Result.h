@@ -3,6 +3,7 @@
 #include <QDebug>
 #include <QMetaObject>
 #include <QString>
+#include <QFuture>
 
 
 #define RESULT_OK 0
@@ -50,7 +51,6 @@ class Result {
 
 QDebug operator<<(QDebug debug, const Result &rRestult);
 
-
 template<typename T>
 class DetailedResult : public Result {
 
@@ -78,3 +78,6 @@ class DetailedResult : public Result {
  private:
 	T mResultObject;
 };
+
+Q_DECLARE_METATYPE(Result)
+Q_DECLARE_METATYPE(QFuture<Result>)

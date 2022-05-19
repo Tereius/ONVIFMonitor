@@ -8,7 +8,7 @@ import "../controls" as Controls
 
 Controls.Popup {
 
-    title: qsTr("Add Device")
+    title: qsTr("Edit Device")
 
     id: credentialsDialog
     property string deviceName: ""
@@ -31,6 +31,16 @@ Controls.Popup {
             }
         }
     ]
+
+    Component.onCompleted: {
+        const daviceInfo = DeviceManager.getDeviceInfo(
+                             credentialsDialog.deviceId)
+
+        deviceNameField.text = DeviceManager.getName(credentialsDialog.deviceId)
+        hostField.text = daviceInfo.deviceEndpoint
+        userField.text = daviceInfo.user
+        passwordField.text = daviceInfo.password
+    }
 
     Controls.ScrollablePage {
 
@@ -135,11 +145,14 @@ Controls.Popup {
 
         function addDevice() {
             credentialsDialog.busy = true
-            let future = DeviceManager.addDevice(
-                    hostField.text, userField.text, passwordField.text,
-                    deviceNameField.text,
-                    credentialsDialog.deviceId ? credentialsDialog.deviceId : App.createUuid(
-                                                     ))
+
+            DeviceManager.renameDevice(credentialsDialog.deviceId,
+                                       deviceNameField.text)
+
+            let future = DeviceManager.setDeviceCredentials(
+                    credentialsDialog.deviceId, userField.text,
+                    passwordField.text)
+
             Future.onFinished(future, function (result) {
 
                 if (result.isSuccess()) {
