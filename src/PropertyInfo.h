@@ -1,10 +1,11 @@
 #pragma once
 #include <QVariant>
-
+#include <QtQmlIntegration>
 
 class PropertyInfo {
 
 	Q_GADGET
+	QML_ELEMENT
 	Q_PROPERTY(Type type READ getType())
 	Q_PROPERTY(QString name READ getName())
 	Q_PROPERTY(QString description READ getDescription())

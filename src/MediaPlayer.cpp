@@ -23,7 +23,7 @@ class VideoRendererInternal : public QQuickFramebufferObject::Renderer {
 
 MediaPlayer::MediaPlayer(QQuickItem *parent) : QQuickFramebufferObject(parent), internal_player(new mdk::Player()) {
 	setMirrorVertically(true);
-	// internal_player->setAudioBackends({""});
+	internal_player->setAudioBackends({""});
 }
 
 MediaPlayer::~MediaPlayer() {

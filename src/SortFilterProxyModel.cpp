@@ -3,6 +3,7 @@
 #include <QDateTime>
 #include <QJSEngine>
 #include <QCoreApplication>
+#include <QRegularExpression>
 #include <cstdint>
 
 bool aboutToQuit = false;
@@ -73,17 +74,17 @@ QAbstractItemModel *SortFilterProxyModel::getChildModel() const {
 
 void SortFilterProxyModel::setFilterExpr(const QString &expr) {
 
-	setFilterRegExp(QRegExp(expr));
+	setFilterRegularExpression(QRegularExpression(expr));
 }
 
 QString SortFilterProxyModel::getFilterExpr() const {
 
-	return filterRegExp().pattern();
+	return filterRegularExpression().pattern();
 }
 
 void SortFilterProxyModel::unsetFilterExpr() {
 
-	setFilterRegExp(QRegExp(""));
+	setFilterRegularExpression(QRegularExpression(""));
 }
 
 bool SortFilterProxyModel::lessThan(const QModelIndex &left, const QModelIndex &right) const {

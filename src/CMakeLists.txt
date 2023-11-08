@@ -1,23 +1,13 @@
-find_package(CommonLibs QUIET)
-if(NOT TARGET onvifcommon)
-	find_package(libONVIF REQUIRED)
-endif()
+include(MaterialIcons)
 
-if(ANDROID)
-	find_package(Qt5 REQUIRED COMPONENTS AndroidExtras)
-endif()
-find_package(Qt5 REQUIRED COMPONENTS Core Svg Quick Concurrent QuickControls2 QuickTemplates2 OPTIONAL_COMPONENTS QuickCompiler)
-find_path(Qt5_plugin_DIR NAMES platforms/qminimald.dll platforms/libqminimald.so platforms/qminimal.dll platforms/libqminimal.so PATH_SUFFIXES "plugins")
-find_path(Qt5_qml_DIR NAMES QtQml/qmldir PATH_SUFFIXES "lib" "lib/qml" "qml")
+add_subdirectory(AsyncFuture)
+add_subdirectory(QuickFuture)
 
-find_package(KF5Kirigami2 REQUIRED COMPONENTS Kirigami2)
-find_path(KF5_qml_DIR NAMES org/kde/kirigami.2/qmldir PATH_SUFFIXES "lib" "lib/qml" "qml")
-
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Widgets Svg Quick Concurrent QuickControls2 QuickTemplates2)
+find_package(MaterialRally REQUIRED)
+find_package(QtAppBase REQUIRED)
+find_package(libONVIF REQUIRED)
 find_package(MDK REQUIRED)
-
-find_library(QtAvLib_PATH NAMES QtAV QtAV QtAVd QtAV1 QtAVd1 QtAV_armeabi-v7a PATH_SUFFIXES "lib")
-find_path(QtAvLib_include_DIR NAMES QtAV/QtAV.h PATH_SUFFIXES "include")
-find_path(QtAvLib_qml_DIR NAMES QtAV/qmldir PATH_SUFFIXES "lib" "lib/qml" "qml")
 
 find_library(libswresample_PATH NAMES swresample PATH_SUFFIXES "lib")
 find_library(libavdevice_PATH NAMES avdevice PATH_SUFFIXES "lib")
@@ -31,19 +21,7 @@ find_library(libpostproc_PATH NAMES postproc PATH_SUFFIXES "lib")
 find_library(OpenSSL_cryptro_PATH NAMES libeay libeay32 libcrypto libcrypto32 eay crypto libcryptod PATH_SUFFIXES "lib")
 find_library(OpenSSL_ssl_PATH NAMES ssleay ssleay32 libssl libssl32 eay ssl libssld PATH_SUFFIXES "lib")
 
-find_path(BreezeIcons_DIR NAMES icons/actions/32/application-menu.svg)
-
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-
-set(qt_rcc_resources "${PROJECT_SOURCE_DIR}/resources/qt_resources.qrc;${PROJECT_SOURCE_DIR}/resources/quickpromise.qrc;${PROJECT_SOURCE_DIR}/resources/tilesgrid.qrc;${PROJECT_SOURCE_DIR}/resources/default_icons.qrc;${PROJECT_SOURCE_DIR}/resources/fonts.qrc")
-
-set(QML2_IMPORT_PATH "${EXTERNAL_QML2_PATH}")
-set(QML_IMPORT_PATH "${EXTERNAL_QML2_PATH}")
-set(QT5_ROOT_PATH "${Qt5_DIR}/../../..")
-set(QTAV_ROOT_PATH "${Qt5_DIR}/../../..")
-
-include_directories("${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" "${QtAvLib_include_DIR}")
+include_directories("${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
 
 if(MSVC)
 	add_definitions(-DNOMINMAX)
@@ -52,10 +30,9 @@ endif()
 
 # -------------------------------Home Spy-------------------------------
 set(src_files
-		LogMessageHandler.cpp
+		#LogMessageHandler.cpp
 		App.cpp
-		main.cpp
-		AdvancedQmlApplicationEngine.cpp
+		#AdvancedQmlApplicationEngine.cpp
 		IconImageProvider.cpp
 		DeviceDiscoveryModel.cpp
 		DeviceManager.cpp
@@ -94,13 +71,14 @@ set(src_files
 		SortFilterProxyModel.cpp
 		HttpClient.cpp
 		MonitorGridModel.cpp
-		FrameExtractor.cpp)
+		#FrameExtractor.cpp
+		)
 
 # private header
 set(header_files
-		LogMessageHandler.h
+		#LogMessageHandler.h
 		App.h
-		AdvancedQmlApplicationEngine.h
+		#AdvancedQmlApplicationEngine.h
 		Util.h
 		DeviceInfo.h
 		IconImageProvider.h
@@ -142,71 +120,206 @@ set(header_files
 		SortFilterProxyModel.h
 		HttpClient.h
 		MonitorGridModel.cpp
-		FrameExtractor.h
+		#FrameExtractor.h
 		BlockingQueue.h)
 
-add_subdirectory(AsyncFuture)
-add_subdirectory(QuickFuture)
+qt_add_executable(ONVIFMonitor
+									main.cpp
+									BlockingQueue.h
+									Util.h
+									DeviceInfo.h
+									App.h
+									App.cpp
+									IconImageProvider.h
+									IconImageProvider.cpp
+									OnvifDevice.h
+									OnvifDevice.cpp
+									GenericDevice.h
+									GenericDevice.cpp
+									AbstractDevice.h
+									AbstractDevice.cpp
+									Result.h
+									Result.cpp
+									Cryptography.h
+									Cryptography.cpp
+									EventService.h
+									EventService.cpp
+									MediaService.h
+									MediaService.cpp
+									MediaProfile.h
+									MediaProfile.cpp
+									ImageProvider.h
+									ImageProvider.cpp
+									ProfileId.h
+									ProfileId.cpp
+									Timestamp.h
+									Timestamp.cpp
+									Window.h
+									Window.cpp
+									Error.h
+									Error.cpp
+									FutureResult.h
+									FutureResult.cpp
+									AbstractListModel.h
+									AbstractListModel.cpp
+									TopicSetModel.h
+									TopicSetModel.cpp
+									OnvifMessageFilterItems.h
+									OnvifMessageFilterItems.cpp
+									HttpClient.h
+									HttpClient.cpp
+									)
 
-#set(ENV{LD_LIBRARY_PATH} "/home/bjoern/.conan/data/ffmpeg/4.0/tereius/stable/package/8446ea3f47151abe755d00523046f28d6549a514/lib")
+set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
-set(test)
-set(BREEZEICONS_DIR ${BreezeIcons_DIR})
-kirigami_package_breeze_icons(ICONS test)
+qt_add_qml_module(ONVIFMonitor
+									URI Onvif
 
-set(icons_rcc_file "${PROJECT_SOURCE_DIR}/resources/default_icons.qrc")
-file(GLOB icon_files RELATIVE "${PROJECT_SOURCE_DIR}/resources" "${PROJECT_SOURCE_DIR}/resources/icons/onvif/48x48/*.svg")
-file(WRITE "${icons_rcc_file}" "<RCC>\n<qresource prefix=\"/\">\n")
-file(APPEND "${icons_rcc_file}" "<file>icons/onvif/index.theme</file>\n")
-foreach(icon IN LISTS icon_files)
-	file(APPEND "${icons_rcc_file}" "<file>${icon}</file>\n")
-endforeach(icon)
-file(APPEND "${icons_rcc_file}" "</qresource>\n</RCC>")
+									SOURCES
+									SortFilterProxyModel.h
+									SortFilterProxyModel.cpp
+									DeviceDiscoveryModel.h
+									DeviceDiscoveryModel.cpp
+									DevicesModel.h
+									DevicesModel.cpp
+									DeviceManager.h
+									DeviceManager.cpp
+									MediaProfilesModel.h
+									MediaProfilesModel.cpp
+									MediaPlayer.h
+									MediaPlayer.cpp
+									MonitorGridModel.h
+									MonitorGridModel.cpp
+									PropertyInfo.h
+									PropertyInfo.cpp
+									Roles.h
+									Roles.cpp
+									Onvif.h
+									Onvif.cpp
 
-source_group("Resource Files" FILES ${qt_rcc_resources})
+									QML_FILES
+									Onvif/AboutPage.qml
+									Onvif/BusyCombobox.qml
+									Onvif/BusyPopup.qml
+									Onvif/CameraImage.qml
+									Onvif/CameraStream.qml
+									Onvif/CredentialsDialog.qml
+									Onvif/DesktopExampleApp.qml
+									Onvif/DeviceInfoDialog.qml
+									Onvif/DeviceInfoPage.qml
+									Onvif/DevicePage.qml
+									Onvif/DeviceSettingsDialog.qml
+									Onvif/DevicesListView.qml
+									Onvif/DevicesPage.qml
+									Onvif/EventHandlerSettingsDialog.qml
+									Onvif/EventPropertiesDialog.qml
+									Onvif/EventServiceInfoPage.qml
+									Onvif/EventSettingsPage.qml
+									Onvif/ExampleApp.qml
+									Onvif/ExpandableListView.qml
+									Onvif/FixedSizeGridLayout.qml
+									Onvif/FormLayout.qml
+									Onvif/Icon.qml
+									Onvif/ListItem.qml
+									Onvif/MediaProfilesDevicesSettingsPage.qml
+									Onvif/MediaProfileSettingsPage.qml
+									Onvif/MediaProfilesListPage.qml
+									Onvif/MediaServiceInfoPage.qml
+									Onvif/MonitoringPage.qml
+									Onvif/NewDevicePage.qml
+									Onvif/NewEventBindingDialog.qml
+									Onvif/OnvifMessageFilterBuilder.qml
+									Onvif/PingAnimation.qml
+									Onvif/PlaceholderPage.qml
+									Onvif/main.qml
+									Onvif/SettingsPage.qml
+									Onvif/Style.qml
+									Onvif/VideoWallPane.qml
+									Onvif/WRoundButton.qml
+									Onvif/dialogs/EditOnvifDeviceDialog.qml
+									Onvif/dialogs/NewOnvifDeviceDialog.qml
+									Onvif/FilterBuilder/BaseFilterComponent.qml
+									Onvif/FilterBuilder/DropLine.qml
+									Onvif/SwipePage.qml
+									)
 
+qt_add_qml_module(TilesGrid
+									URI TilesGrid
 
-if(Qt5QuickCompiler_DIR)
-	qtquick_compiler_add_resources(resSources ${qt_rcc_resources})
-else()
-	qt5_add_resources(resSources ${qt_rcc_resources})
-	message(STATUS "Disabled qml ahead of time compiler")
-endif()
+									QML_FILES
+									TilesGrid/Tile.qml
+									TilesGrid/TilesGrid.qml
+									TilesGrid/TilesGridData.qml
+									TilesGrid/TilesGridLayout.qml
+									TilesGrid/TilesGridLogic.qml
+									TilesGrid/UndoStack.qml
+									)
 
-if(ANDROID)
-	add_library(ONVIFMonitor SHARED ${src_files} ${header_files} ${resSources})
-	target_link_libraries(ONVIFMonitor PUBLIC Qt5::AndroidExtras PRIVATE log.so)
-else()
-	add_executable(ONVIFMonitor WIN32 ${src_files} ${header_files} ${resSources})
-endif()
+#target_compile_features(ONVIFMonitor PUBLIC cxx_strong_enums cxx_auto_type cxx_nullptr cxx_long_long_type cxx_explicit_conversions)
+target_link_libraries(ONVIFMonitor
+											PRIVATE mdk
+											PRIVATE QtAppBase
+											PRIVATE TilesGrid
+											PRIVATE quickfutureqmlplugin
+											PRIVATE onvifcommon
+											PRIVATE onvifdiscovery
+											PRIVATE onvifdevice
+											PRIVATE onvifevent
+											PRIVATE onvifmedia
+											PRIVATE onvifprobe
+											PRIVATE qtasyncfuture
+											PRIVATE Qt6::Core
+											PRIVATE Qt6::Gui
+											PRIVATE Qt6::Widgets
+											PRIVATE Qt6::Svg
+											PRIVATE Qt6::Qml
+											PRIVATE Qt6::Quick
+											PRIVATE Qt6::Concurrent
+											PRIVATE Qt6::QuickControls2
+											PRIVATE Qt6::QuickTemplates2
+											PRIVATE ${libswresample_PATH}
+											PRIVATE ${libavdevice_PATH}
+											PRIVATE ${libavfilter_PATH}
+											PRIVATE ${libavcodec_PATH}
+											PRIVATE ${libavformat_PATH}
+											PRIVATE ${libswscale_PATH}
+											PRIVATE ${libavutil_PATH}
+											PRIVATE ${libpostproc_PATH}
+											)
 
-target_compile_definitions(ONVIFMonitor PUBLIC QML_IMPORT_PATHS=$<BUILD_INTERFACE:"${KF5_qml_DIR},${QtAvLib_qml_DIR},${QuickFuture_qml_DIR},${Qt5_qml_DIR}">$<INSTALL_INTERFACE:"">)
-target_compile_definitions(ONVIFMonitor PUBLIC QT_PLUGIN_PATHS=$<BUILD_INTERFACE:"${Qt5_plugin_DIR}">$<INSTALL_INTERFACE:"">)
-target_compile_definitions(ONVIFMonitor PUBLIC QML_BASE_PATH=$<BUILD_INTERFACE:"${PROJECT_SOURCE_DIR}/resources/gui">$<INSTALL_INTERFACE:"">)
-target_compile_features(ONVIFMonitor PUBLIC cxx_strong_enums cxx_auto_type cxx_nullptr cxx_long_long_type cxx_explicit_conversions)
-target_link_libraries(ONVIFMonitor PUBLIC onvifcommon PUBLIC onvifdiscovery PUBLIC onvifdevice PUBLIC onvifevent PUBLIC onvifmedia PUBLIC onvifprobe
-											PUBLIC ${QtAvLib_PATH} PUBLIC Qt5::Core PUBLIC Qt5::Svg PUBLIC Qt5::Quick PUBLIC Qt5::Concurrent PUBLIC Qt5::QuickControls2
-											PUBLIC Qt5::QuickTemplates2 PUBLIC KF5::Kirigami2 PUBLIC mdk
-											PUBLIC ${libswresample_PATH} PUBLIC ${libavdevice_PATH} PUBLIC ${libavfilter_PATH} PUBLIC ${libavcodec_PATH}
-											PUBLIC ${libavformat_PATH} PUBLIC ${libswscale_PATH} PUBLIC ${libavutil_PATH} PUBLIC ${libpostproc_PATH} PUBLIC quickfutureqmlplugin PRIVATE qtasyncfuture)
+add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
+																 chevron-right
+																 chevron-left
+																 cctv
+																 cctv-off
+																 refresh
+																 delete
+																 content-save
+																 alert
+																 harddisk
+																 lock-smart
+																 plus
+																 check
+																 cog
+																 information
+																 new-box
+																 close
+																 link
+																 play
+																 camera-wireless
+																 web-off
+																 )
 
-add_custom_target(Run-ONVIFMonitor COMMAND export LD_LIBRARY_PATH="/home/bjoern/.conan/data/ffmpeg/4.0/tereius/stable/package/8446ea3f47151abe755d00523046f28d6549a514/lib")
-add_dependencies(Run-ONVIFMonitor ONVIFMonitor)
+set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libswresample_PATH}")
+set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavdevice_PATH}")
+set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavfilter_PATH}")
+set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavcodec_PATH}")
+set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavformat_PATH}")
+set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libswscale_PATH}")
+set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavutil_PATH}")
+set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libpostproc_PATH}")
 
-set(QML_IMPORT_PATHS "${KF5_qml_DIR};${CMAKE_CURRENT_SOURCE_DIR};${QML_IMPORT_PATHS}" PARENT_SCOPE)
+target_link_qml_module(ONVIFMonitor PRIVATE MaterialRally)
 
 # add the install target
-install(TARGETS ONVIFMonitor RUNTIME DESTINATION bin ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include)
-
-get_filename_component(MDK_FFMPEG_LIBRARY ${MDK_LIBRARY} DIRECTORY)
-message(STATUS "--------${MDK_FFMPEG_LIBRARY}")
-
-#include(DeployQt5)
-#fixup_qt5_target(ONVIFMonitor)
-if(WIN32)
-	include(Windeployqt)
-	windeployqt(ONVIFMonitor "bin")
-elseif(ANDROID)
-	include(Androiddeployqt)
-	androiddeployqt(ONVIFMonitor PACKAGE "com.github.Tereius.ONVIFMonitor" QML_ROOT_PATH "${PROJECT_SOURCE_DIR}/resources/gui" QML_IMPORT_PATHS "${KF5_qml_DIR};${QtAvLib_qml_DIR};${QuickFuture_qml_DIR}" DEPENDS "${MDK_FFMPEG_LIBRARY}/libffmpeg.so;${MDK_LIBRARY};${OpenSSL_cryptro_PATH};${OpenSSL_ssl_PATH}")
-endif()
+install_app(ONVIFMonitor)

@@ -3,6 +3,7 @@
 #include <QList>
 #include <QPointer>
 #include <QUuid>
+#include <QtQmlIntegration>
 
 
 class DeviceManager;
@@ -10,6 +11,7 @@ class DeviceManager;
 class DevicesModel : public AbstractListModel {
 
 	Q_OBJECT
+	QML_ELEMENT
 	Q_PROPERTY(DeviceManager *deviceManager READ getDeviceManager WRITE setDeviceManager REQUIRED)
 
  public:

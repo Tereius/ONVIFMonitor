@@ -2,11 +2,10 @@
 #include "OnvifDiscovery.h"
 #include "Roles.h"
 #include "Util.h"
-#include "asyncfuture.h"
 #include <QHash>
 #include <QLoggingCategory>
-#include <QtConcurrent>
 #include <algorithm>
+
 
 Q_LOGGING_CATEGORY(ddm, "DeviceDiscoveryModel")
 

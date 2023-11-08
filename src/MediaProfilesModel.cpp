@@ -5,7 +5,6 @@
 #include "Roles.h"
 #include "Window.h"
 #include <QFutureWatcher>
-#include <QtConcurrent>
 
 
 MediaProfilesModel::MediaProfilesModel(QObject *pParent /*= nullptr*/) : AbstractListModel(pParent), mProfiles(), mDeviceId() {}

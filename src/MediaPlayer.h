@@ -6,6 +6,7 @@
 #include <QOpenGLFramebufferObject>
 #include <QQuickFramebufferObject>
 #include <QSize>
+#include <QtQmlIntegration>
 
 
 namespace mdk {
@@ -13,8 +14,11 @@ class Player;
 }
 
 class MediaPlayer : public QQuickFramebufferObject {
+	
 	Q_OBJECT
+	QML_ELEMENT
 	Q_PROPERTY(QString source READ source WRITE setSource NOTIFY sourceChanged)
+
  public:
 	explicit MediaPlayer(QQuickItem *parent = nullptr);
 	virtual ~MediaPlayer();

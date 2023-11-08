@@ -4,6 +4,7 @@
 #include <QMetaObject>
 #include <QString>
 #include <QFuture>
+#include <QImage>
 
 
 #define RESULT_OK 0
@@ -81,3 +82,5 @@ class DetailedResult : public Result {
 
 Q_DECLARE_METATYPE(Result)
 Q_DECLARE_METATYPE(QFuture<Result>)
+Q_DECLARE_METATYPE(DetailedResult<QImage>)
+Q_DECLARE_METATYPE(QFuture<DetailedResult<QImage>>)

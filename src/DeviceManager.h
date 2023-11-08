@@ -5,24 +5,30 @@
 #include <QAtomicInteger>
 #include <QFuture>
 #include <QMap>
-#include <QMutex>
+#include <QRecursiveMutex>
 #include <QObject>
 #include <QPointer>
 #include <QSharedPointer>
 #include <QSize>
 #include <QUrl>
+#include <QtQmlIntegration>
+#include <QTimer>
 
 
 class AbstractDevice;
 class DeviceInfo;
+class QQmlEngine;
+class QJSEngine;
 
 class DeviceManager : public QObject {
 
 	Q_OBJECT
+	QML_ELEMENT
+	QML_SINGLETON
 
  public:
-	explicit DeviceManager(QObject *pParent = nullptr);
-	~DeviceManager() override;
+  ~DeviceManager() override;
+	static DeviceManager* getInstance();
 	Q_INVOKABLE void initialize();
 	Q_INVOKABLE bool containsDevice(const QUuid &rDeviceId);
 	Q_INVOKABLE QUuid getDeviceByHost(const QString &rHost, int port = 8080);
@@ -46,12 +52,20 @@ class DeviceManager : public QObject {
 
 	QSharedPointer<AbstractDevice> getDevice(const QUuid &rDeviceId);
 
+	static DeviceManager *create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);
+
  signals:
 	void unauthorized(const QUuid &rDeviceId);
 	void deviceAdded(const QUuid &rAddedDeviceId);
 	void deviceRemoved(const QUuid &rRemovedDeviceId);
 	void deviceInitialized(const QUuid &rRemovedDeviceId);
 	void deviceChanged(const QUuid &rRemovedDeviceId);
+
+ protected:
+	explicit DeviceManager(QObject *pParent = nullptr);
+
+ private slots:
+	void checkDevices();
 
  private:
 	Q_DISABLE_COPY(DeviceManager);
@@ -74,5 +88,6 @@ class DeviceManager : public QObject {
 
 	QMap<QUuid, Device> mDevices;
 	QMap<QUuid, QUuid> mAliasIds;
-	QMutex mMutex;
+	QRecursiveMutex mMutex;
+	QTimer mTimer;
 };

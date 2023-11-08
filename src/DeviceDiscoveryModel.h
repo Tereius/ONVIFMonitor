@@ -3,6 +3,7 @@
 #include "DeviceProbe.h"
 #include "DiscoveryMatch.h"
 #include <QList>
+#include <QtQmlIntegration>
 
 
 class OnvifDiscovery;
@@ -10,6 +11,7 @@ class OnvifDiscovery;
 class DeviceDiscoveryModel : public AbstractListModel {
 
 	Q_OBJECT
+	QML_ELEMENT
 
  public:
 	explicit DeviceDiscoveryModel(QObject *pParent = nullptr);

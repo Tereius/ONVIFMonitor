@@ -2,21 +2,37 @@
 #include "DeviceInfo.h"
 #include "GenericDevice.h"
 #include "OnvifDevice.h"
+#include "SecretsManager.h"
 #include "Window.h"
 #include "asyncfuture.h"
 #include <QCoreApplication>
 #include <QDebug>
 #include <QFuture>
 #include <QGlobalStatic>
+#include <QJSEngine>
 #include <QMutexLocker>
 #include <QSettings>
 #include <QtConcurrent>
 
-
 #define SECRET "yoY,V<EN.!0KPMpp" // Don't change. Otherwise saved passwords will be lost
 #define GENERIC_DEVICE_NAME "New Device"
 
-DeviceManager::DeviceManager(QObject *pParent /*= nullptr*/) : QObject(pParent), mDevices(), mMutex(QMutex::Recursive) {}
+class DeviceManagerSingleton : public DeviceManager {};
+
+Q_GLOBAL_STATIC(DeviceManagerSingleton, instance)
+
+DeviceManager *DeviceManager::getInstance() {
+
+	return instance;
+}
+
+DeviceManager::DeviceManager(QObject *pParent /*= nullptr*/) : QObject(pParent), mDevices(), mMutex(), mTimer() {
+
+	mTimer.setTimerType(Qt::VeryCoarseTimer);
+	mTimer.setInterval(60 * 1000);
+	mTimer.setSingleShot(false);
+	connect(&mTimer, &QTimer::timeout, this, &DeviceManager::checkDevices);
+}
 
 DeviceManager::~DeviceManager() = default;
 
@@ -122,10 +138,10 @@ QFuture<DetailedResult<QUuid>> DeviceManager::addDevice(const QUrl &rEndpoint, c
 		mMutex.unlock();
 		if(!duplicateDeviceByEndpoint && !duplicateDeviceById) {
 			QSharedPointer<AbstractDevice> device;
-			//if(rEndpoint.url().endsWith("onvif/device_service")) {
+			// if(rEndpoint.url().endsWith("onvif/device_service")) {
 			//	device = QSharedPointer<OnvifDevice>::create();
-			//} else {
-				device = QSharedPointer<OnvifDevice>::create();
+			// } else {
+			device = QSharedPointer<OnvifDevice>::create();
 			//}
 			auto initFuture = initDevice(device, rEndpoint, rUsername, rPassword);
 			return AsyncFuture::observe(initFuture)
@@ -140,6 +156,8 @@ QFuture<DetailedResult<QUuid>> DeviceManager::addDevice(const QUrl &rEndpoint, c
 					 deviceEntry.mDevice = device;
 					 deviceEntry.mInitialized = true;
 					 QSettings settings;
+					 SecretsManager sec;
+					 sec.writeSecretSync(rDeviceId.toString(), rPassword);
 					 settings.beginGroup("devices");
 					 settings.beginGroup(rDeviceId.toString());
 					 settings.setValue("id", rDeviceId);
@@ -318,6 +336,67 @@ QSharedPointer<AbstractDevice> DeviceManager::getDevice(const QUuid &rDeviceId) 
 	return deviceEntry.mDevice;
 }
 
+DeviceManager *DeviceManager::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine) {
+
+	Q_UNUSED(qmlEngine)
+	Q_UNUSED(jsEngine)
+	auto instance = getInstance();
+	QJSEngine::setObjectOwnership(instance, QJSEngine::CppOwnership);
+	return instance;
+}
+
+void DeviceManager::checkDevices() {
+
+	for(const auto &deviceId : getDevices()) {
+		mMutex.lock();
+		auto deviceEntry = mDevices.value(resolveId(deviceId));
+		mMutex.unlock();
+		if(deviceEntry.mDevice) {
+			if(!deviceEntry.mDevice->getDeviceInfo().mInitialized) {
+				// If device is not initialized try initialize it again
+				auto initFuture = initDevice(deviceEntry.mDevice, deviceEntry.mEndpoint, deviceEntry.mUsername, deviceEntry.mPassword);
+				AsyncFuture::observe(initFuture).subscribe([this, initFuture, deviceId]() {
+					auto changed = false;
+					mMutex.lock();
+					if(mDevices.contains(deviceId)) {
+						auto &device = mDevices[deviceId];
+						if(device.mInitialized != initFuture.result().isSuccess()) {
+							device.mInitialized = initFuture.result().isSuccess();
+							changed = true;
+						}
+					}
+					mMutex.unlock();
+					if(changed) {
+						emit deviceChanged(deviceId);
+					}
+				});
+			} else {
+				// Check if the device is still available
+				auto pingFurure = QtConcurrent::run([deviceEntry]() { return deviceEntry.mDevice->pingDevice(); });
+				AsyncFuture::observe(pingFurure).subscribe([this, pingFurure, deviceId]() {
+					auto changed = false;
+					mMutex.lock();
+					if(mDevices.contains(deviceId)) {
+						auto &device = mDevices[deviceId];
+						if(device.mInitialized != pingFurure.result().isSuccess()) {
+							device.mInitialized = pingFurure.result().isSuccess();
+							changed = true;
+							if(device.mInitialized)
+								qInfo() << "Device" << device.mDeviceName << "went online";
+							else
+								qInfo() << "Device" << device.mDeviceName << "went offline";
+						}
+					}
+					mMutex.unlock();
+					if(changed) {
+						emit deviceChanged(deviceId);
+					}
+				});
+			}
+		}
+	}
+}
+
 void DeviceManager::initDevices() {
 
 	setBusy(true);
@@ -359,6 +438,7 @@ void DeviceManager::initDevices() {
 			qWarning() << "Found invalid device from settings";
 		}
 	}
+	mTimer.start();
 }
 
 void DeviceManager::setBusy(bool isBusy) {

@@ -1,6 +1,5 @@
 #pragma once
 #include "ProfileId.h"
-#include "QuickFuture/quickfuture.h"
 #include "Result.h"
 #include <QMetaType>
 #include <QString>

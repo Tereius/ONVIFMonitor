@@ -3,13 +3,11 @@
 #include <QObject>
 
 
-class IconImageProvider : public QObject, public QQuickImageProvider {
-
-	Q_OBJECT
+class IconImageProvider : public QQuickImageProvider {
 
 public:
 
-	IconImageProvider(QObject *pParent = nullptr);
+	IconImageProvider();
 	virtual ~IconImageProvider();
 	virtual QPixmap requestPixmap(const QString &id, QSize *size, const QSize &requestedSize) override;
 

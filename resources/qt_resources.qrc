@@ -3,24 +3,6 @@
         <file>gui/main.qml</file>
         <file>qtquickcontrols2.conf</file>
         <file>gui/banner.jpg</file>
-        <file>gui/gallery/ButtonGallery.qml</file>
-        <file>gui/gallery/CheckBoxGallery.qml</file>
-        <file>gui/gallery/ColorSetGallery.qml</file>
-        <file>gui/gallery/ColorsGallery.qml</file>
-        <file>gui/gallery/FormLayoutGallery.qml</file>
-        <file>gui/gallery/LayersGallery.qml</file>
-        <file>gui/gallery/ListViewGallery.qml</file>
-        <file>gui/gallery/ListViewHeaderItemsGallery.qml</file>
-        <file>gui/gallery/MetricsGallery.qml</file>
-        <file>gui/gallery/MiscGallery.qml</file>
-        <file>gui/gallery/MultipleColumnsGallery.qml</file>
-        <file>gui/gallery/NonScrollableGallery.qml</file>
-        <file>gui/gallery/ProgressBarGallery.qml</file>
-        <file>gui/gallery/RadioButtonGallery.qml</file>
-        <file>gui/gallery/SliderGallery.qml</file>
-        <file>gui/gallery/SwitchGallery.qml</file>
-        <file>gui/gallery/TabBarGallery.qml</file>
-        <file>gui/gallery/TextFieldGallery.qml</file>
         <file>gui/Icon.qml</file>
         <file>gui/DeviceInfoDialog.qml</file>
         <file>gui/CredentialsDialog.qml</file>
@@ -57,25 +39,10 @@
         <file>gui/FixedSizeGridLayout.qml</file>
         <file>gui/CameraStream.qml</file>
         <file>gui/Style.qml</file>
-        <file>gui/controls/Button.qml</file>
-        <file>gui/controls/TextField.qml</file>
-        <file>gui/controls/ComboBox.qml</file>
-        <file>gui/controls/GroupBox.qml</file>
-        <file>gui/controls/InfoDialog.qml</file>
         <file>gui/root.qml</file>
-        <file>gui/controls/TabButtonFolding.qml</file>
-        <file>gui/controls/TabBarFolding.qml</file>
         <file>gui/AboutPage.qml</file>
         <file>gui/PlaceholderPage.qml</file>
-        <file>gui/controls/Icon.qml</file>
-        <file>gui/controls/Popup.qml</file>
-        <file>gui/controls/GridLayout.qml</file>
-        <file>gui/controls/ToolBar.qml</file>
-        <file>gui/controls/ScrollablePage.qml</file>
-        <file>gui/controls/ToolButton.qml</file>
         <file>gui/dialogs/NewOnvifDeviceDialog.qml</file>
-        <file>gui/controls/BusyAction.qml</file>
-        <file>gui/controls/InlineMessage.qml</file>
         <file alias="qt/etc/qt.conf">qt.conf</file>
         <file>gui/dialogs/EditOnvifDeviceDialog.qml</file>
     </qresource>

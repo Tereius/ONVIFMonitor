@@ -1,7 +1,7 @@
 #pragma once
 #include "Topics.h"
 #include <QUuid>
-#include <AbstractListModel.h>
+#include "AbstractListModel.h"
 
 
 class TopicSetModel : public AbstractListModel {

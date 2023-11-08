@@ -11,9 +11,7 @@
 class QQuickTextureFactory;
 class DeviceManager;
 
-class ImageProvider : public QObject, public QQuickAsyncImageProvider {
-
-	Q_OBJECT
+class ImageProvider : public QQuickAsyncImageProvider {
 
  public:
 	explicit ImageProvider(DeviceManager *pManager);

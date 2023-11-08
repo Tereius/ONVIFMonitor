@@ -34,7 +34,7 @@ QVariant DevicesModel::data(const QModelIndex &index, int role /*= Qt::DisplayRo
 				ret = deviceInfo.mEndpoint;
 				break;
 			case Enums::Roles::HostRole:
-				ret = deviceInfo.mEndpoint.host() + ":" + QString::number(Util::getDefaultPort(deviceInfo.mEndpoint));
+				ret = deviceInfo.mEndpoint.host();
 				break;
 			case Enums::Roles::PortRole:
 				ret = Util::getDefaultPort(deviceInfo.mEndpoint);

@@ -2,14 +2,12 @@
 #include "AbstractDevice.h"
 #include "AsyncFuture/asyncfuture.h"
 #include "DeviceManager.h"
-#include <FrameExtractor.h>
-#include <QCoreApplication>
 #include <QThreadPool>
 #include <QtConcurrent>
 #include <utility>
 
 
-ImageProvider::ImageProvider(DeviceManager *pManager) : QObject(pManager), mpManager(pManager), QQuickAsyncImageProvider() {
+ImageProvider::ImageProvider(DeviceManager *pManager) : mpManager(pManager), QQuickAsyncImageProvider() {
 
 	Q_ASSERT(mpManager);
 }

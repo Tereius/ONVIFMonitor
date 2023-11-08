@@ -1,11 +1,13 @@
 #pragma once
+#include <QJSValue>
 #include <QPointer>
 #include <QSortFilterProxyModel>
-#include <QJSValue>
+#include <QtQmlIntegration>
 
 class SortFilterProxyModel : public QSortFilterProxyModel {
 
 	Q_OBJECT
+	QML_ELEMENT
 	Q_PROPERTY(QAbstractItemModel *model READ getChildModel WRITE setChildModel NOTIFY childModelChanged)
 	Q_PROPERTY(SortOrder sortOrder READ getSortOrder WRITE setSortOrder NOTIFY sortOrderChanged)
 	Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
@@ -31,7 +33,7 @@ class SortFilterProxyModel : public QSortFilterProxyModel {
 	bool lessThan(const QModelIndex &left, const QModelIndex &right) const override;
 	Q_INVOKABLE QVariantMap get(int row);
 	Q_INVOKABLE QModelIndex invokableMapToSource(const QModelIndex &proxyIndex);
-    Q_INVOKABLE void reload();
+	Q_INVOKABLE void reload();
 
  signals:
 	void childModelChanged();

@@ -2,11 +2,13 @@
 #include "AbstractListModel.h"
 #include "MediaProfile.h"
 #include <QUuid>
+#include <QtQmlIntegration>
 
 
 class MediaProfilesModel : public AbstractListModel {
 
 	Q_OBJECT
+	QML_ELEMENT
 	Q_PROPERTY(QUuid deviceId READ getDeviceId WRITE setDeviceId NOTIFY deviceChanged)
 
  public:

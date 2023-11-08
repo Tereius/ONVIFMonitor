@@ -21,6 +21,8 @@ class AbstractDevice {
 	QDateTime getDeviceTime() const;
 	QString getHost() const;
 	int getPort() const;
+	// The implementation should check if the device is reachable
+	virtual Result pingDevice() const = 0;
 	virtual DeviceInfo getDeviceInfo() const = 0;
 	virtual DetailedResult<QList<MediaProfile>> getMediaProfiles() = 0;
 	virtual QFuture<DetailedResult<QImage>> getSnapshot(const MediaProfile &rMediaProfile, const QSize &rSize) = 0;

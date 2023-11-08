@@ -4,7 +4,7 @@
 #include <QList>
 #include <QPointer>
 #include <QUrl>
-
+#include <QtQmlIntegration>
 
 class DeviceManager;
 
@@ -29,6 +29,7 @@ class Page {
 class MonitorGridModel : public QAbstractItemModel {
 
 	Q_OBJECT
+	QML_ELEMENT
 	Q_PROPERTY(DeviceManager *deviceManager READ getDeviceManager WRITE setDeviceManager REQUIRED)
 
  public:

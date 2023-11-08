@@ -1,6 +1,5 @@
 #include "OnvifDevice.h"
 #include "App.h"
-#include "FrameExtractor.h"
 #include "HttpClient.h"
 #include "MediaPlayer.h"
 #include "OnvifDeviceClient.h"
@@ -10,6 +9,7 @@
 #include "asyncfuture.h"
 #include "mdk/Player.h"
 #include <QScopedPointer>
+#include <QTimer>
 #include <QtConcurrent>
 #include <cmath>
 
@@ -19,9 +19,9 @@ DetailedResult<QImage> getSnapshotInternal(const MediaProfile &profile, const QS
                                            bool forceSnapshotFromStream) {
 
 	DetailedResult<QImage> result(Result::FAULT, "Generic snapshot fault");
-	if(profile.mSnapshotCapability && profile.mSnapshotUrl.isValid() && !forceSnapshotFromStream && isCanceled->load() == false) {
+	if(profile.mSnapshotCapability && profile.mSnapshotUrl.isValid() && !forceSnapshotFromStream && isCanceled->loadRelaxed() == false) {
 		auto response = httpClient->get(profile.mSnapshotUrl);
-		if(response && !response.GetResultObject().isEmpty() && isCanceled->load() == false) {
+		if(response && !response.GetResultObject().isEmpty() && isCanceled->loadRelaxed() == false) {
 			auto image = QImage::fromData(response.GetResultObject());
 			if(rSize.isValid()) {
 				image = image.scaled(rSize, Qt::KeepAspectRatio);
@@ -31,7 +31,7 @@ DetailedResult<QImage> getSnapshotInternal(const MediaProfile &profile, const QS
 			result = DetailedResult<QImage>::fromResponse(response);
 		}
 	}
-	if(!result && isCanceled->load() == false) {
+	if(!result && isCanceled->loadRelaxed() == false) {
 		qInfo() << "Fallback to getSnapshotFromStream()";
 		if(!profile.mStreamUrls.isEmpty()) {
 			for(auto streamUrl : profile.mStreamUrls) {
@@ -45,13 +45,24 @@ DetailedResult<QImage> getSnapshotInternal(const MediaProfile &profile, const QS
 			 (DetailedResult<QImage>(Result::FAULT, QObject::tr("The device doesn't provide any stream urls \"%1\"").arg(profile.getToken())));
 		}
 	}
-	if(isCanceled->load() == true) {
+	if(isCanceled->loadRelaxed() == true) {
 		result = DetailedResult<QImage>(Result::FAULT, QObject::tr("The snapshot request was canceled"));
 	}
 	return result;
 }
 
-OnvifDevice::OnvifDevice() : AbstractDevice(), mDeviceInfo(), mpDeviceClient(nullptr), mpEventClient(nullptr), mpMediaClient(nullptr) {
+OnvifDevice::OnvifDevice() :
+ AbstractDevice(),
+ QObject(nullptr),
+ mDeviceInfo(),
+ mpDeviceClient(nullptr),
+ mpEventClient(nullptr),
+ mpMediaClient(nullptr),
+ mpTimer(nullptr) {
+
+	mpTimer = new QTimer(this);
+	mpTimer->setInterval(60 * 1000);
+	mpTimer->setTimerType(Qt::VeryCoarseTimer);
 
 	mpDeviceClient = new OnvifDeviceClient(QUrl(), SoapCtx::Builder()
 	                                                .SetUserAgent(App::getDefaultUserAgent())
@@ -124,7 +135,7 @@ Result OnvifDevice::initDevice(const QUrl &rEndpoint, const QString &rUser, cons
 			Request<_tds__GetScopes> deviceScopeRequest;
 			auto scopeResponse = mpDeviceClient->GetScopes(deviceScopeRequest);
 			if(scopeResponse) {
-				if(auto scopeResult=scopeResponse.GetResultObject()) {
+				if(auto scopeResult = scopeResponse.GetResultObject()) {
 					for(auto scope : scopeResult->Scopes) {
 						if(scope) {
 							mDeviceInfo.mScopes.push_back(scope->ScopeItem);
@@ -220,6 +231,16 @@ Result OnvifDevice::initDevice(const QUrl &rEndpoint, const QString &rUser, cons
 QUuid OnvifDevice::getDeviceId() const {
 
 	return mDeviceId;
+}
+
+Result OnvifDevice::pingDevice() const {
+
+	if(mpDeviceClient->GetEndpoint().isValid()) {
+		Request<_tds__GetSystemDateAndTime> dateTimeRequest;
+		auto dateTimeResponse = mpDeviceClient->GetSystemDateAndTime(dateTimeRequest);
+		return Result::fromResponse(dateTimeResponse);
+	}
+	return Result(Result::FAULT, QObject::tr("Invalid Endpoint url: %1").arg(mpDeviceClient->GetEndpoint().toString()));
 }
 
 DeviceInfo OnvifDevice::getDeviceInfo() const {
@@ -470,7 +491,7 @@ QFuture<DetailedResult<QImage>> OnvifDevice::getSnapshot(const MediaProfile &rMe
 		auto observer = AsyncFuture::observe(future);
 		observer.subscribe([isCanceled]() {},
 		                   [httpClient, isCanceled]() {
-			                   isCanceled->store(true);
+			                   isCanceled->storeRelaxed(true);
 			                   httpClient->CancelRequest();
 		                   });
 

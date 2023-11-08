@@ -4,8 +4,7 @@
 #include <QColor>
 
 
-IconImageProvider::IconImageProvider(QObject *pParent /*= nullptr*/) :
-QObject(pParent), 
+IconImageProvider::IconImageProvider() :
 QQuickImageProvider(QQmlImageProviderBase::Pixmap) {
 
 }
