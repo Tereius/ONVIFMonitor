@@ -39,6 +39,7 @@ class MonitorGridModel : public QAbstractItemModel {
 	Q_INVOKABLE void addPage(const QString &rName);
 	Q_INVOKABLE void removePage(const QUuid &rId);
 	Q_INVOKABLE void addTile(const QModelIndex &parent, const QUuid &rDeviceId);
+	Q_INVOKABLE void removeTile(const QModelIndex &parent, const QUuid &rDeviceId);
 
 	int columnCount(const QModelIndex &index) const override;
 	int rowCount(const QModelIndex &parent = QModelIndex()) const override;

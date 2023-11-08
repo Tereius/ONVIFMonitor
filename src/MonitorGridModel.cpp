@@ -80,6 +80,40 @@ void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId
 	}
 }
 
+void MonitorGridModel::removeTile(const QModelIndex &parent, const QUuid &rDeviceId) {
+
+	auto page = parent.row();
+	auto column = parent.column();
+	if(parent.isValid() && column == 0 && mMonitorGrid.size() > page && mpManager->containsDevice(rDeviceId)) {
+		auto info = mpManager->getDeviceInfo(rDeviceId);
+		if(!info.mMediaProfiles.isEmpty()) {
+			auto &pageInfo = mMonitorGrid[page];
+			beginRemoveRows(parent, pageInfo.mProfiles.size(), pageInfo.mProfiles.size());
+			auto tile = Tile();
+			tile.mIndex = pageInfo.mProfiles.size();
+			tile.mId = QUuid::createUuid();
+			tile.mName = "";
+			tile.mProfile = info.mMediaProfiles.first().getProfileId();
+			pageInfo.mProfiles.push_back(tile);
+			mMonitorGrid[page] = pageInfo;
+			QSettings settings;
+			settings.beginGroup("monitoring");
+			settings.beginGroup(pageInfo.mId.toString());
+			settings.beginGroup(tile.mId.toString());
+			settings.setValue("index", tile.mIndex);
+			settings.setValue("id", tile.mId.toString());
+			settings.setValue("name", "");
+			settings.setValue("profile_deviceId", tile.mProfile.getDeviceId().toString());
+			settings.setValue("profile_token", tile.mProfile.getProfileToken());
+			settings.endGroup();
+			settings.endGroup();
+			settings.endGroup();
+			settings.sync();
+			endInsertRows();
+		}
+	}
+}
+
 int MonitorGridModel::rowCount(const QModelIndex &parent) const {
 
 	if(parent.isValid()) {

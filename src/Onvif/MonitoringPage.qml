@@ -58,7 +58,7 @@ SwipePage {
             text: qsTr("Edit")
             onTriggered: monitoringPage.editable = !monitoringPage.editable
         }
-    ]*/
+    ]
     Connections {
         target: monitoringPage.flickable
         function onContentXChanged() {
@@ -84,7 +84,7 @@ SwipePage {
                                              monitoringPage.flickable.contentY,
                                              monitoringPage.flickable.width,
                                              monitoringPage.flickable.height)
-    }
+    }*/
 
 
     /*
@@ -127,6 +127,129 @@ SwipePage {
         deviceManager: DeviceManager
     }
 
+    Component.onCompleted: {
+
+        if (!monitorGridModel.hasIndex(0, 0)) {
+            // Create a default page
+            monitorGridModel.addPage("Default")
+        }
+    }
+
+    Column {
+
+        width: parent.width
+
+        TabBar {
+            id: bar
+            width: parent.width
+
+            visible: monitorGridModel.columnCount() > 1
+
+            Repeater {
+                model: monitorGridModel
+                TabButton {
+                    text: name
+                    rightPadding: deleteButton.visible ? deleteButton.width : undefined
+                    RoundButton {
+                        id: deleteButton
+                        //visible: monitoringPage.editable
+                        icon.name: "close"
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        onClicked: {
+                            monitorGridModel.removePage(deviceId)
+                        }
+                    }
+                }
+            }
+        }
+
+        RoundButton {
+            icon.name: "plus"
+            width: 66
+            height: 66
+            icon.width: 33
+            icon.height: 33
+            Material.elevation: 2
+            Material.background: Material.accent
+            onClicked: {
+                dialog.index = monitorGridModel.index(0, 0)
+                dialog.open()
+            }
+        }
+
+        SwipeView {
+
+            interactive: false
+            width: parent.width
+
+            Repeater {
+                id: view
+
+                model: DelegateModel {
+
+                    model: monitorGridModel
+
+                    delegate: Loader {
+
+                        active: SwipeView.isCurrentItem
+
+                        sourceComponent: Rally.GridLayout {
+
+                            id: page
+
+                            width: parent.width
+
+                            property var modelIndex: view.model.modelIndex(
+                                                         index)
+                            Repeater {
+
+                                model: DelegateModel {
+
+                                    model: monitorGridModel
+                                    rootIndex: view.model.modelIndex(index)
+
+                                    delegate: Rally.GroupBox {
+
+                                        property var deviceInfo: DeviceManager.getDeviceInfo(
+                                                                     deviceId)
+
+                                        mainAction: Rally.BusyAction {
+                                            text: qsTr("delete")
+                                            icon.name: "delete"
+                                            onTriggered: {
+                                                monitorGridModel
+                                            }
+                                        }
+
+                                        title: DeviceManager.getName(deviceId)
+
+                                        CameraImage {
+                                            id: snapshot
+                                            opacity: 1
+                                            autoReload: true
+                                            autoReloadInterval: 5000
+                                            width: parent.width
+                                            implicitHeight: Math.max(
+                                                                width * 9 / 16,
+                                                                width * imageHeight / Math.max(
+                                                                    imageWidth,
+                                                                    1))
+                                            profileId: Onvif.createProfileId(
+                                                           deviceId, token)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    /*
     Column {
 
         padding: 0
@@ -270,23 +393,12 @@ SwipePage {
                                     }
                                 }
 
-                                //anchors.left: parent.left
-                                //anchors.right: parent.right
                                 Layout.fillWidth: true
                                 columns: Math.min(Math.max(width / 200, 1),
                                                   grid.count)
 
-                                //spacing: 0
-                                //rowSpacing: 0
-                                //columnSpacing: 0
                                 atomicWidth: 80
                                 atomicHeight: 80
-
-
-                                /*
-                            background: Rectangle {
-                                color: "grey"
-                            }*/
                             }
 
                             Row {
@@ -319,5 +431,5 @@ SwipePage {
                 }
             }
         }
-    }
+    }*/
 }

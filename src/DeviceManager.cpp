@@ -63,8 +63,8 @@ void DeviceManager::removeDevice(const QUuid &rDeviceId) {
 DeviceInfo DeviceManager::getDeviceInfo(const QUuid &rDeviceId) {
 
 	QMutexLocker lock(&mMutex);
-	if(mDevices.contains(rDeviceId)) {
-		return mDevices[rDeviceId].mDevice->getDeviceInfo();
+	if(mDevices.contains(resolveId(rDeviceId))) {
+		return mDevices[resolveId(rDeviceId)].mDevice->getDeviceInfo();
 	}
 	return {};
 }

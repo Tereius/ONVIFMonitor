@@ -14,6 +14,24 @@ Item {
     property bool autoReload: false
     property alias autoReloadInterval: autoReloadTimer.interval
 
+    property int imageHeight: {
+        let children = imageContainer.children
+        if (children.length) {
+            return children[0].implicitHeight
+        }
+    }
+
+    property int imageWidth: {
+        let children = imageContainer.children
+        if (children.length) {
+            return children[0].implicitWidth
+        }
+    }
+
+    implicitHeight: imageHeight
+
+    implicitWidth: imageWidth
+
     function refresh() {
 
         priv.load(profileId)
@@ -31,8 +49,6 @@ Item {
     //height: image.status === Image.Ready ? image.implicitHeight / image.implicitWidth
     //                                     * width : image.sourceSize.height
     //                                   / image.sourceSize.width * width
-    height: 300
-
     onVisibleChanged: {
 
         if (!conrol.visible)
@@ -49,8 +65,7 @@ Item {
 
     Timer {
         id: autoReloadTimer
-        running: autoReloadTimer.running && conrol.visible
-                 && conrol.profileId != null
+        running: conrol.autoReload && conrol.visible && conrol.profileId != null
         interval: 10000
         repeat: true
         onTriggered: {
