@@ -1,4 +1,5 @@
 import QtQuick
+import QtMultimedia
 import QtQuick.Controls
 import QtQuick.Layouts
 import QuickFuture
@@ -41,7 +42,7 @@ Controls.Popup {
         passwordField.text = daviceInfo.password
     }
 
-    Controls.ScrollablePage {
+    Page {
 
         anchors.fill: parent
         Keys.onEnterPressed: priv.addDevice()
@@ -83,7 +84,7 @@ Controls.Popup {
                     spacing: 20
                     anchors.fill: parent
 
-                    Controls.TextField {
+                    TextField {
 
                         id: deviceNameField
 
@@ -99,7 +100,7 @@ Controls.Popup {
                         }
                     }
 
-                    Controls.TextField {
+                    TextField {
 
                         id: hostField
 
@@ -114,7 +115,7 @@ Controls.Popup {
                         }
                     }
 
-                    Controls.TextField {
+                    TextField {
 
                         id: userField
 
@@ -124,7 +125,7 @@ Controls.Popup {
                         selectByMouse: true
                     }
 
-                    Controls.TextField {
+                    TextField {
 
                         id: passwordField
 
@@ -136,7 +137,79 @@ Controls.Popup {
                     }
                 }
             }
+
+            Controls.GroupBox {
+                title: qsTr("Audio Backchannel")
+                Layout.fillWidth: true
+
+                ColumnLayout {
+                    anchors.fill: parent
+
+                    ComboBox {
+                        id: mediaProfile
+                        model: mediaProfilesModel
+                        currentIndex: 0
+                        Layout.fillWidth: true
+                        textRole: "name"
+                        valueRole: "profileId"
+                    }
+
+                    ComboBox {
+                        id: audioInput
+                        model: devices.audioInputs
+                        Layout.fillWidth: true
+                        textRole: "description"
+                    }
+
+                    Switch {
+                        id: muteSwitch
+                    }
+
+                    Dial {
+                        id: volumeDial
+                        value: 1.0
+                    }
+
+                    Button {
+                        text: qsTr("Test")
+                        icon.name: "microphone"
+                        Layout.fillWidth: true
+                        checkable: true
+                        onToggled: {
+                            if (checked) {
+                                rtpSource.start(
+                                            DeviceManager.getStreamUrl(
+                                                credentialsDialog.deviceId,
+                                                mediaProfile.currentValue.getProfileToken(
+                                                    )))
+                            } else {
+                                rtpSource.stop()
+                            }
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    MediaDevices {
+        id: devices
+    }
+
+    MicrophoneRtpSource {
+
+        id: rtpSource
+        payloadFormat: MicrophoneRtpSource.RTP_PCMU_8000_1
+        audioInput: AudioInput {
+            device: devices.audioInputs[audioInput.currentIndex]
+            volume: volumeDial.value
+            muted: muteSwitch.checked
+        }
+    }
+
+    MediaProfilesModel {
+        id: mediaProfilesModel
+        deviceId: credentialsDialog.deviceId
     }
 
     QtObject {

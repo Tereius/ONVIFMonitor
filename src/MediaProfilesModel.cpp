@@ -1,4 +1,5 @@
 #include "MediaProfilesModel.h"
+#include "AsyncFuture/asyncfuture.h"
 #include "Device.h"
 #include "DeviceManager.h"
 #include "ProfileId.h"
@@ -55,17 +56,24 @@ void MediaProfilesModel::setDeviceId(const QUuid &rDeviceId) {
 
 	Window::getGlobal()->setModalBusy(true);
 	mDeviceId = rDeviceId;
-	beginResetModel();
-	auto watcher = new QFutureWatcher<void>(this);
 
-	connect(
-	 watcher, &QFutureWatcher<void>::finished, this,
-	 [=]() {
-		 endResetModel();
-		 Window::getGlobal()->setModalBusy(false);
-		 watcher->deleteLater();
-	 },
-	 Qt::QueuedConnection);
+	auto mediaProfilesFuture = DeviceManager::getInstance()->getMediaProfiles(mDeviceId);
+	AsyncFuture::observe(mediaProfilesFuture)
+	 .subscribe(
+	  [this, mediaProfilesFuture]() {
+		  beginResetModel();
+		  auto result = mediaProfilesFuture.result();
+		  if(result) {
+			  mProfiles = result.GetResultObject();
+			  sortList();
+		  }
+		  endResetModel();
+	  },
+	  [this]() {
+		  beginResetModel();
+		  mProfiles.clear();
+		  endResetModel();
+	  });
 
 	emit deviceChanged();
 }

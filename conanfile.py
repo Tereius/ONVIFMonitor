@@ -26,12 +26,13 @@ class ONVIFMonitorConan(ConanFile):
     homepage = jsonInfo["homepage"]
     url = jsonInfo["repository"]
     # ---Requirements---
-    requires = ["qt/6.5.3@%s/stable" % user,
+    requires = ["qt/6.6.0@%s/stable" % user,
                 "libonvif/3.0.0@%s/snapshot" % user,
+                "librtsp/1.0.0@%s/stable" % user,
                 "materialrally/[~1]@%s/snapshot" % user,
                 "qtappbase/[~1]@%s/snapshot" % user,
                 "mdk_sdk/0.22.0@%s/stable" % user,
-                "ffmpeg/5.1.3"
+                "ffmpeg/6.1"
                 ]
     tool_requires = ["cmake/3.21.7", "ninja/1.11.1"]
     # ---Sources---
@@ -80,6 +81,7 @@ class ONVIFMonitorConan(ConanFile):
         "qt/*:qtsvg": True,
         "qt/*:qttools": True,
         "qt/*:qttranslations": True,
+        "qt/*:qtmultimedia": True,
         "qt/*:qt5compat": True}
     # ---Build---
     generators = []

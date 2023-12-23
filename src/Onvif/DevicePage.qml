@@ -4,10 +4,9 @@ import QtQuick.Controls 2.3
 import QtQuick.Layouts 1.3
 import QuickFuture 1.0
 import Onvif
-import org.kde.kirigami 2.14 as Kirigami
-import "controls" as Controls
+import MaterialRally as Rally
 
-Controls.ScrollablePage {
+Page {
 
     id: credentialsDialog
     property string deviceName: ""
@@ -16,7 +15,7 @@ Controls.ScrollablePage {
     property bool deviceNameFixed: false
     property bool deviceEndpointFixed: false
 
-    title: qsTr("Edit Device")
+    title: qsTr("Edit Devicesss")
 
     Keys.onEnterPressed: priv.addDevice()
     Keys.onReturnPressed: priv.addDevice()
@@ -90,13 +89,12 @@ Controls.ScrollablePage {
         //enabled: !mainAction.isRunning
         spacing: 20
 
-        Kirigami.InlineMessage {
+        Rally.InlineMessage {
             id: message
-            type: Kirigami.MessageType.Information
             Layout.fillWidth: true
         }
 
-        Controls.TextField {
+        TextField {
 
             id: deviceNameField
 
@@ -112,7 +110,7 @@ Controls.ScrollablePage {
             }
         }
 
-        Controls.TextField {
+        TextField {
 
             id: hostField
 
@@ -127,7 +125,7 @@ Controls.ScrollablePage {
             }
         }
 
-        Controls.TextField {
+        TextField {
 
             id: userField
 
@@ -138,7 +136,7 @@ Controls.ScrollablePage {
             selectByMouse: true
         }
 
-        Controls.TextField {
+        TextField {
 
             id: passwordField
 
@@ -179,14 +177,15 @@ Controls.ScrollablePage {
 
             spacing: 20
 
-            Controls.Button {
+            Button {
 
                 icon.name: "delete"
                 text: "Delete"
 
                 onClicked: priv.deleteDevice()
             }
-            Controls.Button {
+
+            Button {
 
                 icon.name: "content-save"
                 text: "Save"
@@ -235,43 +234,4 @@ Controls.ScrollablePage {
             }
         }
     }
-
-
-    /*
-    footer: DialogButtonBox {
-
-        id: buttonBox
-        property bool isRunning: false
-
-        enabled: !isRunning
-
-        Button {
-            id: saveButton
-            text: qsTr("Save")
-            icon.name: "alert"
-            onClicked: {
-                let future = DeviceManager.addDevice(hostField.text, "", "",
-                                                     deviceNameField.text)
-                Future.sync(future, "isRunning", buttonBox)
-                Future.onFinished(future, function (result) {
-                    console.warn("---------- " + Future.result(future))
-                    if (!result.ok) {
-                        console.warn("error " + result.error)
-                    }
-                })
-            }
-
-            BusyIndicator {
-                running: buttonBox.isRunning
-                anchors.left: contentItem.left
-                anchors.verticalCenter: contentItem
-                width: 40
-                height: 40
-            }
-        }
-        Button {
-            text: qsTr("Close")
-            DialogButtonBox.buttonRole: DialogButtonBox.DestructiveRole
-        }
-    }*/
 }

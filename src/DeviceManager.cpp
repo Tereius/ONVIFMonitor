@@ -1,7 +1,9 @@
 #include "DeviceManager.h"
 #include "DeviceInfo.h"
 #include "GenericDevice.h"
+#include "MicrophoneRtpSource.h"
 #include "OnvifDevice.h"
+#include "OnvifRtspClient.h"
 #include "SecretsManager.h"
 #include "Window.h"
 #include "asyncfuture.h"
@@ -29,8 +31,8 @@ DeviceManager *DeviceManager::getInstance() {
 DeviceManager::DeviceManager(QObject *pParent /*= nullptr*/) : QObject(pParent), mDevices(), mMutex(), mTimer() {
 
 	mTimer.setTimerType(Qt::VeryCoarseTimer);
-	mTimer.setInterval(60 * 1000);
-	mTimer.setSingleShot(false);
+	mTimer.setInterval(6 * 1000);
+	mTimer.setSingleShot(true);
 	connect(&mTimer, &QTimer::timeout, this, &DeviceManager::checkDevices);
 }
 
@@ -345,8 +347,10 @@ DeviceManager *DeviceManager::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
 	return instance;
 }
 
-void DeviceManager::checkDevices() {
+#include <QMediaDevices>
 
+void DeviceManager::checkDevices() {
+	
 	for(const auto &deviceId : getDevices()) {
 		mMutex.lock();
 		auto deviceEntry = mDevices.value(resolveId(deviceId));

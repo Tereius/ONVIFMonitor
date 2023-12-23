@@ -199,6 +199,7 @@ SwipePage {
                             id: page
 
                             width: parent.width
+                            columnSpacing: 4
 
                             property var modelIndex: view.model.modelIndex(
                                                          index)
@@ -206,11 +207,15 @@ SwipePage {
 
                                 model: DelegateModel {
 
+                                    id: contentModel
                                     model: monitorGridModel
                                     rootIndex: view.model.modelIndex(index)
 
                                     delegate: Rally.GroupBox {
 
+                                        leftPadding: 4
+                                        rightPadding: 4
+                                        bottomPadding: 4
                                         property var deviceInfo: DeviceManager.getDeviceInfo(
                                                                      deviceId)
 
@@ -218,7 +223,10 @@ SwipePage {
                                             text: qsTr("delete")
                                             icon.name: "delete"
                                             onTriggered: {
-                                                monitorGridModel
+                                                monitorGridModel.removeTile(
+                                                            contentModel.rootIndex,
+                                                            contentModel.modelIndex(
+                                                                index))
                                             }
                                         }
 

@@ -1,7 +1,5 @@
-#include <QtGlobal>
-#include "QtApplicationBase.h"
-#include "AdvancedQmlApplicationEngine.h"
 #include "App.h"
+#include "AdvancedQmlApplicationEngine.h"
 #include "DeviceDiscoveryModel.h"
 #include "DeviceInfo.h"
 #include "DeviceManager.h"
@@ -17,11 +15,14 @@
 #include "MonitorGridModel.h"
 #include "OnvifMessageFilterItems.h"
 #include "PropertyInfo.h"
+#include "QtApplicationBase.h"
+#include "QuickFuture/quickfuture.h"
 #include "Result.h"
 #include "Roles.h"
 #include "SortFilterProxyModel.h"
 #include "Window.h"
 #include "info.h"
+#include <QApplication>
 #include <QCommandLineParser>
 #include <QDebug>
 #include <QDir>
@@ -32,8 +33,7 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QStyleHints>
-#include <QApplication>
-#include "QuickFuture/quickfuture.h"
+#include <QtGlobal>
 
 Q_DECLARE_METATYPE(DetailedResult<QUrl>)
 Q_DECLARE_METATYPE(QFuture<DetailedResult<QUrl>>)
@@ -46,6 +46,7 @@ int App::start(int &argc, char **argv, bool headless) {
 
 	Q_ASSERT(!QCoreApplication::instance());
 
+	qputenv("QT_MEDIA_BACKEND", "ffmpeg");
 	qunsetenv("QT_STYLE_OVERRIDE");
 	qunsetenv("QT_QUICK_CONTROLS_STYLE");
 
@@ -55,8 +56,8 @@ int App::start(int &argc, char **argv, bool headless) {
 
 	App::registerMetatypes();
 
-	//auto deviceManager = new DeviceManager(qApp);
-	//auto devicesModel = new DevicesModel(deviceManager);
+	// auto deviceManager = new DeviceManager(qApp);
+	// auto devicesModel = new DevicesModel(deviceManager);
 
 	if(!headless) {
 		AdvancedQmlApplicationEngine qmlEngine;
@@ -146,16 +147,15 @@ void App::registerQmlTypes() {
 	// qmlRegisterType<EventSourceModel>("org.onvif.event", 1, 0, "EventSourceModel");
 	// qmlRegisterType<EventBindingModel>("org.onvif.event", 1, 0, "EventBindingModel");
 
-	//qmlRegisterType<NotItem>("org.onvif.event", 1, 0, "NotItem");
-	//qmlRegisterType<ValItem>("org.onvif.event", 1, 0, "ValItem");
+	// qmlRegisterType<NotItem>("org.onvif.event", 1, 0, "NotItem");
+	// qmlRegisterType<ValItem>("org.onvif.event", 1, 0, "ValItem");
 
 
 	// QML libONVIF tapes
-	//qmlRegisterUncreatableType<DeviceProbe>("org.onvif.common", 1, 0, "DeviceProbe", "Can't be created in QML");
+	// qmlRegisterUncreatableType<DeviceProbe>("org.onvif.common", 1, 0, "DeviceProbe", "Can't be created in QML");
 
 	// QML future types
-	QuickFuture::registerType<Result>(
-	 [](Result value) -> QVariant { return QVariant(); });
+	QuickFuture::registerType<Result>([](Result value) -> QVariant { return QVariant(); });
 
 	QuickFuture::registerType<DetailedResult<QUuid>>(
 	 [](DetailedResult<QUuid> value) -> QVariant { return value.isSuccess() ? value.GetResultObject() : QVariant(); });

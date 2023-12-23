@@ -3,12 +3,12 @@
 #include "DeviceInfo.h"
 #include <QAtomicInt>
 
-class QTimer;
 class OnvifDeviceClient;
 class OnvifEventClient;
 class OnvifMediaClient;
+class OnvifMedia2Client;
 
-class OnvifDevice : public AbstractDevice, public QObject {
+class OnvifDevice : public AbstractDevice {
 
  public:
 	OnvifDevice();
@@ -18,11 +18,9 @@ class OnvifDevice : public AbstractDevice, public QObject {
 	Result pingDevice() const override;
 	DeviceInfo getDeviceInfo() const override;
 	DetailedResult<QList<MediaProfile>> getMediaProfiles() override;
+	DetailedResult<QList<MediaProfile>> getMedia2Profiles();
 	QUrl getStreamUrl(const QUuid &rDeviceId, const QString &rMediaProfileToken);
 	QFuture<DetailedResult<QImage>> getSnapshot(const MediaProfile &rMediaProfile, const QSize &rSize = QSize()) override;
-
- private slots:
-	void checkAvailable();
 
  private:
 	QUuid mDeviceId;
@@ -30,5 +28,5 @@ class OnvifDevice : public AbstractDevice, public QObject {
 	OnvifDeviceClient *mpDeviceClient;
 	OnvifEventClient *mpEventClient;
 	OnvifMediaClient *mpMediaClient;
-	QTimer *mpTimer;
+	OnvifMedia2Client *mpMedia2Client;
 };
