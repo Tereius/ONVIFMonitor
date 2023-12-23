@@ -42,7 +42,7 @@ Controls.Popup {
         passwordField.text = daviceInfo.password
     }
 
-    Page {
+    ScrollView {
 
         anchors.fill: parent
         Keys.onEnterPressed: priv.addDevice()
@@ -50,7 +50,7 @@ Controls.Popup {
 
         ColumnLayout {
 
-            width: parent.width
+            width: credentialsDialog.width
 
             Item {
 

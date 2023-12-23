@@ -31,7 +31,7 @@ Controls.Popup {
         }
     ]
 
-    Controls.ScrollablePage {
+    ScrollView {
 
         anchors.fill: parent
         Keys.onEnterPressed: priv.addDevice()
@@ -39,7 +39,7 @@ Controls.Popup {
 
         ColumnLayout {
 
-            width: parent.width
+            width: credentialsDialog.width
 
             Item {
 
@@ -73,7 +73,7 @@ Controls.Popup {
                     spacing: 20
                     anchors.fill: parent
 
-                    Controls.TextField {
+                    TextField {
 
                         id: deviceNameField
 
@@ -89,7 +89,7 @@ Controls.Popup {
                         }
                     }
 
-                    Controls.TextField {
+                    TextField {
 
                         id: hostField
 
@@ -104,7 +104,7 @@ Controls.Popup {
                         }
                     }
 
-                    Controls.TextField {
+                    TextField {
 
                         id: userField
 
@@ -114,7 +114,7 @@ Controls.Popup {
                         selectByMouse: true
                     }
 
-                    Controls.TextField {
+                    TextField {
 
                         id: passwordField
 
