@@ -140,10 +140,15 @@ Controls.Popup {
 
             Controls.GroupBox {
                 title: qsTr("Audio Backchannel")
+                icon.name: "bullhorn"
                 Layout.fillWidth: true
 
                 ColumnLayout {
-                    anchors.fill: parent
+                    width: parent.width
+
+                    Label {
+                        text: qsTr("This device supports audio backchannel")
+                    }
 
                     ComboBox {
                         id: mediaProfile
@@ -154,11 +159,9 @@ Controls.Popup {
                         valueRole: "profileId"
                     }
 
-                    ComboBox {
+                    AudioDeviceComboBox {
                         id: audioInput
-                        model: devices.audioInputs
                         Layout.fillWidth: true
-                        textRole: "description"
                     }
 
                     Switch {
@@ -192,16 +195,12 @@ Controls.Popup {
         }
     }
 
-    MediaDevices {
-        id: devices
-    }
-
     MicrophoneRtpSource {
 
         id: rtpSource
         payloadFormat: MicrophoneRtpSource.RTP_PCMU_8000_1
         audioInput: AudioInput {
-            device: devices.audioInputs[audioInput.currentIndex]
+            device: audioInput.currentValue
             volume: volumeDial.value
             muted: muteSwitch.checked
         }

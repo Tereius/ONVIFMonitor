@@ -1,6 +1,5 @@
 #include "OnvifDevice.h"
 #include "App.h"
-#include "BasicUsageEnvironment.hh"
 #include "HttpClient.h"
 #include "MediaPlayer.h"
 #include "OnvifDeviceClient.h"

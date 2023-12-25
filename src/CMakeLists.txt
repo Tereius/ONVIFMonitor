@@ -7,7 +7,6 @@ find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Gui Qml Widgets Svg Quick C
 find_package(MaterialRally REQUIRED)
 find_package(QtAppBase REQUIRED)
 find_package(libONVIF REQUIRED)
-find_package(libRTSP REQUIRED)
 find_package(MDK REQUIRED)
 
 find_library(libswresample_PATH NAMES swresample PATH_SUFFIXES "lib")
@@ -19,8 +18,6 @@ find_library(libswscale_PATH NAMES swscale PATH_SUFFIXES "lib")
 find_library(libavutil_PATH NAMES avutil PATH_SUFFIXES "lib")
 find_library(libpostproc_PATH NAMES postproc PATH_SUFFIXES "lib")
 find_path(libav_include_PATH libavformat/avformat.h)
-
-message(STATUS "asdf ${libswresample_PATH} ${libav_include_PATH}")
 
 find_library(OpenSSL_cryptro_PATH NAMES libeay libeay32 libcrypto libcrypto32 eay crypto libcryptod PATH_SUFFIXES "lib")
 find_library(OpenSSL_ssl_PATH NAMES ssleay ssleay32 libssl libssl32 eay ssl libssld PATH_SUFFIXES "lib")
@@ -216,6 +213,7 @@ qt_add_qml_module(ONVIFMonitor
         MicrophoneRtpSource.cpp
 
         QML_FILES
+        Onvif/AudioDeviceComboBox.qml
         Onvif/AboutPage.qml
         Onvif/BusyCombobox.qml
         Onvif/BusyPopup.qml
@@ -305,10 +303,6 @@ target_link_libraries(ONVIFMonitor
         PRIVATE ${libswscale_PATH}
         PRIVATE ${libavutil_PATH}
         PRIVATE ${libpostproc_PATH}
-        PRIVATE liveMedia
-        PRIVATE groupsock
-        PRIVATE BasicUsageEnvironment
-        PRIVATE UsageEnvironment
 )
 
 add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
@@ -333,7 +327,10 @@ add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
         camera-wireless
         web-off
         microphone
+        bullhorn
 )
+
+qt_policy(SET QTP0002 NEW)
 
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libswresample_PATH}")
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavdevice_PATH}")
@@ -343,6 +340,8 @@ set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavf
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libswscale_PATH}")
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavutil_PATH}")
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libpostproc_PATH}")
+set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${OpenSSL_cryptro_PATH}")
+set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${OpenSSL_ssl_PATH}")
 
 target_link_qml_module(ONVIFMonitor PRIVATE MaterialRally)
 

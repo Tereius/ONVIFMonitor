@@ -578,7 +578,7 @@ double MicrophoneRtpSource::calcVolume() {
 	return (double)mVolume / std::numeric_limits<int>::max() * mMute;
 }
 
-int MicrophoneRtpSource::readToFrame(QIODevice *ioDev, AVFrame *frame) {
+qint64 MicrophoneRtpSource::readToFrame(QIODevice *ioDev, AVFrame *frame) {
 
 	if(ioDev && frame) {
 		av_frame_unref(frame);
@@ -660,7 +660,7 @@ QString MicrophoneRtpSource::chLayoutName(AVChannelLayout layout) {
 	auto inChLayoutName = QByteArray(255, 0);
 	if(const auto read = av_channel_layout_describe(&layout, inChLayoutName.data(), 255)) {
 		if(read > 0) {
-			return QString::fromLocal8Bit(inChLayoutName.first(read - 1));
+			return QString::fromLocal8Bit(inChLayoutName, -1);
 		}
 	}
 	return {};
@@ -705,17 +705,13 @@ MicrophoneRtpSource::EncoderSettings MicrophoneRtpSource::selectEncoder(Micropho
 	// remove unsupported codecs
 	formats.removeIf([](const RtpPayloadFormat &desc) {
 		if(codecMap.contains(desc.name)) {
-			auto codec = avcodec_find_encoder_by_name(qPrintable(codecMap[desc.name].codecName));
+			const auto *codec = avcodec_find_encoder_by_name(qPrintable(codecMap[desc.name].codecName));
 			return codec == nullptr;
 		}
 		return true;
 	});
 
 	MicrophoneRtpSource::EncoderSettings encoderSettings = {};
-
-	if(formats.empty()) {
-		qWarning() << "Missing a payload format in sdp - default to PCMU";
-	}
 
 	for(const auto &format : formats) {
 		encoderSettings = codecMap[format.name];

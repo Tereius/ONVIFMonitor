@@ -49,7 +49,6 @@ class MicrophoneRtpSource : public QThread {
 	// Stop sending microphone audio stream to the rtp sink
 	Q_INVOKABLE void stop();
 
-
 	QAudioInput *getAudioInput() const;
 	void setAudioInput(QAudioInput *input);
 	RtpPayload getPayloadFormat() const;
@@ -78,7 +77,7 @@ class MicrophoneRtpSource : public QThread {
 	};
 
 	double calcVolume();
-	static int readToFrame(QIODevice *ioDev, AVFrame *frame);
+	static qint64 readToFrame(QIODevice *ioDev, AVFrame *frame);
 	static AVChannelLayout convertChLayout(QAudioFormat::ChannelConfig cfg);
 	static AVSampleFormat convertSampleFormat(QAudioFormat::SampleFormat fmt);
 	static QString convertSampleFormatPrecision(QAudioFormat::SampleFormat fmt);
