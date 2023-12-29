@@ -6,6 +6,7 @@ add_subdirectory(QuickFuture)
 find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Gui Qml Widgets Svg Quick Concurrent QuickControls2 QuickTemplates2)
 find_package(MaterialRally REQUIRED)
 find_package(QtAppBase REQUIRED)
+find_package(QtAppBaseQml REQUIRED)
 find_package(libONVIF REQUIRED)
 find_package(MDK REQUIRED)
 
@@ -213,6 +214,9 @@ qt_add_qml_module(ONVIFMonitor
         MicrophoneRtpSource.cpp
 
         QML_FILES
+        Onvif/controls/Placeholder.qml
+        Onvif/dialogs/EditMonitorDialog.qml
+        Onvif/MediaProfilesListView.qml
         Onvif/AudioDeviceComboBox.qml
         Onvif/AboutPage.qml
         Onvif/BusyCombobox.qml
@@ -253,7 +257,6 @@ qt_add_qml_module(ONVIFMonitor
         Onvif/VideoWallPane.qml
         Onvif/WRoundButton.qml
         Onvif/dialogs/EditOnvifDeviceDialog.qml
-        Onvif/dialogs/NewOnvifDeviceDialog.qml
         Onvif/FilterBuilder/BaseFilterComponent.qml
         Onvif/FilterBuilder/DropLine.qml
         Onvif/SwipePage.qml
@@ -308,13 +311,14 @@ target_link_libraries(ONVIFMonitor
 add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
         chevron-right
         chevron-left
-        cctv
-        cctv-off
+        cctv # camera icon
+        cctv-off # camera icon
         refresh
         delete
         content-save
         alert
         harddisk
+        harddisk-remove
         lock-smart
         plus
         check
@@ -325,12 +329,36 @@ add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
         link
         play
         camera-wireless
-        web-off
+        web-off # device offline
         microphone
         bullhorn
+        monitor
+        monitor-off
 )
 
 qt_policy(SET QTP0002 NEW)
+
+function(extractSoName PATH soname)
+    execute_process(COMMAND ${CMAKE_OBJDUMP} -p ${PATH} COMMAND grep SONAME OUTPUT_VARIABLE objdump_data OUTPUT_STRIP_TRAILING_WHITESPACE)
+    string(REGEX MATCHALL "[ ]*SONAME[ ]+(.+)" tmp ${objdump_data})
+    set(${soname} "${CMAKE_MATCH_1}" PARENT_SCOPE)
+endfunction()
+
+extractSoName("${libswresample_PATH}" libswresample_NAME)
+extractSoName("${libavdevice_PATH}" libavdevice_NAME)
+extractSoName("${libavfilter_PATH}" libavfilter_NAME)
+extractSoName("${libavcodec_PATH}" libavcodec_NAME)
+extractSoName("${libavformat_PATH}" libavformat_NAME)
+extractSoName("${libswscale_PATH}" libswscale_NAME)
+extractSoName("${libavutil_PATH}" libavutil_NAME)
+
+target_compile_definitions(ONVIFMonitor PRIVATE LIB_SWRESAMPLE_NAME="${libswresample_NAME}")
+target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVDEVICE_NAME="${libavdevice_NAME}")
+target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVFILTER_NAME="${libavfilter_NAME}")
+target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVCODEC_NAME="${libavcodec_NAME}")
+target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVFORMAT_NAME="${libavformat_NAME}")
+target_compile_definitions(ONVIFMonitor PRIVATE LIB_SWSCALE_NAME="${libswscale_NAME}")
+target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVUTIL_NAME="${libavutil_NAME}")
 
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libswresample_PATH}")
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavdevice_PATH}")
@@ -340,10 +368,12 @@ set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavf
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libswscale_PATH}")
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavutil_PATH}")
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libpostproc_PATH}")
+
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${OpenSSL_cryptro_PATH}")
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${OpenSSL_ssl_PATH}")
 
 target_link_qml_module(ONVIFMonitor PRIVATE MaterialRally)
+target_link_qml_module(ONVIFMonitor PRIVATE QtAppBaseQml)
 
 # add the install target
 install_app(ONVIFMonitor)

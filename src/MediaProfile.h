@@ -1,6 +1,7 @@
 #pragma once
 #include "ProfileId.h"
 #include "Result.h"
+#include "SessionDescription.h"
 #include <QMetaType>
 #include <QString>
 #include <QUrl>
@@ -30,10 +31,14 @@ class MediaProfile {
 	Q_GADGET
 	Q_PROPERTY(bool fixed READ getFixed CONSTANT)
 	Q_PROPERTY(bool hasSnapshotCapability MEMBER mSnapshotCapability CONSTANT)
-	Q_PROPERTY(QUrl snapshotUrl MEMBER mSnapshotUrl)
+	Q_PROPERTY(QUrl snapshotUrl MEMBER mSnapshotUrl CONSTANT)
+	Q_PROPERTY(bool hasBackchannel MEMBER mBackchennel CONSTANT)
+	Q_PROPERTY(QUrl backchannelUrl MEMBER mBackchennelUrl CONSTANT)
+	Q_PROPERTY(MediaDescription mediaDescription MEMBER mBackchennelMediaDescription CONSTANT)
 	Q_PROPERTY(QList<StreamUrl> streamUrls MEMBER mStreamUrls CONSTANT)
 	Q_PROPERTY(QString name READ getName)
 	Q_PROPERTY(QString profileToken READ getToken)
+	Q_PROPERTY(ProfileId profileId READ getProfileId)
 
  public:
 	explicit MediaProfile(const QUuid &rOwnerDeviceId = QUuid());
@@ -50,9 +55,12 @@ class MediaProfile {
 	bool operator==(const MediaProfile &rOther) const;
 	bool operator!=(const MediaProfile &rOther) const;
 
+	MediaDescription mBackchennelMediaDescription = {};
+	bool mBackchennel = false;
+	QUrl mBackchennelUrl = {};
 	bool mSnapshotCapability = false;
-	QUrl mSnapshotUrl;
-	QList<StreamUrl> mStreamUrls;
+	QUrl mSnapshotUrl = {};
+	QList<StreamUrl> mStreamUrls = {};
 
  private:
 	QUuid mDeviceId;

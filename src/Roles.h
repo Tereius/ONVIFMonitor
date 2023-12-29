@@ -15,6 +15,8 @@ enum Roles {
 	OnvifProfilesRole,
 	DescriptionRole,
 	ProfileRole,
+	HasSnapshotRole,
+	HasBackchannelRole,
 	IdRole,
 	PathRole,
 	InitializedRole,
@@ -37,7 +39,7 @@ Q_ENUM_NS(Roles)
 
 class Roles : public QObject {
 
- 	Q_OBJECT
+	Q_OBJECT
 	QML_ELEMENT
 	QML_EXTENDED_NAMESPACE(Enums)
 };

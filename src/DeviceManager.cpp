@@ -4,6 +4,7 @@
 #include "MicrophoneRtpSource.h"
 #include "OnvifDevice.h"
 #include "OnvifRtspClient.h"
+#include "Secret.h"
 #include "SecretsManager.h"
 #include "Window.h"
 #include "asyncfuture.h"
@@ -16,8 +17,6 @@
 #include <QSettings>
 #include <QtConcurrent>
 
-#define SECRET "yoY,V<EN.!0KPMpp" // Don't change. Otherwise saved passwords will be lost
-#define GENERIC_DEVICE_NAME "New Device"
 
 class DeviceManagerSingleton : public DeviceManager {};
 
@@ -34,6 +33,8 @@ DeviceManager::DeviceManager(QObject *pParent /*= nullptr*/) : QObject(pParent),
 	mTimer.setInterval(6 * 1000);
 	mTimer.setSingleShot(true);
 	connect(&mTimer, &QTimer::timeout, this, &DeviceManager::checkDevices);
+	connect(this, &DeviceManager::deviceAdded, this, &DeviceManager::deviceCountChanged);
+	connect(this, &DeviceManager::deviceRemoved, this, &DeviceManager::deviceCountChanged);
 }
 
 DeviceManager::~DeviceManager() = default;
@@ -56,7 +57,7 @@ void DeviceManager::removeDevice(const QUuid &rDeviceId) {
 	mMutex.unlock();
 	QSettings settings;
 	settings.beginGroup("devices");
-	settings.beginGroup(id.toString());
+	settings.beginGroup(id.toString(QUuid::WithoutBraces));
 	settings.remove("");
 	setBusy(false);
 	emit deviceRemoved(id);
@@ -74,7 +75,8 @@ DeviceInfo DeviceManager::getDeviceInfo(const QUuid &rDeviceId) {
 bool DeviceManager::containsDevice(const QUuid &rDeviceId) {
 
 	QMutexLocker lock(&mMutex);
-	return mDevices.contains(resolveId(rDeviceId));
+	const auto contains = mDevices.contains(resolveId(rDeviceId));
+	return contains;
 }
 
 QUuid DeviceManager::getDeviceByHost(const QString &rHost, int port /*= 8080*/) {
@@ -158,25 +160,27 @@ QFuture<DetailedResult<QUuid>> DeviceManager::addDevice(const QUrl &rEndpoint, c
 					 deviceEntry.mDevice = device;
 					 deviceEntry.mInitialized = true;
 					 QSettings settings;
-					 SecretsManager sec;
-					 sec.writeSecretSync(rDeviceId.toString(), rPassword);
 					 settings.beginGroup("devices");
-					 settings.beginGroup(rDeviceId.toString());
-					 settings.setValue("id", rDeviceId);
-					 settings.setValue("endpoint", rEndpoint);
+					 settings.beginGroup(rDeviceId.toString(QUuid::WithoutBraces));
+					 settings.setValue("id", rDeviceId.toString(QUuid::WithoutBraces));
+					 settings.setValue("endpoint", rEndpoint.toString());
 					 settings.setValue("name", rDeviceName);
 					 settings.setValue("user", rUsername);
-					 settings.setValue("password", rPassword);
 					 settings.endGroup();
 					 mMutex.lock();
 					 mDevices.insert(rDeviceId, deviceEntry);
 					 mAliasIds.insert(device->getDeviceId(), rDeviceId);
 					 mMutex.unlock();
-					 emit deviceAdded(rDeviceId);
-					 return DetailedResult<QUuid>(rDeviceId);
+					 return AsyncFuture::observe(writePassword(rDeviceId.toString(QUuid::WithoutBraces), rPassword))
+					  .subscribe([this, rDeviceId]() {
+						  emit deviceAdded(rDeviceId);
+						  return DetailedResult<QUuid>(rDeviceId);
+					  })
+					  .future();
 				 } else {
-					 auto result = DetailedResult<QUuid>(initResult, initResult.getDetails());
-					 return result;
+					 auto deferred = AsyncFuture::deferred<DetailedResult<QUuid>>();
+					 deferred.complete(DetailedResult<QUuid>(initResult, initResult.getDetails()));
+					 return deferred.future();
 				 }
 			 })
 			 .future();
@@ -190,6 +194,25 @@ QFuture<DetailedResult<QUuid>> DeviceManager::addDevice(const QUrl &rEndpoint, c
 		deferred.complete(DetailedResult<QUuid>(Result::FAULT, tr("Device can't be added because the given uuid is invalid")));
 		return deferred.future();
 	}
+}
+
+QFuture<void> DeviceManager::writePassword(const QString &rKey, const QString &rPassword) {
+
+	auto *secret = new Secret();
+	auto observable = AsyncFuture::observe(secret, &Secret::secretWritten);
+	observable.onFinished([secret]() { secret->deleteLater(); });
+	secret->setName(rKey);
+	secret->setSecret(rPassword);
+	return observable.future();
+}
+
+QFuture<QString> DeviceManager::readPassword(const QString &rKey) {
+
+	auto *secret = new Secret();
+	auto observable = AsyncFuture::observe(secret, &Secret::secretRead);
+	observable.onFinished([secret]() { secret->deleteLater(); });
+	secret->setName(rKey);
+	return observable.future();
 }
 
 QFuture<Result> DeviceManager::initDevice(QSharedPointer<AbstractDevice> device, const QUrl &rEndpoint, const QString &rUsername,
@@ -214,7 +237,7 @@ void DeviceManager::renameDevice(const QUuid &rDeviceId, const QString &rDeviceN
 		device.mDeviceName = rDeviceName;
 		QSettings settings;
 		settings.beginGroup("devices");
-		settings.beginGroup(id.toString());
+		settings.beginGroup(id.toString(QUuid::WithoutBraces));
 		settings.setValue("name", rDeviceName);
 		mMutex.unlock();
 		emit deviceChanged(id);
@@ -240,26 +263,30 @@ QFuture<Result> DeviceManager::setDeviceCredentials(const QUuid &rDeviceId, cons
 		device.mUsername = rUsername;
 		device.mPassword = rPassword;
 		device.mInitialized = false;
+		const auto deviceEntry = mDevices.value(id);
 		mMutex.unlock();
 		emit deviceChanged(id);
 		if(save) {
 			QSettings settings;
 			settings.beginGroup("devices");
-			settings.beginGroup(id.toString());
+			settings.beginGroup(id.toString(QUuid::WithoutBraces));
 			settings.setValue("user", rUsername);
-			settings.setValue("password", rPassword);
 		}
-		auto initFuture = initDevice(device.mDevice, device.mEndpoint, device.mUsername, device.mPassword);
-		AsyncFuture::observe(initFuture).subscribe([this, initFuture, id]() {
-			mMutex.lock();
-			if(initFuture.result() && mDevices.contains(id)) {
-				auto &device = mDevices[id];
-				device.mInitialized = true;
-			}
-			mMutex.unlock();
-			emit deviceChanged(id);
-		});
-		return initFuture;
+		return AsyncFuture::observe(writePassword(id.toString(QUuid::WithoutBraces), rPassword))
+		 .subscribe([this, deviceEntry, id]() {
+			 auto initFuture = initDevice(deviceEntry.mDevice, deviceEntry.mEndpoint, deviceEntry.mUsername, deviceEntry.mPassword);
+			 AsyncFuture::observe(initFuture).subscribe([this, initFuture, id]() {
+				 mMutex.lock();
+				 if(initFuture.result() && mDevices.contains(id)) {
+					 auto &device = mDevices[id];
+					 device.mInitialized = true;
+				 }
+				 mMutex.unlock();
+				 emit deviceChanged(id);
+			 });
+			 return initFuture;
+		 })
+		 .future();
 	} else {
 		mMutex.unlock();
 	}
@@ -330,6 +357,14 @@ QFuture<DetailedResult<QImage>> DeviceManager::getSnapshot(const QUuid &rDeviceI
 	return d.future();
 }
 
+int DeviceManager::getDevicesCount() {
+
+	mMutex.lock();
+	auto count = mDevices.size();
+	mMutex.unlock();
+	return count;
+}
+
 QSharedPointer<AbstractDevice> DeviceManager::getDevice(const QUuid &rDeviceId) {
 
 	mMutex.lock();
@@ -347,10 +382,8 @@ DeviceManager *DeviceManager::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
 	return instance;
 }
 
-#include <QMediaDevices>
-
 void DeviceManager::checkDevices() {
-	
+
 	for(const auto &deviceId : getDevices()) {
 		mMutex.lock();
 		auto deviceEntry = mDevices.value(resolveId(deviceId));
@@ -409,17 +442,16 @@ void DeviceManager::initDevices() {
 	auto deviceGroup = settings.childGroups();
 	for(int i = 0; i < deviceGroup.size(); ++i) {
 		settings.beginGroup(deviceGroup.at(i));
-		QUuid deviceId = QUuid(settings.value("id").toUuid());
+		QUuid deviceId = QUuid(settings.value("id").toString());
 		QUrl deviceEndpoint = settings.value("endpoint").toUrl();
 		QString deviceName = settings.value("name").toString();
 		QString username = settings.value("user").toString();
-		QString password = settings.value("password").toString();
 		settings.endGroup();
 		auto deviceEntry = Device();
 		deviceEntry.mEndpoint = deviceEndpoint;
 		deviceEntry.mDeviceName = deviceName;
 		deviceEntry.mUsername = username;
-		deviceEntry.mPassword = password;
+		deviceEntry.mPassword = "";
 		deviceEntry.mDevice = QSharedPointer<OnvifDevice>::create();
 		deviceEntry.mInitialized = false;
 		if(!deviceId.isNull() && deviceEndpoint.isValid()) {
@@ -427,17 +459,26 @@ void DeviceManager::initDevices() {
 			mDevices.insert(deviceId, deviceEntry);
 			mMutex.unlock();
 			emit deviceAdded(deviceId);
-			auto initFuture = initDevice(deviceEntry.mDevice, deviceEntry.mEndpoint, deviceEntry.mUsername, deviceEntry.mPassword);
-			AsyncFuture::observe(initFuture).subscribe([this, initFuture, deviceId]() {
-				mMutex.lock();
-				if(initFuture.result() && mDevices.contains(deviceId)) {
-					auto &device = mDevices[deviceId];
-					device.mInitialized = true;
-					mAliasIds.insert(device.mDevice->getDeviceId(), deviceId);
-				}
-				mMutex.unlock();
-				emit deviceChanged(deviceId);
-			});
+			AsyncFuture::observe(readPassword(deviceId.toString(QUuid::WithoutBraces)))
+			 .subscribe([this, deviceEntry, deviceId](QString password) {
+				 mMutex.lock();
+				 if(mDevices.contains(deviceId)) {
+					 mDevices[deviceId].mPassword = password;
+				 }
+				 mMutex.unlock();
+				 emit deviceChanged(deviceId);
+				 auto initFuture = initDevice(deviceEntry.mDevice, deviceEntry.mEndpoint, deviceEntry.mUsername, password);
+				 AsyncFuture::observe(initFuture).subscribe([this, initFuture, deviceEntry, deviceId]() {
+					 mMutex.lock();
+					 if(initFuture.result() && mDevices.contains(deviceId)) {
+						 auto &device = mDevices[deviceId];
+						 device.mInitialized = true;
+						 mAliasIds.insert(device.mDevice->getDeviceId(), deviceId);
+					 }
+					 mMutex.unlock();
+					 emit deviceChanged(deviceId);
+				 });
+			 });
 		} else {
 			qWarning() << "Found invalid device from settings";
 		}

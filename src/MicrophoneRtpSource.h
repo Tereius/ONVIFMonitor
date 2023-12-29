@@ -20,12 +20,10 @@ class QIODevice;
 struct AVFrame;
 struct AVChannelLayout;
 
-class MicrophoneRtpSource : public QThread {
+class EncoderSettings {
 
-	Q_OBJECT
-	Q_PROPERTY(QAudioInput *audioInput READ getAudioInput WRITE setAudioInput)
-	Q_PROPERTY(RtpPayload payloadFormat READ getPayloadFormat WRITE setPayloadFormat NOTIFY payloadFormatChanged)
-	QML_ELEMENT
+	Q_GADGET
+	Q_PROPERTY(QString codec MEMBER codecName)
 
  public:
 	// https://en.wikipedia.org/wiki/RTP_payload_formats
@@ -41,6 +39,24 @@ class MicrophoneRtpSource : public QThread {
 	};
 	Q_ENUM(RtpPayload)
 
+	QString codecName;
+	RtpPayload payload;
+	int bitrate;
+	int samplerate;
+	int numChannels;
+	int payloadType;
+	int frameSize; // number of samples per av frame
+	int priority;
+};
+
+class MicrophoneRtpSource : public QThread {
+
+	Q_OBJECT
+	Q_PROPERTY(QAudioInput *audioInput READ getAudioInput WRITE setAudioInput)
+	Q_PROPERTY(EncoderSettings::RtpPayload payloadFormat READ getPayloadFormat WRITE setPayloadFormat NOTIFY payloadFormatChanged)
+	QML_ELEMENT
+
+ public:
 	explicit MicrophoneRtpSource(QObject *parent = nullptr);
 	~MicrophoneRtpSource() override;
 
@@ -49,10 +65,12 @@ class MicrophoneRtpSource : public QThread {
 	// Stop sending microphone audio stream to the rtp sink
 	Q_INVOKABLE void stop();
 
+	Q_INVOKABLE static QList<EncoderSettings> supportedEncoder(MediaDescription sdp);
+
 	QAudioInput *getAudioInput() const;
 	void setAudioInput(QAudioInput *input);
-	RtpPayload getPayloadFormat() const;
-	void setPayloadFormat(RtpPayload fmt);
+	EncoderSettings::RtpPayload getPayloadFormat() const;
+	void setPayloadFormat(EncoderSettings::RtpPayload fmt);
 
  public slots:
 	void mute(bool mute);
@@ -65,31 +83,21 @@ class MicrophoneRtpSource : public QThread {
 	void run() override;
 
  private:
-	struct EncoderSettings {
-		QString codecName;
-		RtpPayload payload;
-		int bitrate;
-		int samplerate;
-		int numChannels;
-		int payloadType;
-		int frameSize; // number of samples per av frame
-		int priority;
-	};
-
+	void prepareRun();
 	double calcVolume();
 	static qint64 readToFrame(QIODevice *ioDev, AVFrame *frame);
-	static AVChannelLayout convertChLayout(QAudioFormat::ChannelConfig cfg);
+	static AVChannelLayout convertChLayout(QAudioFormat::ChannelConfig cfg, int channelCount);
 	static AVSampleFormat convertSampleFormat(QAudioFormat::SampleFormat fmt);
 	static QString convertSampleFormatPrecision(QAudioFormat::SampleFormat fmt);
 	static QString chLayoutName(AVChannelLayout layout);
-	static EncoderSettings selectEncoder(RtpPayload payloadType, MediaDescription sdp);
+	static EncoderSettings selectEncoder(EncoderSettings::RtpPayload payloadType, MediaDescription sdp);
 	// convert ffmpeg error to Result
 	static Result toResult(int ffmpegError);
 	static DetailedResult<int> toResultExpect(int ffmpegError, int expectedError);
 
 	QUrl mRtpSink;
 	QAudioSource *mpAudioSource;
-	RtpPayload mPayloadFormat;
+	EncoderSettings::RtpPayload mPayloadFormat;
 	QAtomicInt mVolume;
 	QAtomicInt mMute;
 	QIODevice *mpBuffer;

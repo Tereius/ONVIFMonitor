@@ -5,14 +5,14 @@
 #include <QAtomicInteger>
 #include <QFuture>
 #include <QMap>
-#include <QRecursiveMutex>
 #include <QObject>
 #include <QPointer>
+#include <QRecursiveMutex>
 #include <QSharedPointer>
 #include <QSize>
+#include <QTimer>
 #include <QUrl>
 #include <QtQmlIntegration>
-#include <QTimer>
 
 
 class AbstractDevice;
@@ -25,10 +25,11 @@ class DeviceManager : public QObject {
 	Q_OBJECT
 	QML_ELEMENT
 	QML_SINGLETON
+	Q_PROPERTY(int count READ getDevicesCount NOTIFY deviceCountChanged)
 
  public:
-  ~DeviceManager() override;
-	static DeviceManager* getInstance();
+	~DeviceManager() override;
+	static DeviceManager *getInstance();
 	Q_INVOKABLE void initialize();
 	Q_INVOKABLE bool containsDevice(const QUuid &rDeviceId);
 	Q_INVOKABLE QUuid getDeviceByHost(const QString &rHost, int port = 8080);
@@ -49,7 +50,7 @@ class DeviceManager : public QObject {
 	Q_INVOKABLE QUrl getStreamUrl(const QUuid &rDeviceId, const QString &rMediaProfileToken);
 	Q_INVOKABLE QFuture<DetailedResult<QImage>> getSnapshot(const QUuid &rDeviceId, const QString &rMediaProfileToken,
 	                                                        const QSize &rSize = QSize());
-
+	int getDevicesCount();
 	QSharedPointer<AbstractDevice> getDevice(const QUuid &rDeviceId);
 
 	static DeviceManager *create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);
@@ -58,6 +59,7 @@ class DeviceManager : public QObject {
 	void unauthorized(const QUuid &rDeviceId);
 	void deviceAdded(const QUuid &rAddedDeviceId);
 	void deviceRemoved(const QUuid &rRemovedDeviceId);
+	void deviceCountChanged();
 	void deviceInitialized(const QUuid &rRemovedDeviceId);
 	void deviceChanged(const QUuid &rRemovedDeviceId);
 
@@ -80,6 +82,8 @@ class DeviceManager : public QObject {
 	};
 
 	void initDevices();
+	QFuture<void> writePassword(const QString &rUsername, const QString &rPassword);
+	QFuture<QString> readPassword(const QString &rUsername);
 	QFuture<Result> initDevice(QSharedPointer<AbstractDevice> device, const QUrl &rEndpoint, const QString &rUsername,
 	                           const QString &rPassword);
 	void setBusy(bool isBusy);

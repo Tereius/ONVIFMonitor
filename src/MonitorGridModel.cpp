@@ -18,14 +18,15 @@ void MonitorGridModel::addPage(const QString &rName) {
 	mMonitorGrid.push_back(page);
 	QSettings settings;
 	settings.beginGroup("monitoring");
-	settings.beginGroup(page.mId.toString());
+	settings.beginGroup(page.mId.toString(QUuid::WithoutBraces));
 	settings.setValue("index", page.mIndex);
-	settings.setValue("id", page.mId.toString());
+	settings.setValue("id", page.mId.toString(QUuid::WithoutBraces));
 	settings.setValue("name", page.mName);
 	settings.endGroup();
 	settings.endGroup();
 	settings.sync();
 	endInsertRows();
+	emit pageCountChanged();
 }
 
 void MonitorGridModel::removePage(const QUuid &rId) {
@@ -37,13 +38,15 @@ void MonitorGridModel::removePage(const QUuid &rId) {
 			mMonitorGrid.removeAt(i);
 			QSettings settings;
 			settings.beginGroup("monitoring");
-			settings.remove(page.mId.toString());
+			settings.remove(page.mId.toString(QUuid::WithoutBraces));
 			settings.endGroup();
 			settings.sync();
 			endRemoveRows();
 			break;
 		}
 	}
+	emit pageCountChanged();
+	emit monitorCountChanged();
 }
 
 void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId) {
@@ -64,12 +67,12 @@ void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId
 			mMonitorGrid[page] = pageInfo;
 			QSettings settings;
 			settings.beginGroup("monitoring");
-			settings.beginGroup(pageInfo.mId.toString());
-			settings.beginGroup(tile.mId.toString());
+			settings.beginGroup(pageInfo.mId.toString(QUuid::WithoutBraces));
+			settings.beginGroup(tile.mId.toString(QUuid::WithoutBraces));
 			settings.setValue("index", tile.mIndex);
-			settings.setValue("id", tile.mId.toString());
+			settings.setValue("id", tile.mId.toString(QUuid::WithoutBraces));
 			settings.setValue("name", "");
-			settings.setValue("profile_deviceId", tile.mProfile.getDeviceId().toString());
+			settings.setValue("profile_deviceId", tile.mProfile.getDeviceId().toString(QUuid::WithoutBraces));
 			settings.setValue("profile_token", tile.mProfile.getProfileToken());
 			settings.endGroup();
 			settings.endGroup();
@@ -78,6 +81,7 @@ void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId
 			endInsertRows();
 		}
 	}
+	emit monitorCountChanged();
 }
 
 void MonitorGridModel::removeTile(const QModelIndex &parent, const QModelIndex &index) {
@@ -92,13 +96,14 @@ void MonitorGridModel::removeTile(const QModelIndex &parent, const QModelIndex &
 			beginRemoveRows(parent, tileRow, tileRow);
 			QSettings settings;
 			settings.beginGroup("monitoring");
-			settings.beginGroup(pageInfo.mId.toString());
-			settings.beginGroup(tile.mId.toString());
+			settings.beginGroup(pageInfo.mId.toString(QUuid::WithoutBraces));
+			settings.beginGroup(tile.mId.toString(QUuid::WithoutBraces));
 			settings.remove("");
 			settings.sync();
 			endRemoveRows();
 		}
 	}
+	emit monitorCountChanged();
 }
 
 int MonitorGridModel::rowCount(const QModelIndex &parent) const {
@@ -202,6 +207,8 @@ void MonitorGridModel::init() {
 	std::sort(mMonitorGrid.begin(), mMonitorGrid.end(), [](const Page &left, const Page &right) { return left.mIndex < right.mIndex; });
 	settings.endGroup();
 	endResetModel();
+	emit pageCountChanged();
+	emit monitorCountChanged();
 }
 
 int MonitorGridModel::columnCount(const QModelIndex &index) const {
@@ -240,6 +247,20 @@ void MonitorGridModel::setDeviceManager(DeviceManager *pManager) {
 	init();
 }
 
+int MonitorGridModel::getPageCount() const {
+
+	return mMonitorGrid.size();
+}
+
+int MonitorGridModel::getMonitorCount() const {
+
+	auto count = 0;
+	for(const auto &page : mMonitorGrid) {
+		count += page.mProfiles.size();
+	}
+	return count;
+}
+
 void MonitorGridModel::move(const QModelIndex &sourceParent, int source, int destination) {
 
 	auto page = sourceParent.row();
@@ -252,13 +273,13 @@ void MonitorGridModel::move(const QModelIndex &sourceParent, int source, int des
 				auto &pageInfo = mMonitorGrid[page];
 				QSettings settings;
 				settings.beginGroup("monitoring");
-				settings.beginGroup(pageInfo.mId.toString());
+				settings.beginGroup(pageInfo.mId.toString(QUuid::WithoutBraces));
 
-				settings.beginGroup(pageInfo.mProfiles.at(source).mId.toString());
+				settings.beginGroup(pageInfo.mProfiles.at(source).mId.toString(QUuid::WithoutBraces));
 				settings.setValue("index", destination);
 				settings.endGroup();
 
-				settings.beginGroup(pageInfo.mProfiles.at(destination).mId.toString());
+				settings.beginGroup(pageInfo.mProfiles.at(destination).mId.toString(QUuid::WithoutBraces));
 				settings.setValue("index", source);
 				settings.endGroup();
 
@@ -273,13 +294,13 @@ void MonitorGridModel::move(const QModelIndex &sourceParent, int source, int des
 				auto &pageInfo = mMonitorGrid[page];
 				QSettings settings;
 				settings.beginGroup("monitoring");
-				settings.beginGroup(pageInfo.mId.toString());
+				settings.beginGroup(pageInfo.mId.toString(QUuid::WithoutBraces));
 
-				settings.beginGroup(pageInfo.mProfiles.at(source).mId.toString());
+				settings.beginGroup(pageInfo.mProfiles.at(source).mId.toString(QUuid::WithoutBraces));
 				settings.setValue("index", destination);
 				settings.endGroup();
 
-				settings.beginGroup(pageInfo.mProfiles.at(destination).mId.toString());
+				settings.beginGroup(pageInfo.mProfiles.at(destination).mId.toString(QUuid::WithoutBraces));
 				settings.setValue("index", source);
 				settings.endGroup();
 

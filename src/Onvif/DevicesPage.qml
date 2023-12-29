@@ -99,14 +99,15 @@ SwipePage {
 
                                    Controls.Helper.createDialog(
                                        Qt.resolvedUrl(
-                                           "dialogs/NewOnvifDeviceDialog.qml"),
+                                           "dialogs/EditOnvifDeviceDialog.qml"),
                                        {
                                            "deviceName": modelData.name,
                                            "deviceEndpoint": modelData.endpoint,
                                            "deviceId": modelData.id,
                                            "deviceNameFixed": false,
                                            "deviceEndpointFixed": true
-                                       })
+                                       }, itemAtIndex(index).mapToGlobal(x,
+                                                                         y).y)
                                }
                 }
 
@@ -145,18 +146,20 @@ SwipePage {
                         deviceManager: DeviceManager
                     }
 
-                    onClicked: {
+                    onClicked: index => {
 
-                        const modelData = model.get(index)
+                                   const modelData = model.get(index)
 
-                        Controls.Helper.createDialog(
-                                    Qt.resolvedUrl(
-                                        "dialogs/EditOnvifDeviceDialog.qml"), {
-                                        "deviceId": modelData.id,
-                                        "deviceNameFixed": false,
-                                        "deviceEndpointFixed": true
-                                    })
-                    }
+                                   Controls.Helper.createDialog(
+                                       Qt.resolvedUrl(
+                                           "dialogs/EditOnvifDeviceDialog.qml"),
+                                       {
+                                           "deviceId": modelData.id,
+                                           "deviceNameFixed": false,
+                                           "deviceEndpointFixed": true
+                                       }, itemAtIndex(index).mapToGlobal(x,
+                                                                         y).y)
+                               }
                 }
             }
         }

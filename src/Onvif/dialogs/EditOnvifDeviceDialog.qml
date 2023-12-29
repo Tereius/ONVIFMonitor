@@ -4,53 +4,74 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QuickFuture
 import Onvif
-import MaterialRally as Controls
+import MaterialRally as Rally
 
-Controls.Popup {
-
-    title: qsTr("Edit Device")
+Rally.Popup {
 
     id: credentialsDialog
-    property string deviceName: ""
-    property string deviceEndpoint: ""
+
+    title: credentialsDialog.deviceId ? qsTr("Edit Device") : qsTr(
+                                            "Add new Device")
+
+    onBackButtonClicked: {
+
+        credentialsDialog.close()
+    }
+
     property var deviceId: null
-    property bool deviceNameFixed: false
-    property bool deviceEndpointFixed: false
+    readonly property string deviceName: ""
+    readonly property string deviceEndpoint: ""
+    readonly property bool deviceNameFixed: false
+    readonly property bool deviceEndpointFixed: false
+    readonly property bool isNew: !DeviceManager.containsDevice(
+                                      credentialsDialog.deviceId)
 
     actions: [
-        Controls.BusyAction {
+        Rally.BusyAction {
+            id: deleteAction
+            text: qsTr("Delete")
+            icon.name: "delete"
+            enabled: !credentialsDialog.isNew
+            onTriggered: {
+                priv.deleteDevice()
+            }
+        },
+
+        Rally.BusyAction {
             id: addAction
-            text: qsTr("Add")
+            text: credentialsDialog.isNew ? qsTr("Add") : qsTr("Save")
             icon.name: "check"
-            icon.color: "red"
             enabled: deviceNameField.acceptableInput
                      && deviceNameField.text.length > 0
                      && hostField.acceptableInput && hostField.text.length > 0
             onTriggered: {
-                priv.addDevice()
+                priv.editDevice()
             }
         }
     ]
 
-    Component.onCompleted: {
-        const daviceInfo = DeviceManager.getDeviceInfo(
-                             credentialsDialog.deviceId)
-
-        deviceNameField.text = DeviceManager.getName(credentialsDialog.deviceId)
-        hostField.text = daviceInfo.deviceEndpoint
-        userField.text = daviceInfo.user
-        passwordField.text = daviceInfo.password
+    onDeviceIdChanged: {
+        priv.initDialog()
     }
 
-    ScrollView {
+    function reload() {
+        credentialsDialog.deviceId = credentialsDialog.deviceId
+    }
 
+    Rally.ScrollView {
+
+        id: scrollView
         anchors.fill: parent
-        Keys.onEnterPressed: priv.addDevice()
-        Keys.onReturnPressed: priv.addDevice()
+        Keys.onEnterPressed: priv.editDevice()
+        Keys.onReturnPressed: priv.editDevice()
+        enableVerticalScrollBar: credentialsDialog.opened
+        contentHeight: columnLayout.implicitHeight
 
         ColumnLayout {
 
-            width: credentialsDialog.width
+            id: columnLayout
+            implicitWidth: Math.min(scrollView.availableWidth, 600)
+            anchors.horizontalCenter: parent.horizontalCenter
 
             Item {
 
@@ -64,7 +85,7 @@ Controls.Popup {
                     }
                 }
 
-                Controls.InlineMessage {
+                Rally.InlineMessage {
                     id: message
                     title: qsTr("Error")
                     width: parent.width
@@ -75,118 +96,159 @@ Controls.Popup {
                 }
             }
 
-            Controls.GroupBox {
+            Rally.GroupBox {
 
+                title: qsTr("Basic settings")
+                icon.name: "cog"
                 Layout.fillWidth: true
 
-                ColumnLayout {
+                Rally.FormLayout {
 
-                    spacing: 20
-                    anchors.fill: parent
+                    width: parent.width
 
-                    TextField {
+                    Label {
+                        text: qsTr("Device name")
+                    }
+
+                    Rally.TextField {
 
                         id: deviceNameField
-
                         text: credentialsDialog.deviceName
                         focus: true
-                        Layout.fillWidth: true
-                        activeFocusOnTab: true
-                        placeholderText: qsTr("Device Name")
-                        selectByMouse: true
                         enabled: !credentialsDialog.deviceNameFixed
                         validator: RegularExpressionValidator {
                             regularExpression: /.+/
                         }
                     }
 
-                    TextField {
+                    Label {
+                        text: qsTr("Device endpoint")
+                    }
+
+                    Rally.TextField {
 
                         id: hostField
-
                         text: credentialsDialog.deviceEndpoint
-                        Layout.fillWidth: true
-                        activeFocusOnTab: true
-                        placeholderText: qsTr("Device Host")
-                        selectByMouse: true
                         enabled: !credentialsDialog.deviceEndpointFixed
                         validator: RegularExpressionValidator {
                             regularExpression: /.+/
                         }
                     }
 
-                    TextField {
-
-                        id: userField
-
-                        Layout.fillWidth: true
-                        placeholderText: qsTr("User")
-                        activeFocusOnTab: true
-                        selectByMouse: true
+                    Label {
+                        text: qsTr("Credentials")
                     }
 
-                    TextField {
+                    Rally.TextField {
+
+                        id: userField
+                        placeholderText: qsTr("User")
+                        font.family: "Roboto Mono"
+                    }
+
+                    Rally.PasswordTextField {
 
                         id: passwordField
-
-                        echoMode: TextInput.Password
-                        Layout.fillWidth: true
                         placeholderText: qsTr("Password")
-                        activeFocusOnTab: true
-                        selectByMouse: true
+                        font.family: "Roboto Mono"
                     }
                 }
             }
 
-            Controls.GroupBox {
-                title: qsTr("Audio Backchannel")
-                icon.name: "bullhorn"
+            Loader {
+                sourceComponent: DeviceManager.isDeviceInitialized(
+                                     credentialsDialog.deviceId) ? d : undefined
                 Layout.fillWidth: true
+            }
 
-                ColumnLayout {
-                    width: parent.width
+            Component {
 
-                    Label {
-                        text: qsTr("This device supports audio backchannel")
-                    }
+                id: d
 
-                    ComboBox {
-                        id: mediaProfile
-                        model: mediaProfilesModel
-                        currentIndex: 0
-                        Layout.fillWidth: true
-                        textRole: "name"
-                        valueRole: "profileId"
-                    }
+                Rally.GroupBox {
 
-                    AudioDeviceComboBox {
-                        id: audioInput
-                        Layout.fillWidth: true
-                    }
+                    title: qsTr("Audio Backchannel")
+                    icon.name: "bullhorn"
 
-                    Switch {
-                        id: muteSwitch
-                    }
+                    Rally.FormLayout {
 
-                    Dial {
-                        id: volumeDial
-                        value: 1.0
-                    }
+                        width: parent.width
 
-                    Button {
-                        text: qsTr("Test")
-                        icon.name: "microphone"
-                        Layout.fillWidth: true
-                        checkable: true
-                        onToggled: {
-                            if (checked) {
-                                rtpSource.start(
-                                            DeviceManager.getStreamUrl(
-                                                credentialsDialog.deviceId,
-                                                mediaProfile.currentValue.getProfileToken(
-                                                    )))
-                            } else {
-                                rtpSource.stop()
+                        Label {
+                            text: qsTr("This device supports audio backchannel")
+                        }
+
+                        Rally.ComboBox {
+
+                            id: mediaProfile
+                            model: {
+                                return DeviceManager.getDeviceInfo(
+                                            credentialsDialog.deviceId).mediaProfiles
+                            }
+                            currentIndex: 0
+                            Layout.fillWidth: true
+                            placeholderText: qsTr("Stream profile")
+                            textRole: "name"
+                        }
+
+                        CameraStream {
+
+                            profileId: mediaProfile.currentValue.profileId
+                            width: 200
+                            height: 200
+                        }
+
+                        Rally.ComboBox {
+
+                            id: codecs
+                            model: {
+                                return rtpSource.supportedEncoder(
+                                            mediaProfile.currentValue.mediaDescription)
+                            }
+                            currentIndex: 0
+                            Layout.fillWidth: true
+                            placeholderText: qsTr("Codecs")
+                            textRole: "codec"
+                        }
+
+                        AudioDeviceComboBox {
+                            id: audioInput
+                            Layout.fillWidth: true
+                        }
+
+                        Switch {
+                            id: muteSwitch
+                        }
+
+                        Dial {
+                            id: volumeDial
+                            value: 1.0
+                        }
+
+                        Button {
+
+                            MicrophoneRtpSource {
+
+                                id: rtpSource
+                                payloadFormat: MicrophoneRtpSource.RTP_PCMU_8000_1
+                                audioInput: AudioInput {
+                                    device: audioInput.currentValue
+                                    volume: volumeDial.value
+                                    muted: muteSwitch.checked
+                                }
+                            }
+
+                            text: qsTr("Test")
+                            icon.name: "microphone"
+                            Layout.fillWidth: true
+                            checkable: true
+                            onToggled: {
+                                if (checked) {
+                                    rtpSource.start(
+                                                mediaProfile.currentValue.backchannelUrl)
+                                } else {
+                                    rtpSource.stop()
+                                }
                             }
                         }
                     }
@@ -195,46 +257,82 @@ Controls.Popup {
         }
     }
 
-    MicrophoneRtpSource {
-
-        id: rtpSource
-        payloadFormat: MicrophoneRtpSource.RTP_PCMU_8000_1
-        audioInput: AudioInput {
-            device: audioInput.currentValue
-            volume: volumeDial.value
-            muted: muteSwitch.checked
-        }
-    }
-
-    MediaProfilesModel {
-        id: mediaProfilesModel
-        deviceId: credentialsDialog.deviceId
-    }
-
     QtObject {
         id: priv
 
-        function addDevice() {
-            credentialsDialog.busy = true
+        function initDialog() {
 
-            DeviceManager.renameDevice(credentialsDialog.deviceId,
-                                       deviceNameField.text)
+            if (credentialsDialog.deviceId && DeviceManager.containsDevice(
+                        credentialsDialog.deviceId)) {
+                const daviceInfo = DeviceManager.getDeviceInfo(
+                                     credentialsDialog.deviceId)
+                deviceNameField.text = DeviceManager.getName(
+                            credentialsDialog.deviceId)
+                hostField.text = daviceInfo.deviceEndpoint
+                userField.text = daviceInfo.user
+                passwordField.text = daviceInfo.password
 
-            let future = DeviceManager.setDeviceCredentials(
-                    credentialsDialog.deviceId, userField.text,
-                    passwordField.text)
-
-            Future.onFinished(future, function (result) {
-
-                if (result.isSuccess()) {
-                    credentialsDialog.close()
-                } else {
-                    message.pushMessage(result.getDetails(), "error", "Error")
+                if (!daviceInfo.initialized) {
+                    message.pushMessage(daviceInfo.initializationError,
+                                        "error", qsTr("Initialization error"))
                 }
-                credentialsDialog.busy = false
-            }, function () {
-                credentialsDialog.busy = false
-            })
+            }
+        }
+
+        function editDevice() {
+
+            if (credentialsDialog.isNew) {
+
+                // Add device case
+                credentialsDialog.busy = true
+                let future = DeviceManager.addDevice(
+                        hostField.text, userField.text, passwordField.text,
+                        deviceNameField.text,
+                        credentialsDialog.deviceId ? credentialsDialog.deviceId : Onvif.createUuid(
+                                                         ))
+                Future.onFinished(future, function (result) {
+
+                    if (!result.isSuccess()) {
+                        message.pushMessage(result.getDetails(), "error",
+                                            qsTr("Initialization error"))
+                    } else {
+                        credentialsDialog.reload()
+                    }
+                    credentialsDialog.busy = false
+                }, function () {
+                    credentialsDialog.busy = false
+                })
+            } else {
+
+                // Edit device case
+                credentialsDialog.busy = true
+                DeviceManager.renameDevice(credentialsDialog.deviceId,
+                                           deviceNameField.text)
+
+                let future = DeviceManager.setDeviceCredentials(
+                        credentialsDialog.deviceId, userField.text,
+                        passwordField.text)
+
+                Future.onFinished(future, function (result) {
+
+                    if (!result.isSuccess()) {
+                        message.pushMessage(result.getDetails(), "error",
+                                            qsTr("Initialization error"))
+                    }
+                    credentialsDialog.reload()
+                    credentialsDialog.busy = false
+                }, function () {
+                    credentialsDialog.busy = false
+                })
+            }
+        }
+
+        function deleteDevice() {
+
+            if (credentialsDialog.deviceId) {
+                DeviceManager.removeDevice(credentialsDialog.deviceId)
+                credentialsDialog.close()
+            }
         }
     }
 }

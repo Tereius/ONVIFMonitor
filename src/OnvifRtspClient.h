@@ -21,7 +21,7 @@ class OnvifRtspClient : public QObject {
 	void setConnectTimeout(int timeoutMs);
 	void setSendTimeout(int timeoutMs);
 	void setReceiveTimeout(int timeoutMs);
-	Result hasAudioBackchannel();
+	DetailedResult<MediaDescription> hasAudioBackchannel();
 	DetailedResult<RtspStream> startAudioBackchannelStream();
 	void stop();
 

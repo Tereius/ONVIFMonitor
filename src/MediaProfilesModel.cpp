@@ -31,6 +31,12 @@ QVariant MediaProfilesModel::data(const QModelIndex &index, int role /*= Qt::Dis
 			case Enums::Roles::IdRole:
 				ret = QVariant::fromValue(mProfiles.at(row).getProfileId());
 				break;
+			case Enums::Roles::HasBackchannelRole:
+				ret = QVariant::fromValue(mProfiles.at(row).mBackchennel);
+				break;
+			case Enums::Roles::HasSnapshotRole:
+				ret = QVariant::fromValue(mProfiles.at(row).mSnapshotCapability);
+				break;
 			default:
 				break;
 		}
@@ -44,6 +50,8 @@ QHash<int, QByteArray> MediaProfilesModel::roleNames() const {
 	ret.insert(Qt::DisplayRole, "display");
 	ret.insert(Enums::Roles::NameRole, "name");
 	ret.insert(Enums::Roles::IdRole, "profileId");
+	ret.insert(Enums::Roles::HasBackchannelRole, "hasBackchannel");
+	ret.insert(Enums::Roles::HasSnapshotRole, "hasSnapshot");
 	return ret;
 }
 

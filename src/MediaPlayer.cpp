@@ -23,7 +23,17 @@ class VideoRendererInternal : public QQuickFramebufferObject::Renderer {
 
 MediaPlayer::MediaPlayer(QQuickItem *parent) : QQuickFramebufferObject(parent), internal_player(new mdk::Player()) {
 	setMirrorVertically(true);
-	internal_player->setAudioBackends({""});
+	// internal_player->setAudioBackends({""});
+	internal_player->setProperty("avio.user_agent", App::getDefaultUserAgent().toStdString());
+	internal_player->setProperty("avformat.fflags", "+nobuffer");
+	internal_player->setProperty("avformat.fflags", "+discardcorrupt");
+	internal_player->setProperty("avformat.avioflags", "direct");
+	internal_player->setProperty("avformat.flags", "+low_delay");
+	internal_player->setProperty("avformat.max_probe_packets", "0");
+	internal_player->setProperty("avformat.analyzeduration", "0");
+	internal_player->setProperty("avformat.probesize", "32");
+	internal_player->setProperty("avformat.fpsprobesize", "0");
+	internal_player->setProperty("avformat.max_delay", "0");
 }
 
 MediaPlayer::~MediaPlayer() {

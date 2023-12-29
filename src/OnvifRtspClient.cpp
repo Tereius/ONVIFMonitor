@@ -45,18 +45,29 @@ void OnvifRtspClient::setConnectTimeout(int timeoutMs) {}
 void OnvifRtspClient::setSendTimeout(int timeoutMs) {}
 void OnvifRtspClient::setReceiveTimeout(int timeoutMs) {}
 
-Result OnvifRtspClient::hasAudioBackchannel() {
+DetailedResult<MediaDescription> OnvifRtspClient::hasAudioBackchannel() {
 
 	mCseq = 1;
 	if(auto connectResult = connectHost(mRtspUrl.host(), mRtspUrl.port(DEFAULT_RTSP_PORT))) {
 		auto deferDisconnect = qScopeGuard([this] { disconnectHost(); });
 		auto describeRequest = RtspMessageRequest("DESCRIBE", mRtspUrl.toString());
 		describeRequest.addField("Require", ONVIF_AUDIO_BACKCHANNEL_TAG);
-		if(auto res = sendRtspMsg(describeRequest)) {
-			return Result::OK;
+		if(auto describeResult = sendRtspMsg(describeRequest)) {
+			auto response = describeResult.GetResultObject();
+			const auto sdp = SessionDescription(response.getPayload());
+			const auto sendonlyMediaDescription = sdp.getMediaDescriptionWithAttribute("sendonly");
+			if(!sendonlyMediaDescription.isNull()) {
+				auto control = sendonlyMediaDescription.getAttributeValueFirst("control");
+				if(!control.isNull()) {
+					auto stream = RtspStream(sendonlyMediaDescription);
+					if(!stream.getMediaDescription().getAttributeValues("rtpmap").isEmpty()) {
+						return DetailedResult<MediaDescription>(sendonlyMediaDescription);
+					}
+				}
+			}
 		}
 	}
-	return Result::FAULT;
+	return DetailedResult<MediaDescription>(Result::FAULT, "");
 }
 
 // ffmpeg -re -i '/home/bjoern/Music/Palladium ft. Bianca Varela - Adrift (Radio Edit).m4a' -filter:a "volume=0.03" -ac

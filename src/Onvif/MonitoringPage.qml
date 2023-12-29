@@ -16,107 +16,6 @@ SwipePage {
     property bool editable: false
     property rect visibleArea: Qt.rect(0, 0, 0, 0)
 
-    Rally.Popup {
-        id: dialog
-        title: "Add Monitor"
-
-        property var index
-
-        ColumnLayout {
-
-            width: parent.width
-
-            Repeater {
-                model: devicesModel
-
-                delegate: ItemDelegate {
-                    text: name
-                    icon.name: "camera-wireless"
-                    Layout.fillWidth: true
-                    onClicked: {
-                        monitorGridModel.addTile(dialog.index, id)
-                        dialog.close()
-                    }
-                }
-            }
-        }
-    }
-
-
-    /*
-    actions.contextualActions: [
-
-        Kirigami.Action {
-            icon.name: "plus"
-            text: qsTr("Add Page")
-            onTriggered: monitorGridModel.addPage("Page")
-            enabled: !monitoringPage.editable
-        },
-
-        Kirigami.Action {
-            icon.name: "cog"
-            text: qsTr("Edit")
-            onTriggered: monitoringPage.editable = !monitoringPage.editable
-        }
-    ]
-    Connections {
-        target: monitoringPage.flickable
-        function onContentXChanged() {
-            Qt.callLater(monitoringPage.updateVisibleArea)
-        }
-
-        function onContentYChanged() {
-            Qt.callLater(monitoringPage.updateVisibleArea)
-        }
-
-        function onHeightChanged() {
-            Qt.callLater(monitoringPage.updateVisibleArea)
-        }
-
-        function onWidthChanged() {
-            Qt.callLater(monitoringPage.updateVisibleArea)
-        }
-    }
-
-    function updateVisibleArea() {
-
-        monitoringPage.visibleArea = Qt.rect(monitoringPage.flickable.contentX,
-                                             monitoringPage.flickable.contentY,
-                                             monitoringPage.flickable.width,
-                                             monitoringPage.flickable.height)
-    }*/
-
-
-    /*
-    Rally.GroupBox {
-
-        id: group
-        width: Math.min(parent.width, 300)
-        height: Math.min(parent.height, 150)
-        anchors.centerIn: parent
-        padding: 10
-        visible: bar.count === 0
-
-        Column {
-
-            spacing: 20
-            anchors.centerIn: parent
-
-            Rally.Icon {
-                icon.name: "plus"
-                icon.width: 36
-                icon.height: 36
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-
-            Rally.Button {
-                text: "Add page"
-                onClicked: {
-                    monitorGridModel.addPage("Page")
-                }
-            }
-        }
-    }*/
     MonitorGridModel {
         id: monitorGridModel
         deviceManager: DeviceManager
@@ -135,116 +34,153 @@ SwipePage {
         }
     }
 
-    Column {
+    contentItem: Loader {
 
-        width: parent.width
+        anchors.fill: parent
+        sourceComponent: DeviceManager.count > 0 ? (monitorGridModel.monitorCount > 0 ? monitorComponent : placeholderComponentNoMonitor) : placeholderComponent
+    }
 
-        TabBar {
-            id: bar
+    Component {
+
+        id: placeholderComponent
+
+        SwipePage {
+
+            Placeholder {
+                anchors.centerIn: parent
+                showButton: true
+                icon.name: "cctv-off"
+                text: qsTr("Seems like you don't have any configured devices. Go to settings and add at least one device. After that come back here.")
+                onClicked: {
+                    monitoringPage.setCurrentIndex(2)
+                }
+            }
+        }
+    }
+
+    Component {
+
+        id: placeholderComponentNoMonitor
+
+        SwipePage {
+
+            Placeholder {
+                anchors.centerIn: parent
+                showButton: true
+                buttonText: qsTr("Add monitor")
+                buttonIcon.name: "plus"
+                icon.name: "monitor-off"
+                text: qsTr("Seems like you don't have any monitors yet.")
+                onClicked: {
+                    Rally.Helper.createDialog(
+                                Qt.resolvedUrl("dialogs/EditMonitorDialog.qml"))
+                }
+            }
+        }
+    }
+
+    Component {
+
+        id: monitorComponent
+
+        ColumnLayout {
+
             width: parent.width
 
-            visible: monitorGridModel.columnCount() > 1
+            TabBar {
+                id: bar
+                Layout.fillWidth: true
 
-            Repeater {
-                model: monitorGridModel
-                TabButton {
-                    text: name
-                    rightPadding: deleteButton.visible ? deleteButton.width : undefined
-                    RoundButton {
-                        id: deleteButton
-                        //visible: monitoringPage.editable
-                        icon.name: "close"
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        onClicked: {
-                            monitorGridModel.removePage(deviceId)
+                visible: monitorGridModel.columnCount() > 1
+
+                Repeater {
+                    model: monitorGridModel
+                    TabButton {
+                        text: name
+                        rightPadding: deleteButton.visible ? deleteButton.width : undefined
+                        RoundButton {
+                            id: deleteButton
+                            //visible: monitoringPage.editable
+                            icon.name: "close"
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            onClicked: {
+                                monitorGridModel.removePage(deviceId)
+                            }
                         }
                     }
                 }
             }
-        }
 
-        RoundButton {
-            icon.name: "plus"
-            width: 66
-            height: 66
-            icon.width: 33
-            icon.height: 33
-            Material.elevation: 2
-            Material.background: Material.accent
-            onClicked: {
-                dialog.index = monitorGridModel.index(0, 0)
-                dialog.open()
-            }
-        }
+            SwipeView {
 
-        SwipeView {
+                interactive: false
+                Layout.fillWidth: true
 
-            interactive: false
-            width: parent.width
+                Repeater {
+                    id: view
 
-            Repeater {
-                id: view
+                    model: DelegateModel {
 
-                model: DelegateModel {
+                        model: monitorGridModel
 
-                    model: monitorGridModel
+                        delegate: Loader {
 
-                    delegate: Loader {
+                            active: SwipeView.isCurrentItem
 
-                        active: SwipeView.isCurrentItem
+                            sourceComponent: Rally.GridLayout {
 
-                        sourceComponent: Rally.GridLayout {
+                                id: page
 
-                            id: page
+                                width: parent.width
+                                columnSpacing: 4
 
-                            width: parent.width
-                            columnSpacing: 4
+                                property var modelIndex: view.model.modelIndex(
+                                                             index)
+                                Repeater {
 
-                            property var modelIndex: view.model.modelIndex(
-                                                         index)
-                            Repeater {
+                                    model: DelegateModel {
 
-                                model: DelegateModel {
+                                        id: contentModel
+                                        model: monitorGridModel
+                                        rootIndex: view.model.modelIndex(index)
 
-                                    id: contentModel
-                                    model: monitorGridModel
-                                    rootIndex: view.model.modelIndex(index)
+                                        delegate: Rally.GroupBox {
 
-                                    delegate: Rally.GroupBox {
+                                            leftPadding: 4
+                                            rightPadding: 4
+                                            bottomPadding: 4
+                                            property var deviceInfo: DeviceManager.getDeviceInfo(
+                                                                         deviceId)
 
-                                        leftPadding: 4
-                                        rightPadding: 4
-                                        bottomPadding: 4
-                                        property var deviceInfo: DeviceManager.getDeviceInfo(
-                                                                     deviceId)
-
-                                        mainAction: Rally.BusyAction {
-                                            text: qsTr("delete")
-                                            icon.name: "delete"
-                                            onTriggered: {
-                                                monitorGridModel.removeTile(
-                                                            contentModel.rootIndex,
-                                                            contentModel.modelIndex(
-                                                                index))
+                                            mainAction: Rally.BusyAction {
+                                                text: qsTr("delete")
+                                                icon.name: "delete"
+                                                onTriggered: {
+                                                    monitorGridModel.removeTile(
+                                                                contentModel.rootIndex,
+                                                                contentModel.modelIndex(
+                                                                    index))
+                                                }
                                             }
-                                        }
 
-                                        title: DeviceManager.getName(deviceId)
+                                            title: DeviceManager.getName(
+                                                       deviceId)
 
-                                        CameraImage {
-                                            id: snapshot
-                                            opacity: 1
-                                            autoReload: true
-                                            autoReloadInterval: 5000
-                                            width: parent.width
-                                            implicitHeight: Math.max(
-                                                                width * 9 / 16,
-                                                                width * imageHeight / Math.max(
-                                                                    imageWidth,
-                                                                    1))
-                                            profileId: Onvif.createProfileId(
-                                                           deviceId, token)
+                                            CameraImage {
+                                                id: snapshot
+                                                opacity: 1
+                                                autoReload: true
+                                                autoReloadInterval: 5000
+                                                width: parent.width
+                                                implicitHeight: Math.max(
+                                                                    width * 9 / 16,
+                                                                    width * imageHeight / Math.max(
+                                                                        imageWidth,
+                                                                        1))
+                                                profileId: Onvif.createProfileId(
+                                                               deviceId, token)
+                                            }
                                         }
                                     }
                                 }
@@ -256,188 +192,30 @@ SwipePage {
         }
     }
 
-
-    /*
-    Column {
-
-        padding: 0
-        spacing: 0
-
-        TabBar {
-            id: bar
-            width: parent.width
-            Repeater {
-                model: monitorGridModel
-                TabButton {
-                    text: name
-                    rightPadding: deleteButton.visible ? deleteButton.width : undefined
-                    RoundButton {
-                        id: deleteButton
-                        visible: monitoringPage.editable
-                        icon.name: "close"
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        onClicked: {
-                            monitorGridModel.removePage(deviceId)
-                        }
-                    }
-                }
+    RoundButton {
+        parent: Overlay.overlay
+        visible: DeviceManager.count > 0
+        opacity: monitoringPage.isCurrentPage ? 1 : 0
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        anchors.bottomMargin: parent.height * 0.03
+        anchors.rightMargin: parent.width * 0.03
+        icon.name: "plus"
+        width: 66
+        height: 66
+        icon.width: width / 2
+        icon.height: height / 2
+        Material.elevation: 3
+        Material.background: Material.accent
+        onClicked: {
+            Rally.Helper.createDialog(Qt.resolvedUrl(
+                                          "dialogs/EditMonitorDialog.qml"), {},
+                                      mapToGlobal(x, y).y)
+        }
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 100
             }
         }
-
-        SwipeView {
-
-            interactive: false
-            currentIndex: bar.currentIndex
-            clip: true
-            width: monitoringPage.width
-
-            Repeater {
-                id: view
-
-                model: DelegateModel {
-                    model: monitorGridModel
-
-                    delegate: Loader {
-
-                        active: SwipeView.isCurrentItem
-
-                        sourceComponent: ColumnLayout {
-
-                            id: page
-                            property var modelIndex: view.model.modelIndex(
-                                                         index)
-                            width: parent.width
-                            spacing: 10
-
-                            FixedSizeGridLayout {
-
-                                id: grid
-
-                                onMoveIndex: function (fromIndex, toIndex) {
-
-                                    monitorGridModel.move(
-                                                view.model.modelIndex(index),
-                                                fromIndex, toIndex)
-                                }
-
-                                model: DelegateModel {
-                                    model: monitorGridModel
-                                    rootIndex: view.model.modelIndex(index)
-
-                                    delegate: Tile {
-
-                                        id: tile
-
-                                        draggable: monitoringPage.editable
-                                        implicitWidth: grid.effectiveAtomicWidth
-
-                                        onImplicitWidthChanged: {
-
-                                            Qt.callLater(function () {
-                                                implicitHeight = implicitWidth * 9 / 16
-                                            })
-                                        }
-
-                                        columnSpan: 1
-                                        rowSpan: 1
-
-                                        CameraImage {
-                                            id: snapshot
-                                            opacity: 1
-                                            anchors.fill: parent
-                                            autoReload: true
-                                            autoReloadInterval: 5000
-                                            profileId: Onvif.createProfileId(
-                                                           deviceId, token)
-
-                                            property var globalRecT: {
-                                                tile.mapToItem(
-                                                            monitoringPage.flickable,
-                                                            0, 0, tile.width,
-                                                            tile.height)
-                                            }
-
-                                            visible: {
-                                                var gloablRec = Qt.rect(
-                                                            tile.x, tile.y,
-                                                            tile.width,
-                                                            tile.height)
-
-                                                return gloablRec.y + gloablRec.height
-                                                        >= monitoringPage.visibleArea.y
-                                                        && gloablRec.y
-                                                        <= monitoringPage.visibleArea.y
-                                                        + monitoringPage.visibleArea.height
-                                            }
-
-                                            Label {
-
-                                                text: "y " + tile.y + " h " + tile.height
-                                            }
-
-                                            WRoundButton {
-
-                                                icon.name: "play"
-                                                anchors.centerIn: parent
-                                                visible: true
-
-                                                onClicked: {
-                                                    let component = Qt.createComponent(
-                                                                      "CameraStream.qml")
-                                                    let mediaPlayer = component.createObject(
-                                                            snapshot, {
-                                                                "profileId": Onvif.createProfileId(
-                                                                                 deviceId, token),
-                                                                "width": 200,
-                                                                "height": 200
-                                                            })
-                                                    mediaPlayer.profileId = Onvif.createProfileId(
-                                                                deviceId, token)
-                                                    mediaPlayer.anchors.fill = snapshot
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Layout.fillWidth: true
-                                columns: Math.min(Math.max(width / 200, 1),
-                                                  grid.count)
-
-                                atomicWidth: 80
-                                atomicHeight: 80
-                            }
-
-                            Row {
-
-                                spacing: 20
-
-                                Switch {
-
-                                    onCheckedChanged: {
-                                        monitoringPage.editable = checked
-                                    }
-                                }
-
-                                RoundButton {
-                                    icon.name: "plus"
-                                    width: 66
-                                    height: 66
-                                    icon.width: 33
-                                    icon.height: 33
-                                    Material.elevation: 2
-                                    Material.background: Material.accent
-                                    onClicked: {
-                                        dialog.index = page.modelIndex
-                                        dialog.open()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }*/
+    }
 }

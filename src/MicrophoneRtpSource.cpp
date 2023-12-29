@@ -3,6 +3,7 @@
 #include <QAudioInput>
 #include <QAudioSource>
 #include <QBuffer>
+#include <QPermission>
 #include <QScopedPointer>
 #include <QWaitCondition>
 extern "C" {
@@ -104,7 +105,7 @@ MicrophoneRtpSource::MicrophoneRtpSource(QObject *parent) :
  QThread(parent),
  mRtpSink(),
  mpAudioSource(nullptr),
- mPayloadFormat(Auto),
+ mPayloadFormat(EncoderSettings::Auto),
  mVolume(std::numeric_limits<int>::max()),
  mMute(1),
  mResult(),
@@ -131,23 +132,26 @@ void MicrophoneRtpSource::start(const QUrl &rtpSink) {
 	mRtpSink = rtpSink;
 	if(!mRtpSink.host().isEmpty()) {
 		if(mpAudioSource) {
-			if(auto *buffer = mpAudioSource->start()) {
-				mpBuffer = buffer;
-				if(mpAudioSource->error() == QAudio::NoError) {
-					QThread::start(QThread::HighPriority);
-				} else {
-					qWarning() << "QAudioSource signaled an error" << mpAudioSource->error();
-					mResult = Result(Result::FAULT, tr("Microphone audio source did not start"));
-				}
-			} else {
-				qWarning() << "QBuffer could not be opened";
-				mResult = Result(Result(Result::FAULT, tr("Could not open audio buffer")));
+#if QT_CONFIG(permissions)
+			QMicrophonePermission microphonePermission;
+			switch(qApp->checkPermission(microphonePermission)) {
+				case Qt::PermissionStatus::Undetermined:
+					qApp->requestPermission(microphonePermission, this, &MicrophoneRtpSource::prepareRun);
+					break;
+				case Qt::PermissionStatus::Denied:
+					mResult = Result(Result(Result::FAULT, tr("Missing microphone permission")));
+					break;
+				case Qt::PermissionStatus::Granted:
+					prepareRun();
+					break; // Proceed
 			}
+#else
+			prepareRun();
+#endif
 		} else {
 			qWarning() << "QAudioSource is null";
 			mResult = Result(Result(Result::FAULT, tr("Missing a valid microphone audio source")));
 		}
-
 	} else {
 		qWarning() << "Rtp url is unsupported" << mRtpSink;
 		mResult = Result(Result(Result::FAULT, tr("Missing a valid rtp host")));
@@ -163,8 +167,81 @@ void MicrophoneRtpSource::stop() {
 	}
 }
 
-void MicrophoneRtpSource::mute(bool mute) {
+QList<EncoderSettings> MicrophoneRtpSource::supportedEncoder(MediaDescription sdp) {
 
+	// map rtp payload format name to ffmpeg codec name and include a priority number
+	static const auto codecMap = QHash<QString, EncoderSettings>({
+	 {"mpeg4-generic",
+	  {"aac", EncoderSettings::RTP_mpeg4_generic, -1 /*bitrate*/, -1 /*sample rate*/, -1 /*channels*/, -1 /*type*/, -1 /*frame size*/,
+	   7 /*priority*/}},
+	 {"MP4A-LATM",
+	  {"aac", EncoderSettings::RTP_MP4A_LATM, -1 /*bitrate*/, -1 /*sample rate*/, -1 /*channels*/, -1 /*type*/, -1 /*frame size*/,
+	   6 /*priority*/}},
+	 {"PCMU",
+	  {"pcm_mulaw", EncoderSettings::RTP_PCMU_8000_1, 64000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, 0 /*type*/, 160 /*frame size*/,
+	   5 /*priority*/}},
+	 {"G726-40",
+	  {"adpcm_g726", EncoderSettings::RTP_G726_40_8000_1, 40000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, -1 /*type*/,
+	   -1 /*frame size*/, 4 /*priority*/}},
+	 {"G726-32",
+	  {"adpcm_g726", EncoderSettings::RTP_G726_32_8000_1, 32000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, -1 /*type*/,
+	   -1 /*frame size*/, 3 /*priority*/}},
+	 {"G726-24",
+	  {"adpcm_g726", EncoderSettings::RTP_G726_24_8000_1, 24000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, -1 /*type*/,
+	   -1 /*frame size*/, 2 /*priority*/}},
+	 {"G726-16",
+	  {"adpcm_g726", EncoderSettings::RTP_G726_16_8000_1, 16000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, -1 /*type*/,
+	   -1 /*frame size*/, 1 /*priority*/}},
+	 {"G726",
+	  {"g726", EncoderSettings::RTP_G726_16_8000_1, 16000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, -1 /*type*/, -1 /*frame size*/,
+	   1 /*priority*/}},
+	});
+
+	auto formats = sdp.getPayloadFormats();
+	// sort by preferred codec
+	std::sort(formats.begin(), formats.end(), [](const RtpPayloadFormat &left, const RtpPayloadFormat &right) {
+		auto leftNm = 0;
+		auto rightNm = 0;
+		if(codecMap.contains(left.name)) leftNm = codecMap[left.name].priority;
+		if(codecMap.contains(right.name)) rightNm = codecMap[right.name].priority;
+		return leftNm > rightNm;
+	});
+	// remove unsupported codecs
+	formats.removeIf([](const RtpPayloadFormat &desc) {
+		if(codecMap.contains(desc.name)) {
+			const auto *codec = avcodec_find_encoder_by_name(qPrintable(codecMap[desc.name].codecName));
+			return codec == nullptr;
+		}
+		return true;
+	});
+
+	QList<EncoderSettings> encoderSettingsList = {};
+
+	for(const auto &format : formats) {
+		EncoderSettings encoderSettings = codecMap[format.name];
+		if(format.payloadType > 0) {
+			encoderSettings.payloadType = format.payloadType;
+		}
+		if(format.numChannels > 0) {
+			encoderSettings.numChannels = format.numChannels;
+		}
+		if(format.sampleRate > 0) {
+			encoderSettings.samplerate = format.sampleRate;
+		}
+		if(encoderSettings.numChannels <= 0) {
+			qWarning() << format.name << "missing a valid channel number - default to mono";
+			encoderSettings.numChannels = 1;
+		}
+		if(encoderSettings.payloadType < 0) {
+			qWarning() << format.name << "missing a valid payload type";
+		}
+		encoderSettingsList.push_back(encoderSettings);
+	}
+
+	return encoderSettingsList;
+}
+
+void MicrophoneRtpSource::mute(bool mute) {
 	if(mute) {
 		mMute = 0;
 	} else {
@@ -173,7 +250,6 @@ void MicrophoneRtpSource::mute(bool mute) {
 }
 
 void MicrophoneRtpSource::setVolume(float volume) {
-
 	if(volume >= 1.0) {
 		mVolume = std::numeric_limits<int>::max();
 	} else if(volume <= 0) {
@@ -185,12 +261,10 @@ void MicrophoneRtpSource::setVolume(float volume) {
 }
 
 QAudioInput *MicrophoneRtpSource::getAudioInput() const {
-
 	return nullptr;
 }
 
 void MicrophoneRtpSource::setAudioInput(QAudioInput *input) {
-
 	stop();
 	if(input) {
 		connect(input, &QAudioInput::volumeChanged, this, &MicrophoneRtpSource::setVolume);
@@ -209,13 +283,11 @@ void MicrophoneRtpSource::setAudioInput(QAudioInput *input) {
 	}
 }
 
-MicrophoneRtpSource::RtpPayload MicrophoneRtpSource::getPayloadFormat() const {
-
+EncoderSettings::RtpPayload MicrophoneRtpSource::getPayloadFormat() const {
 	return mPayloadFormat;
 }
 
-void MicrophoneRtpSource::setPayloadFormat(MicrophoneRtpSource::RtpPayload fmt) {
-
+void MicrophoneRtpSource::setPayloadFormat(EncoderSettings::RtpPayload fmt) {
 	mPayloadFormat = fmt;
 	emit payloadFormatChanged();
 }
@@ -253,7 +325,6 @@ rtp AVOptions:
 */
 
 void MicrophoneRtpSource::run() {
-
 	const auto rtspClient = QScopedPointer<OnvifRtspClient>(new OnvifRtspClient(mRtpSink));
 	if(auto rtspResult = rtspClient->startAudioBackchannelStream()) {
 
@@ -308,6 +379,7 @@ void MicrophoneRtpSource::run() {
 									}
 
 									auto volume = calcVolume();
+									auto srcChLayout = MicrophoneRtpSource::convertChLayout(srcFormat.channelConfig(), srcFormat.channelCount());
 
 									auto filterStr = QString("abuffer=time_base=%1:sample_fmt=%2:channel_layout=%3:sample_rate=%4,"
 									                         "volume=volume=%5:precision=%6,"
@@ -316,7 +388,7 @@ void MicrophoneRtpSource::run() {
 									                         "abuffersink")
 									                  .arg(QString("1/%2").arg(srcFormat.sampleRate()))
 									                  .arg(av_get_sample_fmt_name(MicrophoneRtpSource::convertSampleFormat(srcFormat.sampleFormat())))
-									                  .arg(MicrophoneRtpSource::chLayoutName(MicrophoneRtpSource::convertChLayout(srcFormat.channelConfig())))
+									                  .arg(MicrophoneRtpSource::chLayoutName(srcChLayout))
 									                  .arg(srcFormat.sampleRate())
 									                  .arg(volume)
 									                  .arg(MicrophoneRtpSource::convertSampleFormatPrecision(srcFormat.sampleFormat()))
@@ -381,7 +453,7 @@ void MicrophoneRtpSource::run() {
 																}
 
 																const auto byteRead = MicrophoneRtpSource::readToFrame(mpBuffer, frame.get());
-																frame->ch_layout = MicrophoneRtpSource::convertChLayout(srcFormat.channelConfig());
+																frame->ch_layout = srcChLayout;
 																frame->format = MicrophoneRtpSource::convertSampleFormat(srcFormat.sampleFormat());
 																frame->nb_samples = byteRead / srcFormat.bytesPerFrame();
 																frame->sample_rate = srcFormat.sampleRate();
@@ -573,13 +645,29 @@ void MicrophoneRtpSource::run() {
 	qInfo() << "Finished running microphone rtp loop";
 }
 
-double MicrophoneRtpSource::calcVolume() {
+void MicrophoneRtpSource::prepareRun() {
 
+	if(mpAudioSource) {
+		if(auto *buffer = mpAudioSource->start()) {
+			mpBuffer = buffer;
+			if(mpAudioSource->error() == QAudio::NoError) {
+				QThread::start(QThread::HighPriority);
+			} else {
+				qWarning() << "QAudioSource signaled an error" << mpAudioSource->error();
+				mResult = Result(Result::FAULT, tr("Microphone audio source did not start"));
+			}
+		} else {
+			qWarning() << "QBuffer could not be opened";
+			mResult = Result(Result(Result::FAULT, tr("Could not open audio buffer")));
+		}
+	}
+}
+
+double MicrophoneRtpSource::calcVolume() {
 	return (double)mVolume / std::numeric_limits<int>::max() * mMute;
 }
 
 qint64 MicrophoneRtpSource::readToFrame(QIODevice *ioDev, AVFrame *frame) {
-
 	if(ioDev && frame) {
 		av_frame_unref(frame);
 		auto *data = new QByteArray(ioDev->readAll());
@@ -599,34 +687,52 @@ qint64 MicrophoneRtpSource::readToFrame(QIODevice *ioDev, AVFrame *frame) {
 	return 0;
 }
 
-AVChannelLayout MicrophoneRtpSource::convertChLayout(QAudioFormat::ChannelConfig cfg) {
+AVChannelLayout MicrophoneRtpSource::convertChLayout(QAudioFormat::ChannelConfig cfg, int channelCount) {
+
+	AVChannelLayout proposedLayout;
 
 	switch(cfg) {
 		case QAudioFormat::ChannelConfigMono:
-			return AV_CHANNEL_LAYOUT_MONO;
+			proposedLayout = AV_CHANNEL_LAYOUT_MONO;
+			break;
 		case QAudioFormat::ChannelConfigStereo:
-			return AV_CHANNEL_LAYOUT_STEREO;
+			proposedLayout = AV_CHANNEL_LAYOUT_STEREO;
+			break;
 		case QAudioFormat::ChannelConfig2Dot1:
-			return AV_CHANNEL_LAYOUT_2POINT1;
+			proposedLayout = AV_CHANNEL_LAYOUT_2POINT1;
+			break;
 		case QAudioFormat::ChannelConfig3Dot0:
-			return AV_CHANNEL_LAYOUT_SURROUND;
+			proposedLayout = AV_CHANNEL_LAYOUT_SURROUND;
+			break;
 		case QAudioFormat::ChannelConfig3Dot1:
-			return AV_CHANNEL_LAYOUT_3POINT1;
+			proposedLayout = AV_CHANNEL_LAYOUT_3POINT1;
+			break;
 		case QAudioFormat::ChannelConfigSurround5Dot0:
-			return AV_CHANNEL_LAYOUT_5POINT0;
+			proposedLayout = AV_CHANNEL_LAYOUT_5POINT0;
+			break;
 		case QAudioFormat::ChannelConfigSurround5Dot1:
-			return AV_CHANNEL_LAYOUT_5POINT1;
+			proposedLayout = AV_CHANNEL_LAYOUT_5POINT1;
+			break;
 		case QAudioFormat::ChannelConfigSurround7Dot0:
-			return AV_CHANNEL_LAYOUT_7POINT0;
+			proposedLayout = AV_CHANNEL_LAYOUT_7POINT0;
+			break;
 		case QAudioFormat::ChannelConfigSurround7Dot1:
-			return AV_CHANNEL_LAYOUT_7POINT1;
+			proposedLayout = AV_CHANNEL_LAYOUT_7POINT1;
+			break;
 		default:
-			return AV_CHANNEL_LAYOUT_MONO;
+			av_channel_layout_default(&proposedLayout, channelCount);
+			break;
 	}
+
+	if(proposedLayout.nb_channels != channelCount) {
+		qWarning() << "Mismatch between channel layout and channel count - fallback to default channel layout";
+		av_channel_layout_default(&proposedLayout, channelCount);
+	}
+
+	return proposedLayout;
 }
 
 AVSampleFormat MicrophoneRtpSource::convertSampleFormat(QAudioFormat::SampleFormat fmt) {
-
 	switch(fmt) {
 		case QAudioFormat::UInt8:
 			return AV_SAMPLE_FMT_U8;
@@ -642,7 +748,6 @@ AVSampleFormat MicrophoneRtpSource::convertSampleFormat(QAudioFormat::SampleForm
 }
 
 QString MicrophoneRtpSource::convertSampleFormatPrecision(QAudioFormat::SampleFormat fmt) {
-
 	switch(fmt) {
 		case QAudioFormat::UInt8:
 		case QAudioFormat::Int16:
@@ -656,7 +761,6 @@ QString MicrophoneRtpSource::convertSampleFormatPrecision(QAudioFormat::SampleFo
 }
 
 QString MicrophoneRtpSource::chLayoutName(AVChannelLayout layout) {
-
 	auto inChLayoutName = QByteArray(255, 0);
 	if(const auto read = av_channel_layout_describe(&layout, inChLayoutName.data(), 255)) {
 		if(read > 0) {
@@ -666,81 +770,16 @@ QString MicrophoneRtpSource::chLayoutName(AVChannelLayout layout) {
 	return {};
 }
 
-MicrophoneRtpSource::EncoderSettings MicrophoneRtpSource::selectEncoder(MicrophoneRtpSource::RtpPayload payloadType, MediaDescription md) {
-
-	// map rtp payload format name to ffmpeg codec name and include a priority number
-	static const auto codecMap = QHash<QString, MicrophoneRtpSource::EncoderSettings>({
-	 {"mpeg4-generic",
-	  {"aac", RTP_mpeg4_generic, -1 /*bitrate*/, -1 /*sample rate*/, -1 /*channels*/, -1 /*type*/, -1 /*frame size*/, 7 /*priority*/}},
-	 {"MP4A-LATM",
-	  {"aac", RTP_MP4A_LATM, -1 /*bitrate*/, -1 /*sample rate*/, -1 /*channels*/, -1 /*type*/, -1 /*frame size*/, 6 /*priority*/}},
-	 {"PCMU",
-	  {"pcm_mulaw", RTP_PCMU_8000_1, 64000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, 0 /*type*/, 160 /*frame size*/,
-	   5 /*priority*/}},
-	 {"G726-40",
-	  {"adpcm_g726", RTP_G726_40_8000_1, 40000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, -1 /*type*/, -1 /*frame size*/,
-	   4 /*priority*/}},
-	 {"G726-32",
-	  {"adpcm_g726", RTP_G726_32_8000_1, 32000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, -1 /*type*/, -1 /*frame size*/,
-	   3 /*priority*/}},
-	 {"G726-24",
-	  {"adpcm_g726", RTP_G726_24_8000_1, 24000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, -1 /*type*/, -1 /*frame size*/,
-	   2 /*priority*/}},
-	 {"G726-16",
-	  {"adpcm_g726", RTP_G726_16_8000_1, 16000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, -1 /*type*/, -1 /*frame size*/,
-	   1 /*priority*/}},
-	 {"G726",
-	  {"g726", RTP_G726_16_8000_1, 16000 /*bitrate*/, 8000 /*sample rate*/, 1 /*channels*/, -1 /*type*/, -1 /*frame size*/, 1 /*priority*/}},
-	});
-
-	auto formats = md.getPayloadFormats();
-	// sort by preferred codec
-	std::sort(formats.begin(), formats.end(), [](const RtpPayloadFormat &left, const RtpPayloadFormat &right) {
-		auto leftNm = 0;
-		auto rightNm = 0;
-		if(codecMap.contains(left.name)) leftNm = codecMap[left.name].priority;
-		if(codecMap.contains(right.name)) rightNm = codecMap[right.name].priority;
-		return leftNm > rightNm;
-	});
-	// remove unsupported codecs
-	formats.removeIf([](const RtpPayloadFormat &desc) {
-		if(codecMap.contains(desc.name)) {
-			const auto *codec = avcodec_find_encoder_by_name(qPrintable(codecMap[desc.name].codecName));
-			return codec == nullptr;
-		}
-		return true;
-	});
-
-	MicrophoneRtpSource::EncoderSettings encoderSettings = {};
-
-	for(const auto &format : formats) {
-		encoderSettings = codecMap[format.name];
-		if(format.payloadType > 0) {
-			encoderSettings.payloadType = format.payloadType;
-		}
-		if(format.numChannels > 0) {
-			encoderSettings.numChannels = format.numChannels;
-		}
-		if(format.sampleRate > 0) {
-			encoderSettings.samplerate = format.sampleRate;
-		}
-		if(encoderSettings.numChannels <= 0) {
-			qWarning() << format.name << "missing a valid channel number - default to mono";
-			encoderSettings.numChannels = 1;
-		}
-		if(encoderSettings.payloadType < 0) {
-			qWarning() << format.name << "missing a valid payload type";
-		}
-		if(payloadType == Auto || payloadType == encoderSettings.payload) {
-			break;
+EncoderSettings MicrophoneRtpSource::selectEncoder(EncoderSettings::RtpPayload payloadType, MediaDescription md) {
+	for(const auto &format : MicrophoneRtpSource::supportedEncoder(md)) {
+		if(payloadType == EncoderSettings::Auto || payloadType == format.payload) {
+			return format;
 		}
 	}
-
-	return encoderSettings;
+	return {};
 }
 
 Result MicrophoneRtpSource::toResult(int ffmpegError) {
-
 	auto result = Result::OK;
 	if(ffmpegError == AVOK) {
 		result = Result::OK;
@@ -753,7 +792,6 @@ Result MicrophoneRtpSource::toResult(int ffmpegError) {
 }
 
 DetailedResult<int> MicrophoneRtpSource::toResultExpect(int ffmpegError, int expectedError) {
-
 	auto res = DetailedResult<int>(Result::OK, "");
 	if(ffmpegError == AVOK || ffmpegError == expectedError) {
 		res.setResultObject(ffmpegError);

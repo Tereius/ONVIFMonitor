@@ -1,12 +1,15 @@
 import QtQuick
 import QtMultimedia
 import QtQuick.Controls
+import MaterialRally as Rally
 
-ComboBox {
+Rally.ComboBox {
 
     MediaDevices {
         id: devices
     }
+
+    placeholderText: qsTr("Audio input")
 
     model: {
         let deviceList = []

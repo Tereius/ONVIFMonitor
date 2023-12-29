@@ -5,72 +5,27 @@ import QtQuick.Controls.Material
 import Onvif
 import MaterialRally as Rally
 
-ListView {
+Rally.ListView {
 
     id: control
 
-    signal clicked(var index)
-
-    implicitWidth: contentWidth
-    implicitHeight: contentHeight
-    interactive: false
-
-    add: Transition {
-        id: transition
-        SequentialAnimation {
-            PropertyAction {
-                property: "opacity"
-                value: 0
-            }
-            PropertyAction {
-                property: "scale"
-                value: 0.9
-            }
-            PauseAnimation {
-                duration: transition.ViewTransition.index * 20
-            }
-            NumberAnimation {
-                properties: "opacity, scale"
-                to: 1.0
-                duration: 200
-                easing.type: Easing.OutQuad
-            }
-        }
-    }
-
-    displaced: Transition {
-        id: transition1
-        SequentialAnimation {
-            PauseAnimation {
-                duration: transition1.ViewTransition.index * 20
-            }
-            NumberAnimation {
-                properties: "opacity, scale"
-                to: 1.0
-                duration: 200
-                easing.type: Easing.OutQuad
-            }
-        }
-    }
-
-    delegate: ItemDelegate {
+    delegate: Rally.ItemDelegate {
 
         id: delegate
-        width: ListView.view.width
-        height: column.implicitHeight + topPadding + bottomPadding
-        bottomInset: 1
-
-        onClicked: {
-            control.clicked(index)
-        }
+        showChevron: true
 
         GridLayout {
 
             id: column
-            x: parent.leftPadding
-            y: parent.topPadding
+            anchors.left: parent.left
+            anchors.leftMargin: parent.leftPadding
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: parent.bottomPadding
+            anchors.right: parent.right
+            anchors.rightMargin: parent.rightPadding
+            anchors.top: parent.top
+            anchors.topMargin: parent.topPadding
 
-            width: parent.width - parent.rightPadding - parent.leftPadding
             columns: 4
             rows: 2
 
@@ -79,7 +34,7 @@ ListView {
                 Layout.column: 0
                 Layout.row: 0
                 Layout.fillWidth: true
-                text: name
+                text: model.name
                 elide: Text.ElideRight
             }
 
@@ -88,7 +43,7 @@ ListView {
                 Layout.column: 0
                 Layout.row: 1
                 Layout.fillWidth: true
-                text: host
+                text: model.host
                 elide: Text.ElideRight
                 color: Material.secondaryTextColor
             }
@@ -98,7 +53,9 @@ ListView {
                 Layout.rowSpan: 2
                 icon.name: "web-off"
                 icon.color: Material.color(Material.Red)
-                visible: initialized != null && initialized === false
+                visible: model.initialized != undefined
+                         && model.initialized != null
+                         && model.initialized === false
             }
 
             Row {
@@ -186,22 +143,6 @@ ListView {
                     }
                 }
             }
-
-            Rally.Icon {
-                Layout.column: 3
-                Layout.rowSpan: 2
-                icon.name: "chevron-right"
-            }
-        }
-
-        Rectangle {
-            height: 1
-            color: Material.backgroundColor
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.leftMargin: parent.leftPadding
-            anchors.rightMargin: parent.rightPadding
         }
     }
 }

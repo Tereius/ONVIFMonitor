@@ -46,14 +46,14 @@ Rally.RallyRootPage {
         id: mainMenuModel
 
         ListElement {
-            title: qsTr("Overviews")
+            title: qsTr("Monitoring")
             iconName: "cctv"
             defaultChecked: true
             qmlSource: "MonitoringPage.qml"
         }
 
         ListElement {
-            title: qsTr("Recordings")
+            title: qsTr("Recording")
             iconName: "harddisk"
             qmlSource: "PlaceholderPage.qml"
         }
@@ -124,10 +124,11 @@ Rally.RallyRootPage {
 
         anchors.fill: parent
 
-        contentWidth: width
-        contentHeight: Math.max(view.implicitHeight, height)
+        contentWidth: availableWidth
+        contentHeight: Math.max(view.implicitHeight, availableHeight)
 
-        ScrollBar.vertical.policy: contentHeight > height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+        ScrollBar.vertical.policy: contentHeight
+                                   > availableHeight ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
         ScrollBar.horizontal.interactive: false
 

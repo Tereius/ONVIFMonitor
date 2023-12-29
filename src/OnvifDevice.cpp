@@ -334,6 +334,13 @@ DetailedResult<QList<MediaProfile>> OnvifDevice::getMediaProfiles() {
 								if(!mDeviceInfo.mUser.isEmpty()) streamUrl.mUrlWithCredentials.setUserName(mDeviceInfo.mUser);
 								if(!mDeviceInfo.mPassword.isEmpty()) streamUrl.mUrlWithCredentials.setPassword(mDeviceInfo.mPassword);
 								retProfile.mStreamUrls.push_back(streamUrl);
+								// check for audio backchannel
+								auto rtspClient = QScopedPointer<OnvifRtspClient>(new OnvifRtspClient(streamUrl.mUrlWithCredentials));
+								if(auto hasBackchannelResult = rtspClient->hasAudioBackchannel()) {
+									retProfile.mBackchennel = true;
+									retProfile.mBackchennelUrl = streamUrl.mUrlWithCredentials;
+									retProfile.mBackchennelMediaDescription = hasBackchannelResult.GetResultObject();
+								}
 							}
 						}
 					}

@@ -165,7 +165,7 @@ Item {
                 anchors.margins: 10
                 anchors.bottom: parent.bottom
 
-                visible: image.status === Image.Loading ? false : true
+                visible: false // image.status === Image.Loading ? false : true
                 icon.name: "refresh"
 
                 onClicked: {

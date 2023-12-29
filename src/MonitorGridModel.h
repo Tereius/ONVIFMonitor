@@ -31,6 +31,8 @@ class MonitorGridModel : public QAbstractItemModel {
 	Q_OBJECT
 	QML_ELEMENT
 	Q_PROPERTY(DeviceManager *deviceManager READ getDeviceManager WRITE setDeviceManager REQUIRED)
+	Q_PROPERTY(int pageCount READ getPageCount NOTIFY pageCountChanged)
+	Q_PROPERTY(int monitorCount READ getMonitorCount NOTIFY monitorCountChanged)
 
  public:
 	explicit MonitorGridModel(QObject *pParent = nullptr);
@@ -49,7 +51,13 @@ class MonitorGridModel : public QAbstractItemModel {
 	QModelIndex parent(const QModelIndex &index) const override;
 	DeviceManager *getDeviceManager() const;
 	void setDeviceManager(DeviceManager *pManager);
+	int getPageCount() const;
+	int getMonitorCount() const;
 	Q_INVOKABLE void move(const QModelIndex &sourceParent, int source, int destination);
+
+ signals:
+	void pageCountChanged();
+	void monitorCountChanged();
 
  private:
 	Q_DISABLE_COPY(MonitorGridModel);

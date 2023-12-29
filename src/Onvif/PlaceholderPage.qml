@@ -1,5 +1,6 @@
-import QtQuick 2.12
-import QtQuick.Controls 2.12
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Controls.Material
 import MaterialRally as Rally
 
 SwipePage {
@@ -11,6 +12,7 @@ SwipePage {
         height: Math.min(parent.height, 150)
         anchors.centerIn: parent
         padding: 10
+        Material.roundedScale: Material.MediumScale
 
         Column {
 
@@ -18,7 +20,7 @@ SwipePage {
             anchors.centerIn: parent
 
             Rally.Icon {
-                icon.name: "cctv-off"
+                icon.name: "harddisk-remove"
                 icon.width: 36
                 icon.height: 36
                 anchors.horizontalCenter: parent.horizontalCenter

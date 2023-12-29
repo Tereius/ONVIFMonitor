@@ -1,6 +1,7 @@
 #pragma once
 #include <QByteArray>
 #include <QList>
+#include <QObject>
 #include <QString>
 
 
@@ -20,8 +21,11 @@ struct RtpPayloadFormat {
 	int numChannels = -1;
 };
 
-struct MediaDescription {
+class MediaDescription {
 
+	Q_GADGET
+
+ public:
 	bool isNull() const { return mediaName.isNull(); }
 	QString getAttributeValueFirst(const QString &key) const;
 	QStringList getAttributeValues(const QString &key) const;
