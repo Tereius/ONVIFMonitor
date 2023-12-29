@@ -73,7 +73,9 @@ SwipePage {
                 text: qsTr("Seems like you don't have any monitors yet.")
                 onClicked: {
                     Rally.Helper.createDialog(
-                                Qt.resolvedUrl("dialogs/EditMonitorDialog.qml"))
+                                Qt.resolvedUrl(
+                                    "dialogs/EditMonitorDialog.qml"), {},
+                                mapToGlobal(x, y).y)
                 }
             }
         }
