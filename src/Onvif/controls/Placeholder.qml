@@ -40,10 +40,9 @@ Rally.GroupBox {
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
             anchors.horizontalCenter: parent.horizontalCenter
-            font.pixelSize: 16
         }
 
-        Button {
+        Rally.Button {
             id: takeMeThereButton
             text: qsTr("Take me there")
             flat: true

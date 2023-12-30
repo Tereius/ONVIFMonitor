@@ -7,12 +7,12 @@ MonitorGridModel::MonitorGridModel(QObject *pParent /*= nullptr*/) : QAbstractIt
 
 MonitorGridModel::~MonitorGridModel() = default;
 
-void MonitorGridModel::addPage(const QString &rName) {
+void MonitorGridModel::addPage(const QString &rName, const QUuid &proposedId /*= QUuid::createUuid()*/) {
 
 	beginInsertRows(QModelIndex(), mMonitorGrid.size(), mMonitorGrid.size());
 	auto page = Page();
 	page.mIndex = mMonitorGrid.size();
-	page.mId = QUuid::createUuid();
+	page.mId = proposedId;
 	page.mName = rName;
 	page.mProfiles = QList<Tile>();
 	mMonitorGrid.push_back(page);
@@ -49,7 +49,7 @@ void MonitorGridModel::removePage(const QUuid &rId) {
 	emit monitorCountChanged();
 }
 
-void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId) {
+void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId, const QUuid &proposedId /*= QUuid::createUuid()*/) {
 
 	auto page = parent.row();
 	auto column = parent.column();
@@ -60,7 +60,7 @@ void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId
 			beginInsertRows(parent, pageInfo.mProfiles.size(), pageInfo.mProfiles.size());
 			auto tile = Tile();
 			tile.mIndex = pageInfo.mProfiles.size();
-			tile.mId = QUuid::createUuid();
+			tile.mId = proposedId;
 			tile.mName = "";
 			tile.mProfile = info.mMediaProfiles.first().getProfileId();
 			pageInfo.mProfiles.push_back(tile);

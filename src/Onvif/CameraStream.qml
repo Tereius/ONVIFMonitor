@@ -1,16 +1,27 @@
-import QtQuick 2.9
-import QtQuick.Window 2.2
-import QtQuick.Controls 2.5
+import QtQuick
+import QtQuick.Controls
 import Onvif
 
 Control {
 
     property var profileId
 
+    property alias videoWidth: player.videoWidth
+    property alias videoHeight: player.videoHeight
+    property alias disableVideo: player.disableVideo
+    property alias disableAudio: player.disableAudio
+
+    implicitWidth: videoWidth
+    implicitHeight: videoHeight
+
     onProfileIdChanged: {
 
-        player.source = DeviceManager.getStreamUrl(profileId.getDeviceId(),
-                                                   profileId.getProfileToken())
+        if (profileId) {
+            player.source = DeviceManager.getStreamUrl(
+                        profileId.getDeviceId(), profileId.getProfileToken())
+        } else {
+            player.source = ""
+        }
     }
 
     MediaPlayer {
@@ -19,5 +30,10 @@ Control {
         anchors.fill: parent
         Component.onCompleted: player.play(
                                    ) // to early, will stopped by setSource()
+    }
+
+    background: Rectangle {
+
+        color: "black"
     }
 }

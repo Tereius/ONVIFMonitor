@@ -116,6 +116,7 @@ int main(int argc, char *argv[]) {
 
 	int version = 0;
 	mdk::GetGlobalOption("ffmpeg.version", &version);
+	mdk::setLogLevel(mdk::Info);
 
 	qInfo() << "Using ffmpeg" << version;
 

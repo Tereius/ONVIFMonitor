@@ -24,6 +24,7 @@ class EncoderSettings {
 
 	Q_GADGET
 	Q_PROPERTY(QString codec MEMBER codecName)
+	Q_PROPERTY(QString id MEMBER codecName)
 
  public:
 	// https://en.wikipedia.org/wiki/RTP_payload_formats

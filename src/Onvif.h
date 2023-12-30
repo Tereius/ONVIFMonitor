@@ -11,5 +11,6 @@ class Onvif : public QObject {
 
  public:
 	Q_INVOKABLE QUuid createUuid() const;
+	Q_INVOKABLE QString createUuidString() const;
 	Q_INVOKABLE ProfileId createProfileId(const QUuid &rDeviceId, const QString &rProfileToken) const;
 };

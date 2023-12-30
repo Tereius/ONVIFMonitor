@@ -49,6 +49,8 @@ SwipePage {
             Placeholder {
                 anchors.centerIn: parent
                 showButton: true
+                buttonText: qsTr("Settings")
+                buttonIcon.name: "cog"
                 icon.name: "cctv-off"
                 text: qsTr("Seems like you don't have any configured devices. Go to settings and add at least one device. After that come back here.")
                 onClicked: {
@@ -70,12 +72,19 @@ SwipePage {
                 buttonText: qsTr("Add monitor")
                 buttonIcon.name: "plus"
                 icon.name: "monitor-off"
-                text: qsTr("Seems like you don't have any monitors yet.")
+                text: qsTr("Seems like you don't have any monitors yet. You may want to add one.")
                 onClicked: {
-                    Rally.Helper.createDialog(
-                                Qt.resolvedUrl(
-                                    "dialogs/EditMonitorDialog.qml"), {},
-                                mapToGlobal(x, y).y)
+                    const dialog = Rally.Helper.createDialog(
+                                     Qt.resolvedUrl(
+                                         "dialogs/EditMonitorDialog.qml"), {},
+                                     mapToGlobal(x, y).y)
+                    dialog.editActionClicked.connect(profileId => {
+                                                         monitorGridModel.addTile(
+                                                             monitorGridModel.index(
+                                                                 0, 0),
+                                                             profileId.getDeviceId(
+                                                                 ))
+                                                     })
                 }
             }
         }
@@ -210,9 +219,15 @@ SwipePage {
         Material.elevation: 3
         Material.background: Material.accent
         onClicked: {
-            Rally.Helper.createDialog(Qt.resolvedUrl(
-                                          "dialogs/EditMonitorDialog.qml"), {},
-                                      mapToGlobal(x, y).y)
+            const dialog = Rally.Helper.createDialog(
+                             Qt.resolvedUrl("dialogs/EditMonitorDialog.qml"),
+                             {}, mapToGlobal(x, y).y)
+            dialog.editActionClicked.connect(profileId => {
+                                                 monitorGridModel.addTile(
+                                                     monitorGridModel.index(0,
+                                                                            0),
+                                                     profileId.getDeviceId())
+                                             })
         }
         Behavior on opacity {
             NumberAnimation {

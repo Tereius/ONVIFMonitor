@@ -17,6 +17,8 @@ enum Roles {
 	ProfileRole,
 	HasSnapshotRole,
 	HasBackchannelRole,
+	BackchannelSdp,
+	BackchannelUrl,
 	IdRole,
 	PathRole,
 	InitializedRole,

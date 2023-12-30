@@ -21,9 +21,12 @@ class VideoRendererInternal : public QQuickFramebufferObject::Renderer {
 };
 
 
-MediaPlayer::MediaPlayer(QQuickItem *parent) : QQuickFramebufferObject(parent), internal_player(new mdk::Player()) {
+MediaPlayer::MediaPlayer(QQuickItem *parent) :
+ QQuickFramebufferObject(parent), internal_player(new mdk::Player()), mVideoSize(0, 0), mVideoDisabled(false), mAudioDisabled(false) {
+
 	setMirrorVertically(true);
 	// internal_player->setAudioBackends({""});
+	internal_player->setAspectRatio(mdk::IgnoreAspectRatio);
 	internal_player->setProperty("avio.user_agent", App::getDefaultUserAgent().toStdString());
 	internal_player->setProperty("avformat.fflags", "+nobuffer");
 	internal_player->setProperty("avformat.fflags", "+discardcorrupt");
@@ -34,6 +37,14 @@ MediaPlayer::MediaPlayer(QQuickItem *parent) : QQuickFramebufferObject(parent), 
 	internal_player->setProperty("avformat.probesize", "32");
 	internal_player->setProperty("avformat.fpsprobesize", "0");
 	internal_player->setProperty("avformat.max_delay", "0");
+
+	internal_player->onEvent([this](mdk::MediaEvent event) {
+		if(event.category == "decoder.video" && event.detail == "size") {
+			mVideoSize = QSize(event.video.width, event.video.height);
+			emit videoSizeChanged(mVideoSize);
+		}
+		return true;
+	});
 }
 
 MediaPlayer::~MediaPlayer() {
@@ -48,7 +59,7 @@ QString MediaPlayer::source() {
 void MediaPlayer::setSource(const QString &s) {
 
 	if(!s.isEmpty()) {
-		internal_player->setMedia(s.toUtf8().data());
+		internal_player->setMedia(qPrintable(s));
 		m_source = s;
 		emit sourceChanged();
 		play();
@@ -70,6 +81,30 @@ void MediaPlayer::setPlaybackRate(float rate) {
 
 void MediaPlayer::setVideoSurfaceSize(int width, int height) {
 	internal_player->setVideoSurfaceSize(width, height);
+}
+
+int MediaPlayer::getVideoWidth() const {
+	return mVideoSize.width();
+}
+
+int MediaPlayer::getVideoHeight() const {
+	return mVideoSize.height();
+}
+
+void MediaPlayer::setDisableVideo(bool disabled) {
+	mVideoDisabled = disabled;
+}
+
+bool MediaPlayer::getDisableVideo() const {
+	return mVideoDisabled;
+}
+
+void MediaPlayer::setDisableAudio(bool disabled) {
+	mAudioDisabled = disabled;
+}
+
+bool MediaPlayer::getDisableAudio() const {
+	return mAudioDisabled;
 }
 
 void MediaPlayer::renderVideo() {

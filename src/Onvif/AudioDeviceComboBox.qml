@@ -9,6 +9,8 @@ Rally.ComboBox {
         id: devices
     }
 
+    readonly property audioDevice defaultInputDevice: devices.defaultAudioInput
+
     placeholderText: qsTr("Audio input")
 
     model: {

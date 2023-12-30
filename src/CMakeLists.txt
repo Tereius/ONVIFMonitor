@@ -334,6 +334,9 @@ add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
         bullhorn
         monitor
         monitor-off
+        speaker
+        flip-horizontal
+        flip-vertical
 )
 
 qt_policy(SET QTP0002 NEW)

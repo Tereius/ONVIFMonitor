@@ -14,22 +14,23 @@ Item {
     property bool autoReload: false
     property alias autoReloadInterval: autoReloadTimer.interval
 
-    property int imageHeight: {
-        let children = imageContainer.children
-        if (children.length) {
-            return children[0].implicitHeight
-        }
-    }
-
     property int imageWidth: {
         let children = imageContainer.children
-        if (children.length) {
+        if (children.length > 0) {
             return children[0].implicitWidth
         }
+        return 0
+    }
+
+    property int imageHeight: {
+        let children = imageContainer.children
+        if (children.length > 0) {
+            return children[0].implicitHeight
+        }
+        return 0
     }
 
     implicitHeight: imageHeight
-
     implicitWidth: imageWidth
 
     function refresh() {
