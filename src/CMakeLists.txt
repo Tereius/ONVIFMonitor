@@ -77,6 +77,7 @@ set(src_files
         OnvifRtspClient.cpp
         MonitorGridModel.cpp
         #FrameExtractor.cpp
+        Serializable.cpp
 )
 
 # private header
@@ -125,17 +126,20 @@ set(header_files
         SortFilterProxyModel.h
         HttpClient.h
         OnvifRtspClient.h
-        MonitorGridModel.cpp
         #FrameExtractor.h
-        BlockingQueue.h)
+        BlockingQueue.h
+        Serializable.h
+)
 
 qt_add_executable(ONVIFMonitor
         main.cpp
+        App.h
+        App.cpp
+        BackgroundService.h
+        BackgroundService.cpp
         BlockingQueue.h
         Util.h
         DeviceInfo.h
-        App.h
-        App.cpp
         IconImageProvider.h
         IconImageProvider.cpp
         OnvifDevice.h
@@ -182,6 +186,8 @@ qt_add_executable(ONVIFMonitor
         SessionDescription.cpp
         RtspStream.cpp
         RtspStream.h
+        Serializable.h
+        Serializable.cpp
 )
 
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -214,7 +220,9 @@ qt_add_qml_module(ONVIFMonitor
         MicrophoneRtpSource.cpp
 
         QML_FILES
+        Onvif/pages/EditMonitorPage.qml
         Onvif/controls/Placeholder.qml
+        Onvif/dialogs/AddMonitorDialog.qml
         Onvif/dialogs/EditMonitorDialog.qml
         Onvif/MediaProfilesListView.qml
         Onvif/AudioDeviceComboBox.qml
@@ -308,6 +316,10 @@ target_link_libraries(ONVIFMonitor
         PRIVATE ${libpostproc_PATH}
 )
 
+if (ANDROID)
+    target_link_libraries(ONVIFMonitor PRIVATE Qt6::CorePrivate)
+endif ()
+
 add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
         chevron-right
         chevron-left
@@ -337,9 +349,8 @@ add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
         speaker
         flip-horizontal
         flip-vertical
+        pencil # edit button
 )
-
-qt_policy(SET QTP0002 NEW)
 
 function(extractSoName PATH soname)
     execute_process(COMMAND ${CMAKE_OBJDUMP} -p ${PATH} COMMAND grep SONAME OUTPUT_VARIABLE objdump_data OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -362,6 +373,8 @@ target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVCODEC_NAME="${libavcodec_N
 target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVFORMAT_NAME="${libavformat_NAME}")
 target_compile_definitions(ONVIFMonitor PRIVATE LIB_SWSCALE_NAME="${libswscale_NAME}")
 target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVUTIL_NAME="${libavutil_NAME}")
+
+set_target_properties(ONVIFMonitor PROPERTIES QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/android")
 
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libswresample_PATH}")
 set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavdevice_PATH}")

@@ -164,6 +164,33 @@ SwipePage {
             }
         }
 
+        Controls.GroupBox {
+
+            id: group2
+            title: qsTr("Event handler")
+
+            mainAction: Controls.BusyAction {
+
+                checkable: true
+                onToggled: {
+                    if (checked) {
+                        App.startBackgroundService()
+                    } else {
+                        App.stopBackgroundService()
+                    }
+                }
+            }
+
+            ColumnLayout {
+
+                anchors.fill: parent
+
+                Label {
+                    text: "asdfasdf"
+                }
+            }
+        }
+
 
         /*
        ListView {

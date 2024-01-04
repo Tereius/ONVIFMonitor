@@ -1,7 +1,9 @@
 #include "MonitorGridModel.h"
 #include "DeviceManager.h"
 #include "Roles.h"
+#include <QQmlEngine>
 #include <QSettings>
+
 
 MonitorGridModel::MonitorGridModel(QObject *pParent /*= nullptr*/) : QAbstractItemModel(pParent), mpManager(nullptr), mMonitorGrid() {}
 
@@ -49,7 +51,7 @@ void MonitorGridModel::removePage(const QUuid &rId) {
 	emit monitorCountChanged();
 }
 
-void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId, const QUuid &proposedId /*= QUuid::createUuid()*/) {
+void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId, MonitorSettings *monitorSettings) {
 
 	auto page = parent.row();
 	auto column = parent.column();
@@ -60,7 +62,7 @@ void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId
 			beginInsertRows(parent, pageInfo.mProfiles.size(), pageInfo.mProfiles.size());
 			auto tile = Tile();
 			tile.mIndex = pageInfo.mProfiles.size();
-			tile.mId = proposedId;
+			tile.mId = QUuid::createUuid();
 			tile.mName = "";
 			tile.mProfile = info.mMediaProfiles.first().getProfileId();
 			pageInfo.mProfiles.push_back(tile);
@@ -74,6 +76,9 @@ void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId
 			settings.setValue("name", "");
 			settings.setValue("profile_deviceId", tile.mProfile.getDeviceId().toString(QUuid::WithoutBraces));
 			settings.setValue("profile_token", tile.mProfile.getProfileToken());
+			if(monitorSettings) {
+				monitorSettings->serializeSettings(&settings);
+			}
 			settings.endGroup();
 			settings.endGroup();
 			settings.endGroup();
@@ -82,6 +87,28 @@ void MonitorGridModel::addTile(const QModelIndex &parent, const QUuid &rDeviceId
 		}
 	}
 	emit monitorCountChanged();
+}
+
+void MonitorGridModel::editTile(const QModelIndex &parent, const QModelIndex &index, MonitorSettings *monitorSettings) {
+
+	auto page = parent.row();
+	auto column = parent.column();
+	auto tileRow = index.row();
+	if(parent.isValid() && column == 0 && mMonitorGrid.size() > page) {
+		auto &pageInfo = mMonitorGrid[page];
+		if(pageInfo.mProfiles.size() > tileRow) {
+			auto &tile = pageInfo.mProfiles[tileRow];
+			QSettings settings;
+			settings.beginGroup("monitoring");
+			settings.beginGroup(pageInfo.mId.toString(QUuid::WithoutBraces));
+			settings.beginGroup(tile.mId.toString(QUuid::WithoutBraces));
+			if(monitorSettings) {
+				monitorSettings->serializeSettings(&settings);
+			}
+			settings.sync();
+			emit dataChanged(index, index);
+		}
+	}
 }
 
 void MonitorGridModel::removeTile(const QModelIndex &parent, const QModelIndex &index) {
@@ -100,6 +127,7 @@ void MonitorGridModel::removeTile(const QModelIndex &parent, const QModelIndex &
 			settings.beginGroup(tile.mId.toString(QUuid::WithoutBraces));
 			settings.remove("");
 			settings.sync();
+			pageInfo.mProfiles.remove(tileRow);
 			endRemoveRows();
 		}
 	}
@@ -155,8 +183,20 @@ QVariant MonitorGridModel::data(const QModelIndex &index, int role) const {
 					ret = monitorTile.mProfile.getDeviceId();
 					break;
 				case Enums::Roles::ProfileRole:
-					ret = monitorTile.mProfile.getProfileToken();
+					ret = QVariant::fromValue(monitorTile.mProfile);
 					break;
+				case Enums::Roles::SettingsRole: {
+					const auto pageInfo = mMonitorGrid.at(page);
+					QSettings settings;
+					settings.beginGroup("monitoring");
+					settings.beginGroup(pageInfo.mId.toString(QUuid::WithoutBraces));
+					settings.beginGroup(monitorTile.mId.toString(QUuid::WithoutBraces));
+					auto *monitorSettings = new MonitorSettings;
+					monitorSettings->deserializeSettings(&settings);
+					QQmlEngine::setObjectOwnership(monitorSettings, QJSEngine::JavaScriptOwnership);
+					ret = QVariant::fromValue(monitorSettings);
+					break;
+				}
 				default:
 					ret = QVariant();
 					break;
@@ -171,7 +211,8 @@ QHash<int, QByteArray> MonitorGridModel::roleNames() const {
 	auto ret = QHash<int, QByteArray>();
 	ret.insert(Enums::Roles::NameRole, "name");
 	ret.insert(Enums::Roles::IdRole, "deviceId");
-	ret.insert(Enums::Roles::ProfileRole, "token");
+	ret.insert(Enums::Roles::ProfileRole, "profile");
+	ret.insert(Enums::Roles::SettingsRole, "settings");
 	return ret;
 }
 

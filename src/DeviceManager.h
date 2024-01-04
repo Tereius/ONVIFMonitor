@@ -42,6 +42,7 @@ class DeviceManager : public QObject {
 	                                                     const QUuid &rDeviceId = QUuid::createUuid());
 	Q_INVOKABLE void removeDevice(const QUuid &rDeviceId);
 	Q_INVOKABLE DeviceInfo getDeviceInfo(const QUuid &rDeviceId);
+	Q_INVOKABLE MediaProfile getMediaProfile(const ProfileId &rProfileId);
 	Q_INVOKABLE QString getName(const QUuid &rDeviceId);
 	Q_INVOKABLE QFuture<Result> setDeviceCredentials(const QUuid &rDeviceId, const QString &rUsername, const QString &rPassword,
 	                                                 bool save = false);
@@ -82,10 +83,13 @@ class DeviceManager : public QObject {
 	};
 
 	void initDevices();
-	QFuture<void> writePassword(const QString &rUsername, const QString &rPassword);
-	QFuture<QString> readPassword(const QString &rUsername);
-	QFuture<Result> initDevice(QSharedPointer<AbstractDevice> device, const QUrl &rEndpoint, const QString &rUsername,
-	                           const QString &rPassword);
+
+	QFuture<void> writePassword(const QString &alias, const QString &rPassword);
+	QFuture<QString> readPassword(const QString &alias);
+	QFuture<void> deletePassword(const QString &alias);
+
+	static QFuture<Result> initDevice(QSharedPointer<AbstractDevice> device, const QUrl &rEndpoint, const QString &rUsername,
+	                                  const QString &rPassword);
 	void setBusy(bool isBusy);
 	QString getUniqueDeviceName(const QString &rProposedName);
 	QUuid resolveId(const QUuid &id);

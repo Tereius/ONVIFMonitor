@@ -1,12 +1,42 @@
 #pragma once
 #include "ProfileId.h"
+#include "Serializable.h"
 #include <QAbstractItemModel>
 #include <QList>
 #include <QPointer>
 #include <QUrl>
 #include <QtQmlIntegration>
 
+
 class DeviceManager;
+
+// changing the class name or one of the properties will break (de)serialization from settings file
+class MonitorSettings : public SerializeSettings {
+
+	Q_OBJECT
+	QML_ELEMENT
+	Q_PROPERTY(bool enableVideoStream MEMBER enableVideoStream NOTIFY changed STORED true)
+	Q_PROPERTY(bool enableAudioStream MEMBER enableAudioStream NOTIFY changed STORED true)
+	Q_PROPERTY(qreal volume MEMBER volume NOTIFY changed STORED true)
+	Q_PROPERTY(bool enableBackchannel MEMBER enableBackchannel NOTIFY changed STORED true)
+	Q_PROPERTY(QString audioCodec MEMBER audioCodec NOTIFY changed STORED true)
+	Q_PROPERTY(QString audioInputDevice MEMBER audioInputDevice NOTIFY changed STORED true)
+	Q_PROPERTY(bool pushToTalk MEMBER pushToTalk NOTIFY changed STORED true)
+	Q_PROPERTY(qreal micSensitivity MEMBER micSensitivity NOTIFY changed STORED true)
+
+ public:
+	bool enableVideoStream = true;
+	bool enableAudioStream = true;
+	qreal volume = 1.0;
+	bool enableBackchannel = false;
+	QString audioCodec = {};
+	QString audioInputDevice = {};
+	bool pushToTalk = false;
+	qreal micSensitivity = 1.0;
+
+ signals:
+	void changed();
+};
 
 class Tile {
 
@@ -40,7 +70,8 @@ class MonitorGridModel : public QAbstractItemModel {
 
 	Q_INVOKABLE void addPage(const QString &rName, const QUuid &proposedId = QUuid::createUuid());
 	Q_INVOKABLE void removePage(const QUuid &rId);
-	Q_INVOKABLE void addTile(const QModelIndex &parent, const QUuid &rDeviceId, const QUuid &proposedId = QUuid::createUuid());
+	Q_INVOKABLE void addTile(const QModelIndex &parent, const QUuid &rDeviceId, MonitorSettings *monitorSettings);
+	Q_INVOKABLE void editTile(const QModelIndex &parent, const QModelIndex &index, MonitorSettings *monitorSettings);
 	Q_INVOKABLE void removeTile(const QModelIndex &parent, const QModelIndex &index);
 
 	int columnCount(const QModelIndex &index) const override;

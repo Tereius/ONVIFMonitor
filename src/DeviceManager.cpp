@@ -59,6 +59,7 @@ void DeviceManager::removeDevice(const QUuid &rDeviceId) {
 	settings.beginGroup("devices");
 	settings.beginGroup(id.toString(QUuid::WithoutBraces));
 	settings.remove("");
+	deletePassword(rDeviceId.toString(QUuid::WithoutBraces));
 	setBusy(false);
 	emit deviceRemoved(id);
 }
@@ -70,6 +71,17 @@ DeviceInfo DeviceManager::getDeviceInfo(const QUuid &rDeviceId) {
 		return mDevices[resolveId(rDeviceId)].mDevice->getDeviceInfo();
 	}
 	return {};
+}
+
+MediaProfile DeviceManager::getMediaProfile(const ProfileId &rProfileId) {
+
+	const auto deviceInfo = getDeviceInfo(rProfileId.getDeviceId());
+	for(const auto &profile : deviceInfo.mMediaProfiles) {
+		if(profile.getToken() == rProfileId.getProfileToken()) {
+			return profile;
+		}
+	}
+	return MediaProfile();
 }
 
 bool DeviceManager::containsDevice(const QUuid &rDeviceId) {
@@ -196,23 +208,43 @@ QFuture<DetailedResult<QUuid>> DeviceManager::addDevice(const QUrl &rEndpoint, c
 	}
 }
 
-QFuture<void> DeviceManager::writePassword(const QString &rKey, const QString &rPassword) {
+QFuture<void> DeviceManager::writePassword(const QString &alias, const QString &rPassword) {
 
-	auto *secret = new Secret();
-	auto observable = AsyncFuture::observe(secret, &Secret::secretWritten);
-	observable.onFinished([secret]() { secret->deleteLater(); });
-	secret->setName(rKey);
-	secret->setSecret(rPassword);
-	return observable.future();
+	auto *defer = new AsyncFuture::Deferred<void>();
+	SecretsManager::writeSecret(
+	 alias, rPassword,
+	 [defer]() {
+		 defer->complete();
+		 delete defer;
+	 },
+	 this);
+	return defer->future();
 }
 
-QFuture<QString> DeviceManager::readPassword(const QString &rKey) {
+QFuture<QString> DeviceManager::readPassword(const QString &alias) {
 
-	auto *secret = new Secret();
-	auto observable = AsyncFuture::observe(secret, &Secret::secretRead);
-	observable.onFinished([secret]() { secret->deleteLater(); });
-	secret->setName(rKey);
-	return observable.future();
+	auto *defer = new AsyncFuture::Deferred<QString>();
+	SecretsManager::readSecret(
+	 alias,
+	 [defer](QString password) {
+		 defer->complete(password);
+		 delete defer;
+	 },
+	 this);
+	return defer->future();
+}
+
+QFuture<void> DeviceManager::deletePassword(const QString &alias) {
+
+	auto *defer = new AsyncFuture::Deferred<void>();
+	SecretsManager::deleteSecret(
+	 alias,
+	 [defer]() {
+		 defer->complete();
+		 delete defer;
+	 },
+	 this);
+	return defer->future();
 }
 
 QFuture<Result> DeviceManager::initDevice(QSharedPointer<AbstractDevice> device, const QUrl &rEndpoint, const QString &rUsername,

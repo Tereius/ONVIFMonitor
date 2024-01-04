@@ -1,4 +1,5 @@
 #pragma once
+#include "MonitorGridModel.h"
 #include "ProfileId.h"
 #include <QObject>
 #include <QtQmlIntegration>

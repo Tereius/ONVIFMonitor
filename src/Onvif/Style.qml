@@ -72,7 +72,7 @@ SwipePage {
 
         BusyIndicator {}
 
-        Rally.Popup {
+        Rally.Dialog {
             id: popup
         }
 

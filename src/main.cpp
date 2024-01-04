@@ -1,5 +1,6 @@
 #include "AdvancedQmlApplicationEngine.h"
 #include "App.h"
+#include "BackgroundService.h"
 #include "EventHandlerModel.h"
 #include "LogMessageHandler.h"
 #include "OnvifDiscovery.h"
@@ -21,6 +22,8 @@ extern "C" {
 #include "qt_windows.h"
 #elifdef Q_OS_ANDROID
 #include <QJniEnvironment>
+#include <QJniObject>
+#include <QtCore/private/qandroidextras_p.h>
 extern "C" {
 #include "libavcodec/jni.h"
 }
@@ -89,12 +92,12 @@ void mdk_log_callback(mdk::LogLevel level, const char *msg) {
 int main(int argc, char *argv[]) {
 
 	LogMessageHandler::prepare(QStandardPaths::writableLocation(QStandardPaths::TempLocation));
-	mdk::setLogHandler(mdk_log_callback);
 
 	qunsetenv("QT_STYLE_OVERRIDE");
 	qunsetenv("QT_QUICK_CONTROLS_STYLE");
 	// qputenv("QT_DEBUG_PLUGINS", QByteArray("1"));
 
+	mdk::setLogHandler(mdk_log_callback);
 #ifdef Q_OS_ANDROID
 	qInfo() << "Setting mdk jvm";
 	mdk::SetGlobalOption("JavaVM", QJniEnvironment::javaVM());
@@ -123,6 +126,11 @@ int main(int argc, char *argv[]) {
 	// av_log_set_level(AV_LOG_DEBUG);
 	// av_log_set_callback(ffmpeg_log_callback);
 
-	App app;
-	return app.start(argc, argv);
+	if(argc > 1 && strcmp(argv[1], "-service") == 0) {
+		BackgroundService service;
+		return service.start(argc, argv);
+	} else {
+		App app;
+		return app.start(argc, argv);
+	}
 }

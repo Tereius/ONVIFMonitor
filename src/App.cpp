@@ -34,6 +34,11 @@
 #include <QQuickWindow>
 #include <QStyleHints>
 #include <QtGlobal>
+#ifdef Q_OS_ANDROID
+#include <QJniEnvironment>
+#include <QJniObject>
+#include <QtCore/private/qandroidextras_p.h>
+#endif
 
 Q_DECLARE_METATYPE(DetailedResult<QUrl>)
 Q_DECLARE_METATYPE(QFuture<DetailedResult<QUrl>>)
@@ -42,7 +47,7 @@ Q_DECLARE_METATYPE(QFuture<DetailedResult<QUuid>>)
 
 App::App() = default;
 
-int App::start(int &argc, char **argv, bool headless) {
+int App::start(int &argc, char **argv) {
 
 	Q_ASSERT(!QCoreApplication::instance());
 
@@ -59,42 +64,39 @@ int App::start(int &argc, char **argv, bool headless) {
 	// auto deviceManager = new DeviceManager(qApp);
 	// auto devicesModel = new DevicesModel(deviceManager);
 
-	if(!headless) {
-		AdvancedQmlApplicationEngine qmlEngine;
-		App::registerQmlTypes();
-		QIcon::setThemeName("material");
+	AdvancedQmlApplicationEngine qmlEngine;
+	App::registerQmlTypes();
+	QIcon::setThemeName("material");
 
-		// Image provider
-		qmlEngine.addImageProvider("icons", new IconImageProvider());
-		qmlEngine.addImageProvider("profile", new ImageProvider(DeviceManager::getInstance()));
+	// Image provider
+	qmlEngine.addImageProvider("icons", new IconImageProvider());
+	qmlEngine.addImageProvider("profile", new ImageProvider(DeviceManager::getInstance()));
 
-		// QML Singletons
-		qmlRegisterSingletonType<Window>("org.global", 1, 0, "Window", [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
-			Q_UNUSED(engine)
-			Q_UNUSED(scriptEngine)
+	// QML Singletons
+	qmlRegisterSingletonType<Window>("org.global", 1, 0, "Window", [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
+		Q_UNUSED(engine)
+		Q_UNUSED(scriptEngine)
 
-			auto window = Window::getGlobal();
-			QQmlEngine::setObjectOwnership(window, QQmlEngine::CppOwnership);
-			return window;
-		});
+		auto window = Window::getGlobal();
+		QQmlEngine::setObjectOwnership(window, QQmlEngine::CppOwnership);
+		return window;
+	});
 
 #ifdef QT_DEBUG
-		auto qmlMainFile = QString("Onvif/Onvif/main.qml");
-		if(QFile::exists(qmlMainFile)) {
-			qInfo() << "QML hot reloading enabled";
-			qmlEngine.setHotReload(true);
-			qmlEngine.loadRootItem(qmlMainFile);
-		} else {
-			qmlEngine.setHotReload(false);
-			qmlEngine.loadRootItem("qrc:/qt/qml/Onvif/Onvif/main.qml");
-		}
-#else
+	auto qmlMainFile = QString("Onvif/Onvif/main.qml");
+	if(QFile::exists(qmlMainFile)) {
+		qInfo() << "QML hot reloading enabled";
+		qmlEngine.setHotReload(true);
+		qmlEngine.loadRootItem(qmlMainFile);
+	} else {
 		qmlEngine.setHotReload(false);
 		qmlEngine.loadRootItem("qrc:/qt/qml/Onvif/Onvif/main.qml");
-#endif
-		DeviceManager::getInstance()->initialize();
-		return app.exec();
 	}
+#else
+	qmlEngine.setHotReload(false);
+	qmlEngine.loadRootItem("qrc:/qt/qml/Onvif/Onvif/main.qml");
+#endif
+	DeviceManager::getInstance()->initialize();
 	return app.exec();
 }
 
@@ -178,4 +180,25 @@ QString App::getDefaultUserAgent() {
 	                         .arg(QSysInfo::prettyProductName())
 	                         .arg(QSysInfo::currentCpuArchitecture());
 	return userAgent;
+}
+
+void App::startBackgroundService() {
+
+#ifdef Q_OS_ANDROID
+	auto activity = QJniObject(QNativeInterface::QAndroidApplication::context());
+	QAndroidIntent serviceIntent(activity.object(), "com/github/tereius/onvifmonitor/ForegroundService");
+	QJniObject result = activity.callObjectMethod("startForegroundService", "(Landroid/content/Intent;)Landroid/content/ComponentName;",
+	                                              serviceIntent.handle().object());
+#endif
+}
+
+void App::stopBackgroundService() {
+
+#ifdef Q_OS_ANDROID
+	auto activity = QJniObject(QNativeInterface::QAndroidApplication::context());
+	QAndroidIntent serviceIntent(activity.object(), "com/github/tereius/onvifmonitor/ForegroundService");
+	serviceIntent.putExtra("STOP_FOREGROUND_SERVICE", QString("true"));
+	QJniObject result = activity.callObjectMethod("startForegroundService", "(Landroid/content/Intent;)Landroid/content/ComponentName;",
+	                                              serviceIntent.handle().object());
+#endif
 }

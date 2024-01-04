@@ -6,6 +6,7 @@
 #include <QPermission>
 #include <QScopedPointer>
 #include <QWaitCondition>
+#include <QtConcurrent>
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavfilter/avfilter.h>
@@ -111,6 +112,7 @@ MicrophoneRtpSource::MicrophoneRtpSource(QObject *parent) :
  mResult(),
  mpBuffer(nullptr) {
 
+	setPriority(HighPriority);
 	setObjectName("MicrophoneRtpSource");
 
 	connect(this, &QThread::finished, this, [this]() {
@@ -325,7 +327,9 @@ rtp AVOptions:
 */
 
 void MicrophoneRtpSource::run() {
-	const auto rtspClient = QScopedPointer<OnvifRtspClient>(new OnvifRtspClient(mRtpSink));
+
+	auto *rtspClient = new OnvifRtspClient(mRtpSink);
+
 	if(auto rtspResult = rtspClient->startAudioBackchannelStream()) {
 
 		const auto rtspStream = rtspResult.GetResultObject();
@@ -448,7 +452,8 @@ void MicrophoneRtpSource::run() {
 
 																if(mpAudioSource->bytesAvailable() <= 0) {
 
-																	QThread::usleep(qMax(1000, srcFormat.durationForBytes(bufferSize) / 2));
+																	// 20000 us > duration(buffer) > 1000 us
+																	QThread::usleep(qMin(20000, qMax(1000, srcFormat.durationForBytes(bufferSize) / 2)));
 																	continue;
 																}
 
@@ -642,11 +647,16 @@ void MicrophoneRtpSource::run() {
 		mResult = Result(Result(Result::FAULT, tr("Could not start RTSP session")));
 	}
 
+	QtConcurrent::run([rtspClient]() {
+		// very slow - blocks the rtp loop unnecessary long
+		rtspClient->stop();
+		delete rtspClient;
+	});
+
 	qInfo() << "Finished running microphone rtp loop";
 }
 
 void MicrophoneRtpSource::prepareRun() {
-
 	if(mpAudioSource) {
 		if(auto *buffer = mpAudioSource->start()) {
 			mpBuffer = buffer;
@@ -688,7 +698,6 @@ qint64 MicrophoneRtpSource::readToFrame(QIODevice *ioDev, AVFrame *frame) {
 }
 
 AVChannelLayout MicrophoneRtpSource::convertChLayout(QAudioFormat::ChannelConfig cfg, int channelCount) {
-
 	AVChannelLayout proposedLayout;
 
 	switch(cfg) {

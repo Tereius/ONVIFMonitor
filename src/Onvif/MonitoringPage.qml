@@ -76,14 +76,14 @@ SwipePage {
                 onClicked: {
                     const dialog = Rally.Helper.createDialog(
                                      Qt.resolvedUrl(
-                                         "dialogs/EditMonitorDialog.qml"), {},
+                                         "dialogs/AddMonitorDialog.qml"), {},
                                      mapToGlobal(x, y).y)
-                    dialog.editActionClicked.connect(profileId => {
+                    dialog.editActionClicked.connect((profileId, settings) => {
                                                          monitorGridModel.addTile(
                                                              monitorGridModel.index(
                                                                  0, 0),
                                                              profileId.getDeviceId(
-                                                                 ))
+                                                                 ), settings)
                                                      })
                 }
             }
@@ -158,6 +158,7 @@ SwipePage {
 
                                         delegate: Rally.GroupBox {
 
+                                            id: tile
                                             leftPadding: 4
                                             rightPadding: 4
                                             bottomPadding: 4
@@ -165,13 +166,36 @@ SwipePage {
                                                                          deviceId)
 
                                             mainAction: Rally.BusyAction {
-                                                text: qsTr("delete")
-                                                icon.name: "delete"
+                                                text: qsTr("edit")
+                                                icon.name: "pencil"
                                                 onTriggered: {
-                                                    monitorGridModel.removeTile(
-                                                                contentModel.rootIndex,
-                                                                contentModel.modelIndex(
-                                                                    index))
+
+                                                    const dialog = Rally.Helper.createDialog(
+                                                                     Qt.resolvedUrl(
+                                                                         "dialogs/EditMonitorDialog.qml"),
+                                                                     {
+                                                                         "profileId": model.profile,
+                                                                         "settings": model.settings
+                                                                     },
+                                                                     mapToGlobal(
+                                                                         x,
+                                                                         y).y)
+                                                    dialog.editActionClicked.connect(
+                                                                (profileId, settings) => {
+                                                                    monitorGridModel.editTile(
+                                                                        contentModel.rootIndex,
+                                                                        contentModel.modelIndex(
+                                                                            index),
+                                                                        settings)
+                                                                })
+
+                                                    dialog.deleteActionClicked.connect(
+                                                                (profileId, settings) => {
+                                                                    monitorGridModel.removeTile(
+                                                                        contentModel.rootIndex,
+                                                                        contentModel.modelIndex(
+                                                                            index))
+                                                                })
                                                 }
                                             }
 
@@ -189,8 +213,59 @@ SwipePage {
                                                                     width * imageHeight / Math.max(
                                                                         imageWidth,
                                                                         1))
-                                                profileId: Onvif.createProfileId(
-                                                               deviceId, token)
+                                                profileId: model.profile
+
+                                                states: [
+                                                    State {
+                                                        name: "normal"
+                                                        ParentChange {
+                                                            target: snapshot
+                                                            parent: tile.contentItem
+                                                            x: 0
+                                                            y: 0
+                                                        }
+                                                    },
+                                                    State {
+                                                        name: "reparented"
+                                                        ParentChange {
+                                                            target: snapshot
+                                                            parent: monitoringPage
+                                                            x: 0
+                                                            y: 0
+                                                        }
+                                                    }
+                                                ]
+
+                                                transitions: Transition {
+                                                    ParentAnimation {
+                                                        NumberAnimation {
+                                                            properties: "x,y"
+                                                            duration: 200
+                                                        }
+                                                    }
+                                                }
+
+                                                property var cameraStream: null
+
+                                                TapHandler {
+                                                    onTapped: {
+                                                        if (snapshot.cameraStream) {
+                                                            snapshot.state = "normal"
+                                                            snapshot.cameraStream.destroy()
+                                                        } else {
+                                                            snapshot.cameraStream
+                                                                    = Rally.Helper.createItem(
+                                                                        Qt.resolvedUrl(
+                                                                            "CameraStream.qml"),
+                                                                        snapshot, {
+                                                                            "settings": model.settings,
+                                                                            "profileId": model.profile,
+                                                                            "anchors.fill": snapshot
+                                                                        })
+                                                            snapshot.state = "reparented"
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -209,7 +284,7 @@ SwipePage {
         opacity: monitoringPage.isCurrentPage ? 1 : 0
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        anchors.bottomMargin: parent.height * 0.03
+        anchors.bottomMargin: parent.width * 0.03
         anchors.rightMargin: parent.width * 0.03
         icon.name: "plus"
         width: 66
@@ -220,13 +295,14 @@ SwipePage {
         Material.background: Material.accent
         onClicked: {
             const dialog = Rally.Helper.createDialog(
-                             Qt.resolvedUrl("dialogs/EditMonitorDialog.qml"),
+                             Qt.resolvedUrl("dialogs/AddMonitorDialog.qml"),
                              {}, mapToGlobal(x, y).y)
-            dialog.editActionClicked.connect(profileId => {
+            dialog.editActionClicked.connect((profileId, settings) => {
                                                  monitorGridModel.addTile(
                                                      monitorGridModel.index(0,
                                                                             0),
-                                                     profileId.getDeviceId())
+                                                     profileId.getDeviceId(),
+                                                     settings)
                                              })
         }
         Behavior on opacity {
@@ -234,5 +310,9 @@ SwipePage {
                 duration: 100
             }
         }
+    }
+
+    QtObject {
+        id: priv
     }
 }

@@ -6,7 +6,7 @@ import QuickFuture
 import Onvif
 import MaterialRally as Rally
 
-Rally.Popup {
+Rally.Dialog {
 
     id: credentialsDialog
 
@@ -218,6 +218,8 @@ Rally.Popup {
                     if (!result.isSuccess()) {
                         message.pushMessage(result.getDetails(), "error",
                                             qsTr("Initialization error"))
+                    } else {
+                        message.clear()
                     }
                     credentialsDialog.reload()
                     credentialsDialog.busy = false
