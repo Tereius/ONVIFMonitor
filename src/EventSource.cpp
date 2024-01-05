@@ -1,6 +1,4 @@
 #include "EventSource.h"
-#include "DeviceInfo.h"
-#include "DeviceManager.h"
 #include "EventManager.h"
 #include "OnvifPullPoint.h"
 #include <QCoreApplication>
@@ -17,7 +15,7 @@ QVariant EventSource::getPropertyValue(const QString &rName) {
 	if(auto metaObj = metaObject()) {
 		for(auto i = 0; i < metaObj->propertyCount(); i++) {
 			auto metaProperty = metaObj->property(i);
-			if(metaProperty.isUser(this) && metaProperty.name() == rName) {
+			if(metaProperty.isUser() && metaProperty.name() == rName) {
 				if(metaProperty.isReadable()) {
 					ret = metaProperty.read(this);
 				} else {
@@ -36,7 +34,7 @@ QVariantMap EventSource::getPropertyValues() {
 	if(auto metaObj = metaObject()) {
 		for(auto i = 0; i < metaObj->propertyCount(); i++) {
 			auto metaProperty = metaObj->property(i);
-			if(metaProperty.isUser(this)) {
+			if(metaProperty.isUser()) {
 				if(metaProperty.isReadable()) {
 					ret.insert(metaProperty.name(), metaProperty.read(this));
 				} else {
@@ -80,9 +78,6 @@ QStringList FilteredOnvifDeviceMessage::getTopics() {
 QStringList FilteredOnvifDeviceMessage::getDevices() {
 
 	QStringList ret;
-	for(auto di : DeviceM->getDevices()) {
-		ret.push_back(DeviceM->getName(di));
-	}
 	return ret;
 }
 

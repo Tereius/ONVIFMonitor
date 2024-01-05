@@ -168,6 +168,7 @@ Result OnvifDevice::initDevice(const QUrl &rEndpoint, const QString &rUser, cons
 							// Event Service
 							qInfo() << "Found event service:" << service->XAddr;
 							mpEventClient->SetEndpoint(QUrl(service->XAddr));
+							mDeviceInfo.mEventEndpoint = QUrl(service->XAddr);
 						} else if(service->Namespace == OnvifMediaClient::GetServiceNamespace()) {
 							// Media Service
 							qInfo() << "Found media service:" << service->XAddr;

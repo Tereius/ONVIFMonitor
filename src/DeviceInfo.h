@@ -1,9 +1,9 @@
 #pragma once
 #include "MediaProfile.h"
-#include <QStringList>
 #include <QList>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QUrl>
 #include <QUuid>
 
@@ -13,6 +13,7 @@ class DeviceInfo {
 	Q_GADGET
 	Q_PROPERTY(QString deviceName MEMBER mDeviceName CONSTANT)
 	Q_PROPERTY(QUrl deviceEndpoint MEMBER mEndpoint CONSTANT)
+	Q_PROPERTY(QUrl eventEndpoint MEMBER mEventEndpoint CONSTANT)
 	Q_PROPERTY(QString user MEMBER mUser CONSTANT)
 	Q_PROPERTY(QString password MEMBER mPassword CONSTANT)
 	Q_PROPERTY(QStringList scopes MEMBER mScopes CONSTANT)
@@ -31,6 +32,7 @@ class DeviceInfo {
  public:
 	QString mDeviceName = QString();
 	QUrl mEndpoint = QUrl();
+	QUrl mEventEndpoint = QUrl();
 	QString mUser = QString();
 	QString mPassword = QString();
 	QStringList mScopes = QStringList();

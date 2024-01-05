@@ -1,19 +1,15 @@
 #include "DeviceManager.h"
 #include "DeviceInfo.h"
-#include "GenericDevice.h"
-#include "MicrophoneRtpSource.h"
 #include "OnvifDevice.h"
-#include "OnvifRtspClient.h"
 #include "Secret.h"
 #include "SecretsManager.h"
 #include "Window.h"
 #include "asyncfuture.h"
-#include <QCoreApplication>
 #include <QDebug>
 #include <QFuture>
 #include <QGlobalStatic>
 #include <QJSEngine>
-#include <QMutexLocker>
+#include <QRemoteObjectHost>
 #include <QSettings>
 #include <QtConcurrent>
 
@@ -43,6 +39,10 @@ void DeviceManager::initialize() {
 
 	static bool initialized = false;
 	if(!initialized) {
+
+		auto srcNode = new QRemoteObjectHost(QUrl(QStringLiteral("local:replica")), this);
+		qInfo() << "registered as remote object" << srcNode->enableRemoting(this, "DeviceManager");
+
 		initDevices();
 		initialized = true;
 	}
@@ -283,6 +283,11 @@ QString DeviceManager::getName(const QUuid &rDeviceId) {
 	QMutexLocker lock(&mMutex);
 	auto id = resolveId(rDeviceId);
 	return mDevices.value(id).mDeviceName;
+}
+
+QUrl DeviceManager::getEventEndpoint(const QUuid &rDeviceId) {
+
+	return getDeviceInfo(rDeviceId).mEventEndpoint;
 }
 
 QFuture<Result> DeviceManager::setDeviceCredentials(const QUuid &rDeviceId, const QString &rUsername, const QString &rPassword,

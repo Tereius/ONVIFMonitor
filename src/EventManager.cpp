@@ -1,35 +1,65 @@
 #include "EventManager.h"
-#include "Device.h"
-#include "DeviceManager.h"
 #include "EventBinding.h"
-#include "OnvifPullPoint.h"
 #include "FutureResult.h"
+#include "OnvifPullPoint.h"
 #include "Window.h"
-#include "asyncfuture.h"
+#include <QGlobalStatic>
+#include <QRemoteObjectNode>
+#include <QRemoteObjectPendingCall>
 #include <QSettings>
-#include <QtConcurrent>
+#include <QVariant>
 
 
-Q_GLOBAL_STATIC(EventManager, globalManager)
+class EventManagerrSingleton : public EventManager {};
 
-EventManager::EventManager(QObject *pParent /*= nullptr*/) : QObject(pParent), mPullPoints(), mMutex(QMutex::Recursive) {
+Q_GLOBAL_STATIC(EventManagerrSingleton, instance)
 
-	connect(DeviceM, SIGNAL(deviceInitialized(const Uuid &)), this, SLOT(initPullPoint(const Uuid &)), Qt::QueuedConnection);
+EventManager *EventManager::getInstance() {
+
+	return instance;
 }
 
-EventManager *EventManager::getGlobal() {
+EventManager::EventManager(QObject *pParent /*= nullptr*/) :
+ QObject(pParent), mPullPoints(), mEventDevices(), mMutex(), mpReplica(nullptr) {
 
-	return globalManager;
+	// connect(DeviceManager::getInstance(), SIGNAL(deviceInitialized(const Uuid &)), this, SLOT(initPullPoint(const Uuid &)),
+	//         Qt::QueuedConnection);
 }
 
-QSharedPointer<OnvifPullPoint> EventManager::getPullPoint(Uuid deviceId) const {
+EventManager::~EventManager() = default;
+
+void EventManager::initialize() {
+
+	auto *repNode = new QRemoteObjectNode(this); // create remote object node
+	repNode->setHeartbeatInterval(10000);
+	qInfo() << "connect to remote object" << repNode->connectToNode(QUrl(QStringLiteral("local:replica"))); // connect with remote host node
+	mpReplica = repNode->acquireDynamic("DeviceManager");
+	mpReplica->setParent(this);
+	connect(mpReplica, &QRemoteObjectDynamicReplica::initialized, this, [this]() {
+		connect(mpReplica, SIGNAL(deviceAdded(const QUuid &)), SLOT(deviceAdded(const QUuid &)));
+		connect(mpReplica, SIGNAL(deviceRemoved(const QUuid &)), SLOT(deviceRemoved(const QUuid &)));
+		connect(mpReplica, SIGNAL(deviceInitialized(const QUuid &)), SLOT(deviceInitialized(const QUuid &)));
+		connect(mpReplica, SIGNAL(deviceChanged(const QUuid &)), SLOT(deviceChanged(const QUuid &)));
+
+		QTimer::singleShot(0, this, [this]() {
+			QRemoteObjectPendingCall deviceIdsResponse;
+			QMetaObject::invokeMethod(mpReplica, "getDevices", Q_RETURN_ARG(QRemoteObjectPendingCall, deviceIdsResponse));
+			deviceIdsResponse.waitForFinished();
+			for(const auto &deviceId : deviceIdsResponse.returnValue().value<QList<QUuid>>()) {
+				updateDevice(deviceId);
+			}
+		});
+	});
+}
+
+QSharedPointer<OnvifPullPoint> EventManager::getPullPoint(QUuid deviceId) const {
 
 	return QSharedPointer<OnvifPullPoint>(mPullPoints.value(deviceId));
 }
 
 void EventManager::addBinding(const QString &rName, const QString &rDescription) {
 
-	auto bindingId = Uuid::createUuid();
+	auto bindingId = QUuid::createUuid();
 	auto binding = QSharedPointer<EventBinding>::create();
 	binding->setId(bindingId);
 	binding->setName(rName);
@@ -47,7 +77,7 @@ void EventManager::addBinding(const QString &rName, const QString &rDescription)
 }
 
 
-Result EventManager::bindSource(const Uuid &rBindingId, const QString &rEventSourceType /*= QString()*/,
+Result EventManager::bindSource(const QUuid &rBindingId, const QString &rEventSourceType /*= QString()*/,
                                 const QVariantMap &rProperties /*= QVariantMap()*/) {
 
 	Result result;
@@ -86,7 +116,7 @@ Result EventManager::bindSource(const Uuid &rBindingId, const QString &rEventSou
 	return result;
 }
 
-Result EventManager::unbindSource(const Uuid &rBindingId) {
+Result EventManager::unbindSource(const QUuid &rBindingId) {
 
 	Result result;
 	mMutex.lock();
@@ -105,7 +135,7 @@ Result EventManager::unbindSource(const Uuid &rBindingId) {
 	return result;
 }
 
-Result EventManager::bindHandler(const Uuid &rBindingId, const QString &rEventHandlerType,
+Result EventManager::bindHandler(const QUuid &rBindingId, const QString &rEventHandlerType,
                                  const QVariantMap &rProperties /*= QVariantMap()*/) {
 
 	Result result;
@@ -144,7 +174,7 @@ Result EventManager::bindHandler(const Uuid &rBindingId, const QString &rEventHa
 	return result;
 }
 
-Result EventManager::unbindHandler(const Uuid &rBindingId) {
+Result EventManager::unbindHandler(const QUuid &rBindingId) {
 
 	Result result;
 	mMutex.lock();
@@ -163,7 +193,7 @@ Result EventManager::unbindHandler(const Uuid &rBindingId) {
 	return result;
 }
 
-Result EventManager::triggerHandler(const Uuid &rBindingId) {
+Result EventManager::triggerHandler(const QUuid &rBindingId) {
 
 	Result result;
 	auto binding = mInstalledEventBindings.value(rBindingId);
@@ -196,104 +226,108 @@ bool EventManager::doesBindingNameExist(const QString &rName) {
 
 void EventManager::bindEvents() {}
 
-void EventManager::initialize() {
+FutureResult *EventManager::getDeviceTopics(const QUuid &rDeviceId) {
 
-	initEvents();
-}
-
-FutureResult *EventManager::getDeviceTopics(const Uuid &rDeviceId) {
-
+	/*
 	auto pResult = new FutureResult();
-	auto device = DeviceM->getDevice(rDeviceId);
+	auto device = DeviceManager::getInstance()->getDevice(rDeviceId);
 	if(device) {
-		QtConcurrent::run([pResult, device, rDeviceId]() {
-			auto topics = device->getTopics();
-			if(topics) {
-				auto prof = topics.GetResultObject();
-				pResult->resolveResult(QVariant::fromValue(prof));
-			} else {
-				pResult->resolveEmptyResult();
-				Window::getGlobal()->showError(tr("Error"), topics.toString());
-			}
-		});
+	  QtConcurrent::run([pResult, device, rDeviceId]() {
+
+	    auto topics = device->getTopics();
+	    if(topics) {
+	      auto prof = topics.GetResultObject();
+	      pResult->resolveResult(QVariant::fromValue(prof));
+	    } else {
+	      pResult->resolveEmptyResult();
+	      Window::getGlobal()->showError(tr("Error"), topics.toString());
+	    }
+	  });
 	}
-	return pResult;
+	 */
+	return nullptr;
 }
 
-QFuture<QString> EventManager::testFuture(const QString &rDeviceId) {
+void EventManager::initPullPoint(const QUuid &rDeviceId) {
+	/*
+	auto info = DeviceManager::getInstance()->getDeviceInfo(rDeviceId);
+	if(info.mInitialized) {
+	  // Check if we have to initialize a pull point
+	  QSettings settings;
+	  settings.beginGroup("events");
+	  auto eventGroup = settings.childGroups();
+	  for(int i = 0; i < eventGroup.size(); ++i) {
+	    settings.beginGroup(eventGroup.at(i));
+	    QUuid eventId = settings.value("id").toUuid();
+	    QUuid deviceId = settings.value("deviceId").toUuid();
+	    QString filterExpression = settings.value("expression").toString();
 
-	auto result = AsyncFuture::deferred<QString>();
+	    if(!eventId.isNull() && !deviceId.isNull()) {
+	      if(deviceId == rDeviceId) {
+	        if(info.mInitialized) {
+	          // We have to initialize a pull point
+	          mMutex.lock();
+	          if(!mPullPoints.value(deviceId)) {
+	            // Create new pull point
 
-	result.complete(QtConcurrent::run([rDeviceId]() {
-		QThread::msleep(2000);
-		return QString("testFuture returns ") + rDeviceId;
-	}));
+	            auto pullPoint = new OnvifPullPoint(info.getEventService().getServiceEndpoint(), this);
+	            connect(
+	             pullPoint, &OnvifPullPoint::UnsuccessfulPull, this,
+	             [this, deviceId](int unsuccessfulPullcount, const SimpleResponse &rCause) {
+	               if(unsuccessfulPullcount == 5) emit lostPullPoint(deviceId);
+	             },
+	             Qt::QueuedConnection);
+	            pullPoint->Start();
+	            mPullPoints.insert(deviceId, pullPoint);
 
-	return result.future();
-}
-
-QFuture<bool> EventManager::testFutureTwo(const QString &rDeviceId) {
-
-	auto result = AsyncFuture::deferred<bool>();
-
-	result.complete(QtConcurrent::run([rDeviceId]() {
-		QThread::msleep(2000);
-		return true;
-	}));
-
-	return result.future();
-}
-
-void EventManager::initPullPoint(const Uuid &rDeviceId) {
-
-	auto info = DeviceM->getDeviceInfo(rDeviceId);
-	if(info.isInitialized()) {
-		// Check if we have to initialize a pull point
-		QSettings settings;
-		settings.beginGroup("events");
-		auto eventGroup = settings.childGroups();
-		for(int i = 0; i < eventGroup.size(); ++i) {
-			settings.beginGroup(eventGroup.at(i));
-			Uuid eventId = Uuid(settings.value("id").toUuid());
-			Uuid deviceId = Uuid(settings.value("deviceId").toUuid());
-			QString filterExpression = settings.value("expression").toString();
-
-			if(!eventId.isNull() && !deviceId.isNull()) {
-				if(deviceId == rDeviceId) {
-					if(info.getEventService().isInitialized()) {
-						// We have to initialize a pull point
-						mMutex.lock();
-						if(!mPullPoints.value(deviceId)) {
-							// Create new pull point
-							auto pullPoint = new OnvifPullPoint(info.getEventService().getServiceEndpoint(), this);
-							connect(
-							 pullPoint, &OnvifPullPoint::UnsuccessfulPull, this,
-							 [this, deviceId](int unsuccessfulPullcount, const SimpleResponse &rCause) {
-								 if(unsuccessfulPullcount == 5) emit lostPullPoint(deviceId);
-							 },
-							 Qt::QueuedConnection);
-							pullPoint->Start();
-							mPullPoints.insert(deviceId, pullPoint);
-						} else {
-							//	Restart existing pull point
-							mPullPoints.value(deviceId)->Stop();
-							mPullPoints.value(deviceId)->Start();
-						}
-						mMutex.unlock();
-					} else {
-						qWarning() << "Couldn't get event service from device";
-					}
-					break;
-				}
-			} else {
-				qWarning() << "Found invalid event from settings";
-			}
-			settings.endGroup();
-		}
+	          } else {
+	            //	Restart existing pull point
+	            mPullPoints.value(deviceId)->Stop();
+	            mPullPoints.value(deviceId)->Start();
+	          }
+	          mMutex.unlock();
+	        } else {
+	          qWarning() << "Couldn't get event service from device";
+	        }
+	        break;
+	      }
+	    } else {
+	      qWarning() << "Found invalid event from settings";
+	    }
+	    settings.endGroup();
+	  }
 	}
+	 */
 }
 
-void EventManager::initEvents() {}
+void EventManager::deviceAdded(const QUuid &rAddedDeviceId) {
+
+	updateDevice(rAddedDeviceId);
+}
+
+void EventManager::deviceRemoved(const QUuid &rRemovedDeviceId) {
+
+	mEventDevices.remove(rRemovedDeviceId);
+}
+
+void EventManager::deviceInitialized(const QUuid &rRemovedDeviceId) {
+
+	qInfo() << "deviceInitialized";
+}
+
+void EventManager::deviceChanged(const QUuid &rRemovedDeviceId) {
+
+	updateDevice(rRemovedDeviceId);
+}
+
+void EventManager::updateDevice(const QUuid &deviceId) {
+
+	QRemoteObjectPendingCall deviceIdsResponse;
+	QMetaObject::invokeMethod(mpReplica, "getEventEndpoint", Q_RETURN_ARG(QRemoteObjectPendingCall, deviceIdsResponse),
+	                          Q_ARG(QUuid, deviceId));
+	deviceIdsResponse.waitForFinished(1000);
+	mEventDevices.insert(deviceId, deviceIdsResponse.returnValue().toUrl());
+}
 
 QHash<QString, EventHandlerInfo> EventManager::mRegisteredEventHandler;
 

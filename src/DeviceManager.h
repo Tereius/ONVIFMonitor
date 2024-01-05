@@ -44,6 +44,7 @@ class DeviceManager : public QObject {
 	Q_INVOKABLE DeviceInfo getDeviceInfo(const QUuid &rDeviceId);
 	Q_INVOKABLE MediaProfile getMediaProfile(const ProfileId &rProfileId);
 	Q_INVOKABLE QString getName(const QUuid &rDeviceId);
+	Q_INVOKABLE QUrl getEventEndpoint(const QUuid &rDeviceId);
 	Q_INVOKABLE QFuture<Result> setDeviceCredentials(const QUuid &rDeviceId, const QString &rUsername, const QString &rPassword,
 	                                                 bool save = false);
 	Q_INVOKABLE bool isDeviceInitialized(const QUuid &rDeviceId);
@@ -67,7 +68,7 @@ class DeviceManager : public QObject {
  protected:
 	explicit DeviceManager(QObject *pParent = nullptr);
 
- private slots:
+ public slots:
 	void checkDevices();
 
  private:

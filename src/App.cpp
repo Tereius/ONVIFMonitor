@@ -52,6 +52,7 @@ int App::start(int &argc, char **argv) {
 	Q_ASSERT(!QCoreApplication::instance());
 
 	qputenv("QT_MEDIA_BACKEND", "ffmpeg");
+	qputenv("QT_LOGGING_RULES", "qt.remoteobjects.debug=true");
 	qunsetenv("QT_STYLE_OVERRIDE");
 	qunsetenv("QT_QUICK_CONTROLS_STYLE");
 

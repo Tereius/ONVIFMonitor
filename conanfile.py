@@ -83,6 +83,7 @@ class ONVIFMonitorConan(ConanFile):
         "qt/*:qttools": True,
         "qt/*:qttranslations": True,
         "qt/*:qtmultimedia": True,
+        "qt/*:qtremoteobjects": True,
         "qt/*:qt5compat": True}
     # ---Build---
     generators = []

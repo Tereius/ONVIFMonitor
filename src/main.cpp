@@ -1,19 +1,12 @@
-#include "AdvancedQmlApplicationEngine.h"
 #include "App.h"
-#include "BackgroundService.h"
-#include "EventHandlerModel.h"
+// #include "BackgroundService.h"
 #include "LogMessageHandler.h"
-#include "OnvifDiscovery.h"
-#include "OnvifMessageFilterItems.h"
 #include "QtApplicationBase.h"
 #include "mdk/global.h"
-#include <QCommandLineParser>
-#include <QFile>
 #include <QFontDatabase>
 #include <QIcon>
 #include <QTextStream>
 #include <QtGlobal>
-#include <QtPlugin>
 extern "C" {
 #include "libavutil/log.h"
 }
@@ -126,9 +119,17 @@ int main(int argc, char *argv[]) {
 	// av_log_set_level(AV_LOG_DEBUG);
 	// av_log_set_callback(ffmpeg_log_callback);
 
-	if(argc > 1 && strcmp(argv[1], "-service") == 0) {
-		BackgroundService service;
-		return service.start(argc, argv);
+	auto dedicatedService = false;
+
+	for(auto i = 0; i < argc; i++) {
+		if(strcmp(argv[i], "-service") == 0) {
+			dedicatedService = true;
+		}
+	}
+
+	if(dedicatedService) {
+		// BackgroundService service;
+		// return service.start(argc, argv);
 	} else {
 		App app;
 		return app.start(argc, argv);

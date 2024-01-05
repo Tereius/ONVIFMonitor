@@ -3,7 +3,7 @@ include(MaterialIcons)
 add_subdirectory(AsyncFuture)
 add_subdirectory(QuickFuture)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Gui Qml Widgets Svg Quick Concurrent QuickControls2 QuickTemplates2)
+find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Gui Qml Widgets Svg Quick Concurrent QuickControls2 QuickTemplates2 RemoteObjects)
 find_package(MaterialRally REQUIRED)
 find_package(QtAppBase REQUIRED)
 find_package(QtAppBaseQml REQUIRED)
@@ -32,111 +32,12 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-Werror=return-type)
 endif ()
 
-# -------------------------------Home Spy-------------------------------
-set(src_files
-        #LogMessageHandler.cpp
-        App.cpp
-        #AdvancedQmlApplicationEngine.cpp
-        IconImageProvider.cpp
-        DeviceDiscoveryModel.cpp
-        DeviceManager.cpp
-        #Device.cpp
-        OnvifDevice.cpp
-        GenericDevice.cpp
-        AbstractDevice.cpp
-        Result.cpp
-        DevicesModel.cpp
-        Cryptography.cpp
-        EventService.cpp
-        MediaService.cpp
-        #Uuid.cpp
-        MediaPlayer.cpp
-        MediaProfile.cpp
-        MediaProfilesModel.cpp
-        #MediaManager.cpp
-        ProfileId.cpp
-        ImageProvider.cpp
-        Timestamp.cpp
-        Window.cpp
-        Error.cpp
-        FutureResult.cpp
-        #EventsModel.cpp
-        #EventManager.cpp
-        #EventHandler.cpp
-        #EventBinding.cpp
-        #EventSource.cpp
-        #EventHandlerModel.cpp
-        #EventSourceModel.cpp
-        AbstractListModel.cpp
-        #EventBindingModel.cpp
-        PropertyInfo.cpp
-        TopicSetModel.cpp
-        OnvifMessageFilterItems.cpp
-        SortFilterProxyModel.cpp
-        HttpClient.cpp
-        OnvifRtspClient.cpp
-        MonitorGridModel.cpp
-        #FrameExtractor.cpp
-        Serializable.cpp
-)
-
-# private header
-set(header_files
-        #LogMessageHandler.h
-        App.h
-        #AdvancedQmlApplicationEngine.h
-        Util.h
-        DeviceInfo.h
-        IconImageProvider.h
-        DeviceDiscoveryModel.h
-        DeviceManager.h
-        #Device.h
-        AbstractDevice.h
-        OnvifDevice.h
-        GenericDevice.h
-        Result.h
-        DevicesModel.h
-        Roles.h
-        Cryptography.h
-        EventService.h
-        MediaService.h
-        #Uuid.h
-        MediaPlayer.h
-        MediaProfile.h
-        MediaProfilesModel.h
-        #MediaManager.h
-        ProfileId.h
-        ImageProvider.h
-        Timestamp.h
-        Window.h
-        Error.h
-        FutureResult.h
-        #EventsModel.h
-        #EventManager.h
-        #EventHandler.h
-        #EventBinding.h
-        #EventSource.h
-        #EventHandlerModel.h
-        #EventSourceModel.h
-        AbstractListModel.h
-        #EventBindingModel.h
-        PropertyInfo.h
-        TopicSetModel.h
-        OnvifMessageFilterItems.h
-        SortFilterProxyModel.h
-        HttpClient.h
-        OnvifRtspClient.h
-        #FrameExtractor.h
-        BlockingQueue.h
-        Serializable.h
-)
+# -------------------------------ONVIFmonitor-------------------------------
 
 qt_add_executable(ONVIFMonitor
         main.cpp
         App.h
         App.cpp
-        BackgroundService.h
-        BackgroundService.cpp
         BlockingQueue.h
         Util.h
         DeviceInfo.h
@@ -190,20 +91,38 @@ qt_add_executable(ONVIFMonitor
         Serializable.cpp
 )
 
+qt_add_executable(ONVIFMonitorService
+        mainService.cpp
+        BackgroundService.h
+        BackgroundService.cpp
+        EventManager.h
+        EventManager.cpp
+        EventBinding.h
+        EventBinding.cpp
+        EventSource.h
+        EventSource.cpp
+        EventHandler.h
+        EventHandler.cpp
+        PropertyInfo.h
+        ProfileId.cpp
+        Result.h
+        Result.cpp
+)
+
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
 qt_add_qml_module(ONVIFMonitor
         URI Onvif
 
         SOURCES
+        DeviceManager.h
+        DeviceManager.cpp
         SortFilterProxyModel.h
         SortFilterProxyModel.cpp
         DeviceDiscoveryModel.h
         DeviceDiscoveryModel.cpp
         DevicesModel.h
         DevicesModel.cpp
-        DeviceManager.h
-        DeviceManager.cpp
         MediaProfilesModel.h
         MediaProfilesModel.cpp
         MediaPlayer.h
@@ -306,6 +225,7 @@ target_link_libraries(ONVIFMonitor
         PRIVATE Qt6::Concurrent
         PRIVATE Qt6::QuickControls2
         PRIVATE Qt6::QuickTemplates2
+        PRIVATE Qt6::RemoteObjects
         PRIVATE ${libswresample_PATH}
         PRIVATE ${libavdevice_PATH}
         PRIVATE ${libavfilter_PATH}
@@ -316,8 +236,24 @@ target_link_libraries(ONVIFMonitor
         PRIVATE ${libpostproc_PATH}
 )
 
+target_link_libraries(ONVIFMonitorService
+        PRIVATE QtAppBase
+        PRIVATE onvifcommon
+        PRIVATE onvifdiscovery
+        PRIVATE onvifdevice
+        PRIVATE onvifevent
+        PRIVATE onvifmedia
+        PRIVATE onvifmedia2
+        PRIVATE onvifprobe
+        PRIVATE qtasyncfuture
+        PRIVATE Qt6::Core
+        PRIVATE Qt6::Concurrent
+        PRIVATE Qt6::RemoteObjects
+)
+
 if (ANDROID)
     target_link_libraries(ONVIFMonitor PRIVATE Qt6::CorePrivate)
+    target_link_libraries(ONVIFMonitorService PRIVATE Qt6::CorePrivate)
 endif ()
 
 add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
@@ -351,6 +287,8 @@ add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
         flip-vertical
         pencil # edit button
 )
+
+qt_reps_from_headers(ONVIFMonitor DeviceManager.h)
 
 function(extractSoName PATH soname)
     execute_process(COMMAND ${CMAKE_OBJDUMP} -p ${PATH} COMMAND grep SONAME OUTPUT_VARIABLE objdump_data OUTPUT_STRIP_TRAILING_WHITESPACE)
