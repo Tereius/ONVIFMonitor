@@ -15,28 +15,55 @@ class MonitorSettings : public SerializeSettings {
 
 	Q_OBJECT
 	QML_ELEMENT
-	Q_PROPERTY(bool enableVideoStream MEMBER enableVideoStream NOTIFY changed STORED true)
-	Q_PROPERTY(bool enableAudioStream MEMBER enableAudioStream NOTIFY changed STORED true)
-	Q_PROPERTY(qreal volume MEMBER volume NOTIFY changed STORED true)
-	Q_PROPERTY(bool enableBackchannel MEMBER enableBackchannel NOTIFY changed STORED true)
-	Q_PROPERTY(QString audioCodec MEMBER audioCodec NOTIFY changed STORED true)
-	Q_PROPERTY(QString audioInputDevice MEMBER audioInputDevice NOTIFY changed STORED true)
-	Q_PROPERTY(bool pushToTalk MEMBER pushToTalk NOTIFY changed STORED true)
-	Q_PROPERTY(qreal micSensitivity MEMBER micSensitivity NOTIFY changed STORED true)
+	Q_PROPERTY(bool enableVideoStream MEMBER enableVideoStream NOTIFY enableVideoStreamChanged STORED true)
+	Q_PROPERTY(bool mirrorHorizontal MEMBER mirrorHorizontal NOTIFY mirrorChanged STORED true)
+	Q_PROPERTY(bool mirrorVertical MEMBER mirrorVertical NOTIFY mirrorChanged STORED true)
+	Q_PROPERTY(qreal rotation MEMBER rotation NOTIFY rotationChanged STORED true)
+	Q_PROPERTY(qreal zoom MEMBER zoom NOTIFY zoomChanged STORED true)
+	Q_PROPERTY(bool enableAudioStream MEMBER enableAudioStream NOTIFY enableAudioStreamChanged STORED true)
+	Q_PROPERTY(qreal volume MEMBER volume NOTIFY volumeChanged STORED true)
+	Q_PROPERTY(bool enableBackchannel MEMBER enableBackchannel NOTIFY enableBackchannelChanged STORED true)
+	Q_PROPERTY(QString audioCodec MEMBER audioCodec NOTIFY audioCodecChanged STORED true)
+	Q_PROPERTY(QString audioInputDevice MEMBER audioInputDevice NOTIFY audioInputDeviceChanged STORED true)
+	Q_PROPERTY(bool pushToTalk MEMBER pushToTalk NOTIFY pushToTalkChanged STORED true)
+	Q_PROPERTY(qreal micSensitivity MEMBER micSensitivity NOTIFY micSensitivityChanged STORED true)
 
  public:
+	MonitorSettings(QObject *parent = nullptr) : SerializeSettings(parent) {}
+	~MonitorSettings() = default;
 	bool enableVideoStream = true;
+	bool mirrorHorizontal = false;
+	bool mirrorVertical = false;
+	qreal rotation = 0.0;
+	qreal zoom = 1.0;
 	bool enableAudioStream = true;
 	qreal volume = 1.0;
 	bool enableBackchannel = false;
-	QString audioCodec = {};
-	QString audioInputDevice = {};
+	QString audioCodec;
+	QString audioInputDevice;
 	bool pushToTalk = false;
 	qreal micSensitivity = 1.0;
 
  signals:
-	void changed();
+	void enableVideoStreamChanged();
+	void mirrorChanged();
+	void rotationChanged();
+	void zoomChanged();
+	void enableAudioStreamChanged();
+	void volumeChanged();
+	void enableBackchannelChanged();
+	void audioCodecChanged();
+	void audioInputDeviceChanged();
+	void pushToTalkChanged();
+	void micSensitivityChanged();
+
+ private:
+	Q_DISABLE_COPY(MonitorSettings)
 };
+
+Q_DECLARE_OPAQUE_POINTER(MonitorSettings)
+Q_DECLARE_METATYPE(MonitorSettings)
+Q_DECLARE_METATYPE(MonitorSettings *)
 
 class Tile {
 

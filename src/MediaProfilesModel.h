@@ -12,10 +12,10 @@ class MediaProfilesModel : public AbstractListModel {
 	Q_PROPERTY(QUuid deviceId READ getDeviceId WRITE setDeviceId NOTIFY deviceChanged)
 
  public:
-	MediaProfilesModel(QObject *pParent = nullptr);
-	virtual int rowCount(const QModelIndex &parent = QModelIndex()) const;
-	virtual QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
-	virtual QHash<int, QByteArray> roleNames() const;
+	explicit MediaProfilesModel(QObject *pParent = nullptr);
+	int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+	QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+	QHash<int, QByteArray> roleNames() const override;
 	QUuid getDeviceId() const;
 	void setDeviceId(const QUuid &rDeviceId);
 
@@ -24,8 +24,6 @@ class MediaProfilesModel : public AbstractListModel {
 
  private:
 	Q_DISABLE_COPY(MediaProfilesModel);
-
-	void sortList();
 
 	QList<MediaProfile> mProfiles;
 	QUuid mDeviceId;

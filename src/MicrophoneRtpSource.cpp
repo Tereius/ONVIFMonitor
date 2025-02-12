@@ -3,21 +3,23 @@
 #include <QAudioInput>
 #include <QAudioSource>
 #include <QBuffer>
+#include <QLoggingCategory>
 #include <QPermission>
 #include <QScopedPointer>
 #include <QWaitCondition>
-#include <QtConcurrent>
 extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavfilter/avfilter.h>
-#include <libavfilter/buffersink.h>
-#include <libavfilter/buffersrc.h>
-#include <libavformat/avformat.h>
-#include <libavutil/timestamp.h>
+#include "libavcodec/avcodec.h"
+#include "libavfilter/avfilter.h"
+#include "libavfilter/buffersink.h"
+#include "libavfilter/buffersrc.h"
+#include "libavformat/avformat.h"
+#include "libavutil/timestamp.h"
 }
 
 
 #define AVOK 0
+
+Q_LOGGING_CATEGORY(mrs, "MicrophoneRtpSource")
 
 struct AVDictionaryDeleter {
 	static inline void cleanup(AVDictionary **pointer) {
@@ -68,7 +70,7 @@ struct AVIOContextDeleter {
 	}
 };
 
-struct AVFrametDeleter {
+struct AVFrameDeleter {
 	static inline void cleanup(AVFrame *pointer) {
 		if(pointer) {
 			av_frame_unref(pointer);
@@ -102,6 +104,12 @@ struct QIODeviceCloser {
 	}
 };
 
+class RtspClientThread : public QThread {
+
+ protected:
+	void run() override {}
+};
+
 MicrophoneRtpSource::MicrophoneRtpSource(QObject *parent) :
  QThread(parent),
  mRtpSink(),
@@ -112,7 +120,6 @@ MicrophoneRtpSource::MicrophoneRtpSource(QObject *parent) :
  mResult(),
  mpBuffer(nullptr) {
 
-	setPriority(HighPriority);
 	setObjectName("MicrophoneRtpSource");
 
 	connect(this, &QThread::finished, this, [this]() {
@@ -128,20 +135,22 @@ MicrophoneRtpSource::~MicrophoneRtpSource() {
 	stop();
 }
 
-void MicrophoneRtpSource::start(const QUrl &rtpSink) {
+QFuture<Result> MicrophoneRtpSource::start(const QUrl &rtpSink) {
+
+	Q_ASSERT(QThread::currentThread() == qApp->thread());
 
 	stop();
+	mResult = AsyncFuture::deferred<Result>();
 	mRtpSink = rtpSink;
 	if(!mRtpSink.host().isEmpty()) {
 		if(mpAudioSource) {
 #if QT_CONFIG(permissions)
-			QMicrophonePermission microphonePermission;
-			switch(qApp->checkPermission(microphonePermission)) {
+			switch(qApp->checkPermission(QMicrophonePermission{})) {
 				case Qt::PermissionStatus::Undetermined:
-					qApp->requestPermission(microphonePermission, this, &MicrophoneRtpSource::prepareRun);
+					qApp->requestPermission(QMicrophonePermission{}, this, &MicrophoneRtpSource::prepareRun);
 					break;
 				case Qt::PermissionStatus::Denied:
-					mResult = Result(Result(Result::FAULT, tr("Missing microphone permission")));
+					mResult.complete(Result(Result::FAULT, tr("Missing microphone permission")));
 					break;
 				case Qt::PermissionStatus::Granted:
 					prepareRun();
@@ -151,13 +160,14 @@ void MicrophoneRtpSource::start(const QUrl &rtpSink) {
 			prepareRun();
 #endif
 		} else {
-			qWarning() << "QAudioSource is null";
-			mResult = Result(Result(Result::FAULT, tr("Missing a valid microphone audio source")));
+			qCWarning(mrs) << "QAudioSource is null";
+			mResult.complete(Result(Result::FAULT, tr("Missing a valid microphone audio source")));
 		}
 	} else {
-		qWarning() << "Rtp url is unsupported" << mRtpSink;
-		mResult = Result(Result(Result::FAULT, tr("Missing a valid rtp host")));
+		qCWarning(mrs) << "Rtp url is unsupported" << mRtpSink;
+		mResult.complete(Result(Result::FAULT, tr("Missing a valid rtp host")));
 	}
+	return mResult.future();
 }
 
 void MicrophoneRtpSource::stop() {
@@ -167,6 +177,7 @@ void MicrophoneRtpSource::stop() {
 	if(mpAudioSource) {
 		mpAudioSource->stop();
 	}
+	mResult.cancel();
 }
 
 QList<EncoderSettings> MicrophoneRtpSource::supportedEncoder(MediaDescription sdp) {
@@ -231,11 +242,11 @@ QList<EncoderSettings> MicrophoneRtpSource::supportedEncoder(MediaDescription sd
 			encoderSettings.samplerate = format.sampleRate;
 		}
 		if(encoderSettings.numChannels <= 0) {
-			qWarning() << format.name << "missing a valid channel number - default to mono";
+			qCWarning(mrs) << format.name << "missing a valid channel number - default to mono";
 			encoderSettings.numChannels = 1;
 		}
 		if(encoderSettings.payloadType < 0) {
-			qWarning() << format.name << "missing a valid payload type";
+			qCWarning(mrs) << format.name << "missing a valid payload type";
 		}
 		encoderSettingsList.push_back(encoderSettings);
 	}
@@ -244,6 +255,7 @@ QList<EncoderSettings> MicrophoneRtpSource::supportedEncoder(MediaDescription sd
 }
 
 void MicrophoneRtpSource::mute(bool mute) {
+
 	if(mute) {
 		mMute = 0;
 	} else {
@@ -252,21 +264,23 @@ void MicrophoneRtpSource::mute(bool mute) {
 }
 
 void MicrophoneRtpSource::setVolume(float volume) {
+
 	if(volume >= 1.0) {
 		mVolume = std::numeric_limits<int>::max();
 	} else if(volume <= 0) {
 		mVolume = 0;
 	} else {
 		mVolume = volume * std::numeric_limits<int>::max();
-		qInfo() << mVolume << volume;
 	}
 }
 
 QAudioInput *MicrophoneRtpSource::getAudioInput() const {
+
 	return nullptr;
 }
 
 void MicrophoneRtpSource::setAudioInput(QAudioInput *input) {
+
 	stop();
 	if(input) {
 		connect(input, &QAudioInput::volumeChanged, this, &MicrophoneRtpSource::setVolume);
@@ -280,16 +294,18 @@ void MicrophoneRtpSource::setAudioInput(QAudioInput *input) {
 			mpAudioSource = nullptr;
 		}
 		auto device = input->device();
-		qInfo() << device.description();
+		qCInfo(mrs) << device.description();
 		mpAudioSource = new QAudioSource(device, device.preferredFormat(), this);
 	}
 }
 
 EncoderSettings::RtpPayload MicrophoneRtpSource::getPayloadFormat() const {
+
 	return mPayloadFormat;
 }
 
 void MicrophoneRtpSource::setPayloadFormat(EncoderSettings::RtpPayload fmt) {
+
 	mPayloadFormat = fmt;
 	emit payloadFormatChanged();
 }
@@ -328,21 +344,26 @@ rtp AVOptions:
 
 void MicrophoneRtpSource::run() {
 
-	auto *rtspClient = new OnvifRtspClient(mRtpSink);
+	auto *rtspClient = new OnvifBackchannelSession(mRtpSink);
 
-	if(auto rtspResult = rtspClient->startAudioBackchannelStream()) {
+	// This thread should finish as fast as possible as soon as interruption is requested (so the gui doesn't get blocked).
+	// The rtsp client takes some time until it is stopped (happens in dtor call). So we destroy it via the main thread as soon as we know
+	// that it won't block in the dtor.
+	connect(rtspClient, &OnvifBackchannelSession::sessionStopped, qApp, [rtspClient]() { delete rtspClient; });
+
+	if(auto rtspResult = rtspClient->startSessionBlocking()) {
 
 		const auto rtspStream = rtspResult.GetResultObject();
 		const auto mediaDescription = rtspStream.getMediaDescription();
 
 		const auto rtpUrl =
 		 QString("rtp://%1:%2?localrtpport=%3").arg(mRtpSink.host()).arg(rtspStream.getServerRtpPort()).arg(rtspStream.getClientRtpPort());
-		qInfo() << "Starting microphone rtp loop with url" << rtpUrl;
+		qCInfo(mrs) << "Starting microphone rtp loop with url" << rtpUrl;
 
 		auto bufferSize = mpAudioSource->bufferSize();
 		auto srcFormat = mpAudioSource->format();
 
-		qInfo() << "Started QAudioSource with buffer size" << bufferSize << "and format" << srcFormat;
+		qCInfo(mrs) << "Started QAudioSource with buffer size" << bufferSize << "and format" << srcFormat;
 
 		if(const auto *format = av_guess_format("rtp", nullptr, nullptr)) {
 
@@ -360,8 +381,8 @@ void MicrophoneRtpSource::run() {
 
 						if(const auto *avc = avcodec_find_encoder_by_name(qPrintable(encoderSettings.codecName))) {
 
-							qInfo() << "Selected encoder" << avc->name << "bitrate" << encoderSettings.bitrate << "sample rate"
-							        << encoderSettings.samplerate << "channels" << encoderSettings.numChannels;
+							qCInfo(mrs) << "Selected encoder" << avc->name << "bitrate" << encoderSettings.bitrate << "sample rate"
+							            << encoderSettings.samplerate << "channels" << encoderSettings.numChannels;
 
 							if(auto avcc = QScopedPointer<AVCodecContext, AVCodecContextDeleter>(avcodec_alloc_context3(avc))) {
 
@@ -403,7 +424,7 @@ void MicrophoneRtpSource::run() {
 									                       : avcc->frame_size > 0        ? avcc->frame_size
 									                                                     : 1024);
 
-									qInfo() << "Using filter" << filterStr;
+									qCInfo(mrs) << "Using filter" << filterStr;
 
 									if(auto graph = QScopedPointer<AVFilterGraph, AVFilterGraphDeleter>(avfilter_graph_alloc())) {
 										AVFilterInOut *filterIn = nullptr;
@@ -436,7 +457,7 @@ void MicrophoneRtpSource::run() {
 
 														if(auto writeHeaderResult = MicrophoneRtpSource::toResult(avformat_write_header(avfc.get(), &muxer_opts))) {
 
-															const QScopedPointer<AVFrame, AVFrametDeleter> frame(av_frame_alloc());
+															const QScopedPointer<AVFrame, AVFrameDeleter> frame(av_frame_alloc());
 															const QScopedPointer<AVPacket, AVPacketDeleter> packet(av_packet_alloc());
 
 															qint64 pts = 0;
@@ -446,7 +467,7 @@ void MicrophoneRtpSource::run() {
 															do {
 
 																if(isInterruptionRequested()) {
-																	qInfo() << "Interruption of microphone rtp loop was requested";
+																	qCInfo(mrs) << "Interruption of microphone rtp loop was requested";
 																	break;
 																}
 
@@ -477,8 +498,8 @@ void MicrophoneRtpSource::run() {
 																 MicrophoneRtpSource::toResult(av_buffersrc_write_frame(buffersrc, frame.get()));
 
 																if(!writeFilterFrameResult) {
-																	qWarning() << "av_buffersrc_write_frame returned an error" << writeFilterFrameResult;
-																	mResult = Result(Result(Result::FAULT, tr("Could not write samples to filter")));
+																	qCWarning(mrs) << "av_buffersrc_write_frame returned an error" << writeFilterFrameResult;
+																	mResult.complete(Result(Result::FAULT, tr("Could not write samples to filter")));
 																	QThread::requestInterruption();
 																	break;
 																}
@@ -507,8 +528,8 @@ void MicrophoneRtpSource::run() {
 																				break;
 																			}
 																		} else {
-																			qWarning() << "av_buffersink_get_frame returned an unexpected error" << readFilterFrameResult;
-																			mResult = Result(Result(Result::FAULT, tr("Could not read samples from filter")));
+																			qCWarning(mrs) << "av_buffersink_get_frame returned an unexpected error" << readFilterFrameResult;
+																			mResult.complete(Result(Result::FAULT, tr("Could not read samples from filter")));
 																			QThread::requestInterruption();
 																			break;
 																		}
@@ -527,8 +548,8 @@ void MicrophoneRtpSource::run() {
 																			skipFilter = false;
 																		}
 																	} else {
-																		qWarning() << "avcodec_send_frame returned an unexpected error" << writeCodecFrameResult;
-																		mResult = Result(Result(Result::FAULT, tr("Could not write samples to encoder")));
+																		qCWarning(mrs) << "avcodec_send_frame returned an unexpected error" << writeCodecFrameResult;
+																		mResult.complete(Result(Result::FAULT, tr("Could not write samples to encoder")));
 																		QThread::requestInterruption();
 																		break;
 																	}
@@ -550,8 +571,8 @@ void MicrophoneRtpSource::run() {
 																				break;
 																			}
 																		} else {
-																			qWarning() << "avcodec_receive_packet returned an unexpected error" << receiveCodecPackageResult;
-																			mResult = Result(Result(Result::FAULT, tr("Could not read samples from encoder")));
+																			qCWarning(mrs) << "avcodec_receive_packet returned an unexpected error" << receiveCodecPackageResult;
+																			mResult.complete(Result(Result::FAULT, tr("Could not read samples from encoder")));
 																			QThread::requestInterruption();
 																			break;
 																		}
@@ -568,11 +589,11 @@ void MicrophoneRtpSource::run() {
 																		if(sendResult) {
 																			if(!reported) {
 																				reported = true;
-																				mResult = Result(Result::OK);
+																				mResult.complete(Result(Result::OK));
 																			}
 																		} else {
-																			qWarning() << "av_interleaved_write_frame returned an unexpected error" << sendResult;
-																			mResult = Result(Result(Result::FAULT, tr("Could not send rtp package")));
+																			qCWarning(mrs) << "av_interleaved_write_frame returned an unexpected error" << sendResult;
+																			mResult.complete(Result(Result::FAULT, tr("Could not send rtp package")));
 																			QThread::requestInterruption();
 																			break;
 																		}
@@ -586,98 +607,102 @@ void MicrophoneRtpSource::run() {
 															} while(true);
 															// ---- end filter write loop ----
 
-															mResult = Result(Result(Result::OK));
+															mResult.complete(Result(Result::OK));
 
 														} else {
-															qWarning() << "avformat_write_header returned an error" << writeHeaderResult;
-															mResult = Result(Result(Result::FAULT, tr("Could not send to url %s").arg(rtpUrl)));
+															qCWarning(mrs) << "avformat_write_header returned an error" << writeHeaderResult;
+															mResult.complete(Result(Result::FAULT, tr("Could not send to url %s").arg(rtpUrl)));
 														}
 													} else {
-														qWarning() << "avio_open returned an error" << openResult;
-														mResult = Result(Result(Result::FAULT, tr("Could not connect to url %s").arg(rtpUrl)));
+														qCWarning(mrs) << "avio_open returned an error" << openResult;
+														mResult.complete(Result(Result::FAULT, tr("Could not connect to url %s").arg(rtpUrl)));
 													}
 												} else {
-													qWarning() << "could not find filter abuffersink or abuffer";
-													mResult = Result(Result(Result::FAULT, tr("Could not validate audio filter")));
+													qCWarning(mrs) << "could not find filter abuffersink or abuffer";
+													mResult.complete(Result(Result::FAULT, tr("Could not validate audio filter")));
 												}
 											} else {
-												qWarning() << "avfilter_graph_config returned an error" << filterConfigResult;
-												mResult = Result(Result(Result::FAULT, tr("Could not configure audio filter")));
+												qCWarning(mrs) << "avfilter_graph_config returned an error" << filterConfigResult;
+												mResult.complete(Result(Result::FAULT, tr("Could not configure audio filter")));
 											}
 										} else {
-											qWarning() << "avfilter_graph_parse2 returned an error" << filterResult;
-											mResult = Result(Result(Result::FAULT, tr("Could not parse audio filter")));
+											qCWarning(mrs) << "avfilter_graph_parse2 returned an error" << filterResult;
+											mResult.complete(Result(Result::FAULT, tr("Could not parse audio filter")));
 										}
 									} else {
-										qWarning() << "avfilter_graph_alloc returned null";
-										mResult = Result(Result(Result::FAULT, tr("Could not create audio filter")));
+										qCWarning(mrs) << "avfilter_graph_alloc returned null";
+										mResult.complete(Result(Result::FAULT, tr("Could not create audio filter")));
 									}
 								} else {
-									qWarning() << "avcodec_open2 returned an error" << codecResult;
-									mResult = Result(Result(Result::FAULT, tr("Could not start %1 encoder").arg(avc->long_name)));
+									qCWarning(mrs) << "avcodec_open2 returned an error" << codecResult;
+									mResult.complete(Result(Result::FAULT, tr("Could not start %1 encoder").arg(avc->long_name)));
 								}
 							} else {
-								qWarning() << "avcodec_alloc_context3 returned null for codec" << avc->name << "bitrate" << encoderSettings.bitrate
-								           << "sample rate" << encoderSettings.samplerate;
-								mResult = Result(Result(Result::FAULT, tr("Could not provide %1 encoder").arg(avc->long_name)));
+								qCWarning(mrs) << "avcodec_alloc_context3 returned null for codec" << avc->name << "bitrate" << encoderSettings.bitrate
+								               << "sample rate" << encoderSettings.samplerate;
+								mResult.complete(Result(Result::FAULT, tr("Could not provide %1 encoder").arg(avc->long_name)));
 							}
 						} else {
-							qWarning() << "could not find codec" << encoderSettings.codecName << "Was it deactivated in this ffmpeg build?";
-							mResult = Result(Result(Result::FAULT, tr("Could not find %1 encoder").arg(encoderSettings.codecName)));
+							qCWarning(mrs) << "could not find codec" << encoderSettings.codecName << "Was it deactivated in this ffmpeg build?";
+							mResult.complete(Result(Result::FAULT, tr("Could not find %1 encoder").arg(encoderSettings.codecName)));
 						}
 					} else {
-						qWarning() << "the sdp does not contain the requested payload format or the codec was deactivated in this ffmpeg build"
-						           << mPayloadFormat;
-						mResult = Result(Result(Result::FAULT, tr("The device does not support the requested payload format")));
+						qCWarning(mrs) << "the sdp does not contain the requested payload format or the codec was deactivated in this ffmpeg build"
+						               << mPayloadFormat;
+						mResult.complete(Result(Result::FAULT, tr("The device does not support the requested payload format")));
 					}
 				} else {
-					qWarning() << "avformat_new_stream returned null";
-					mResult = Result(Result(Result::FAULT, tr("Could not create rtp audio stream")));
+					qCWarning(mrs) << "avformat_new_stream returned null";
+					mResult.complete(Result(Result::FAULT, tr("Could not create rtp audio stream")));
 				}
 			} else {
-				qWarning() << "avformat_alloc_output_context2 did not allocate memory for output format";
-				mResult = Result(Result(Result::FAULT, tr("Could not provide rtp output format")));
+				qCWarning(mrs) << "avformat_alloc_output_context2 did not allocate memory for output format";
+				mResult.complete(Result(Result::FAULT, tr("Could not provide rtp output format")));
 			}
 		} else {
-			qWarning() << "Rtp output format not found. Was it deactivated in this ffmpeg build?";
-			mResult = Result(Result(Result::FAULT, tr("Could not find rtp output format")));
+			qCWarning(mrs) << "Rtp output format not found. Was it deactivated in this ffmpeg build?";
+			mResult.complete(Result(Result::FAULT, tr("Could not find rtp output format")));
 		}
 	} else {
-		qWarning() << rtspResult;
-		mResult = Result(Result(Result::FAULT, tr("Could not start RTSP session")));
+		qCWarning(mrs) << rtspResult;
+		mResult.complete(Result(Result::FAULT, tr("Could not start RTSP session")));
 	}
 
-	QtConcurrent::run([rtspClient]() {
-		// very slow - blocks the rtp loop unnecessary long
-		rtspClient->stop();
-		delete rtspClient;
-	});
+	rtspClient->stop();
 
-	qInfo() << "Finished running microphone rtp loop";
+	qCInfo(mrs) << "Finished running microphone rtp loop";
 }
 
 void MicrophoneRtpSource::prepareRun() {
+
+	Q_ASSERT(QThread::currentThread() == qApp->thread());
+
 	if(mpAudioSource) {
 		if(auto *buffer = mpAudioSource->start()) {
 			mpBuffer = buffer;
 			if(mpAudioSource->error() == QAudio::NoError) {
 				QThread::start(QThread::HighPriority);
 			} else {
-				qWarning() << "QAudioSource signaled an error" << mpAudioSource->error();
-				mResult = Result(Result::FAULT, tr("Microphone audio source did not start"));
+				qCWarning(mrs) << "QAudioSource signaled an error" << mpAudioSource->error();
+				mResult.complete(Result(Result::FAULT, tr("Microphone audio source did not start")));
 			}
 		} else {
-			qWarning() << "QBuffer could not be opened";
-			mResult = Result(Result(Result::FAULT, tr("Could not open audio buffer")));
+			qCWarning(mrs) << "QBuffer could not be opened";
+			mResult.complete(Result(Result::FAULT, tr("Could not open audio buffer")));
 		}
+	} else {
+		qCWarning(mrs) << "QAudioSource is null";
+		mResult.complete(Result(Result::FAULT, tr("Missing a valid microphone audio source")));
 	}
 }
 
 double MicrophoneRtpSource::calcVolume() {
-	return (double)mVolume / std::numeric_limits<int>::max() * mMute;
+
+	return static_cast<double>(mVolume) / std::numeric_limits<int>::max() * mMute;
 }
 
 qint64 MicrophoneRtpSource::readToFrame(QIODevice *ioDev, AVFrame *frame) {
+
 	if(ioDev && frame) {
 		av_frame_unref(frame);
 		auto *data = new QByteArray(ioDev->readAll());
@@ -698,6 +723,7 @@ qint64 MicrophoneRtpSource::readToFrame(QIODevice *ioDev, AVFrame *frame) {
 }
 
 AVChannelLayout MicrophoneRtpSource::convertChLayout(QAudioFormat::ChannelConfig cfg, int channelCount) {
+
 	AVChannelLayout proposedLayout;
 
 	switch(cfg) {
@@ -734,7 +760,7 @@ AVChannelLayout MicrophoneRtpSource::convertChLayout(QAudioFormat::ChannelConfig
 	}
 
 	if(proposedLayout.nb_channels != channelCount) {
-		qWarning() << "Mismatch between channel layout and channel count - fallback to default channel layout";
+		qCWarning(mrs) << "Mismatch between channel layout and channel count - fallback to default channel layout";
 		av_channel_layout_default(&proposedLayout, channelCount);
 	}
 
@@ -742,6 +768,7 @@ AVChannelLayout MicrophoneRtpSource::convertChLayout(QAudioFormat::ChannelConfig
 }
 
 AVSampleFormat MicrophoneRtpSource::convertSampleFormat(QAudioFormat::SampleFormat fmt) {
+
 	switch(fmt) {
 		case QAudioFormat::UInt8:
 			return AV_SAMPLE_FMT_U8;
@@ -757,6 +784,7 @@ AVSampleFormat MicrophoneRtpSource::convertSampleFormat(QAudioFormat::SampleForm
 }
 
 QString MicrophoneRtpSource::convertSampleFormatPrecision(QAudioFormat::SampleFormat fmt) {
+
 	switch(fmt) {
 		case QAudioFormat::UInt8:
 		case QAudioFormat::Int16:
@@ -770,6 +798,7 @@ QString MicrophoneRtpSource::convertSampleFormatPrecision(QAudioFormat::SampleFo
 }
 
 QString MicrophoneRtpSource::chLayoutName(AVChannelLayout layout) {
+
 	auto inChLayoutName = QByteArray(255, 0);
 	if(const auto read = av_channel_layout_describe(&layout, inChLayoutName.data(), 255)) {
 		if(read > 0) {
@@ -780,6 +809,7 @@ QString MicrophoneRtpSource::chLayoutName(AVChannelLayout layout) {
 }
 
 EncoderSettings MicrophoneRtpSource::selectEncoder(EncoderSettings::RtpPayload payloadType, MediaDescription md) {
+
 	for(const auto &format : MicrophoneRtpSource::supportedEncoder(md)) {
 		if(payloadType == EncoderSettings::Auto || payloadType == format.payload) {
 			return format;
@@ -789,6 +819,7 @@ EncoderSettings MicrophoneRtpSource::selectEncoder(EncoderSettings::RtpPayload p
 }
 
 Result MicrophoneRtpSource::toResult(int ffmpegError) {
+
 	auto result = Result::OK;
 	if(ffmpegError == AVOK) {
 		result = Result::OK;
@@ -801,6 +832,7 @@ Result MicrophoneRtpSource::toResult(int ffmpegError) {
 }
 
 DetailedResult<int> MicrophoneRtpSource::toResultExpect(int ffmpegError, int expectedError) {
+
 	auto res = DetailedResult<int>(Result::OK, "");
 	if(ffmpegError == AVOK || ffmpegError == expectedError) {
 		res.setResultObject(ffmpegError);

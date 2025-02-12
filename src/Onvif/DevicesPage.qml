@@ -1,8 +1,8 @@
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
 import Onvif
-import MaterialRally as Controls
+import MaterialRally as Rally
 
 SwipePage {
 
@@ -62,17 +62,17 @@ SwipePage {
         }
     }
 
-    Controls.GridLayout {
+    Rally.GridLayout {
 
         width: parent.width
 
-        Controls.GroupBox {
+        Rally.GroupBox {
 
             id: group
             title: qsTr("Available Devices")
             infoText: qsTr("All devices found on the network are listed here.")
 
-            mainAction: Controls.BusyAction {
+            mainAction: Rally.BusyAction {
                 busy: timer.running
                 text: qsTr("Search again")
                 onTriggered: {
@@ -94,20 +94,15 @@ SwipePage {
 
                     onClicked: index => {
 
-                                   const modelData = deviceDiscoveryModelFiltered.get(
-                                       index)
+                                   const modelData = deviceDiscoveryModelFiltered.get(index)
 
-                                   Controls.Helper.createDialog(
-                                       Qt.resolvedUrl(
-                                           "dialogs/EditOnvifDeviceDialog.qml"),
-                                       {
-                                           "deviceName": modelData.name,
-                                           "deviceEndpoint": modelData.endpoint,
-                                           "deviceId": modelData.id,
-                                           "deviceNameFixed": false,
-                                           "deviceEndpointFixed": true
-                                       }, itemAtIndex(index).mapToGlobal(x,
-                                                                         y).y)
+                                   Rally.Helper.createDialog(Qt.resolvedUrl("dialogs/EditOnvifDeviceDialog.qml"), {
+                                                                 "deviceName": modelData.name,
+                                                                 "deviceEndpoint": modelData.endpoint,
+                                                                 "deviceId": modelData.id,
+                                                                 "deviceNameFixed": false,
+                                                                 "deviceEndpointFixed": true
+                                                             }, itemAtIndex(index).mapToGlobal(x, y).y)
                                }
                 }
 
@@ -121,13 +116,12 @@ SwipePage {
                     text: qsTr("No devices found on your network. Please make sure you are on the same network as the device.")
                     wrapMode: Text.WordWrap
 
-                    visible: !timer.running
-                             && deviceDiscoveryModelFiltered.count === 0
+                    visible: !timer.running && deviceDiscoveryModelFiltered.count === 0
                 }
             }
         }
 
-        Controls.GroupBox {
+        Rally.GroupBox {
 
             id: group1
             title: qsTr("Configured Devices")
@@ -150,43 +144,46 @@ SwipePage {
 
                                    const modelData = model.get(index)
 
-                                   Controls.Helper.createDialog(
-                                       Qt.resolvedUrl(
-                                           "dialogs/EditOnvifDeviceDialog.qml"),
-                                       {
-                                           "deviceId": modelData.id,
-                                           "deviceNameFixed": false,
-                                           "deviceEndpointFixed": true
-                                       }, itemAtIndex(index).mapToGlobal(x,
-                                                                         y).y)
+                                   Rally.Helper.createDialog(Qt.resolvedUrl("dialogs/EditOnvifDeviceDialog.qml"), {
+                                                                 "deviceId": modelData.id,
+                                                                 "deviceNameFixed": false,
+                                                                 "deviceEndpointFixed": true
+                                                             }, itemAtIndex(index).mapToGlobal(x, y).y)
                                }
                 }
             }
         }
 
-        Controls.GroupBox {
+        Rally.GroupBox {
 
             id: group2
             title: qsTr("Event handler")
+            icon.name: "eye"
 
-            mainAction: Controls.BusyAction {
+            mainAction: Rally.BusyAction {
 
                 checkable: true
+                checked: App.backgroundServiceEnabled
                 onToggled: {
-                    if (checked) {
-                        App.startBackgroundService()
-                    } else {
-                        App.stopBackgroundService()
-                    }
+                    App.backgroundServiceEnabled = checked
                 }
             }
 
-            ColumnLayout {
+            contentItem: Rally.InlineMessage {
+                id: message
+                title: qsTr("Error")
+                leftPadding: 0
+                rightPadding: 0
 
-                anchors.fill: parent
+                Behavior on implicitHeight {
+                    enabled: false
+                }
 
-                Label {
-                    text: "asdfasdf"
+                Connections {
+                    target: DeviceManager
+                    function onMessageReceived(deviceId, msg) {
+                        message.pushMessage("Got message", "info", msg.topic)
+                    }
                 }
             }
         }

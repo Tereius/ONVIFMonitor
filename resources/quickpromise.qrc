@@ -1,8 +1,0 @@
-<RCC>
-    <qresource prefix="/">
-        <file>QuickPromise/qmldir</file>
-        <file>QuickPromise/Promise.qml</file>
-        <file>QuickPromise/promise.js</file>
-        <file>QuickPromise/PromiseTimer.qml</file>
-    </qresource>
-</RCC>

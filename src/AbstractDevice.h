@@ -13,6 +13,7 @@
 class AbstractDevice {
 
  public:
+	virtual ~AbstractDevice() = default;
 	// The implementation may perform custom initialization steps. This method may be called multiple times.
 	virtual Result initDevice(const QUrl &rEndpoint, const QString &rUser, const QString &rPassword) = 0;
 	// The implementation should return a globally unique uuid that will never change.

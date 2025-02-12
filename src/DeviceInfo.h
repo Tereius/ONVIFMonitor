@@ -30,21 +30,21 @@ class DeviceInfo {
 	Q_PROPERTY(QList<MediaProfile> mediaProfiles MEMBER mMediaProfiles)
 
  public:
-	QString mDeviceName = QString();
-	QUrl mEndpoint = QUrl();
-	QUrl mEventEndpoint = QUrl();
-	QString mUser = QString();
-	QString mPassword = QString();
-	QStringList mScopes = QStringList();
+	QString mDeviceName;
+	QUrl mEndpoint;
+	QUrl mEventEndpoint;
+	QString mUser;
+	QString mPassword;
+	QStringList mScopes;
 	bool mInitialized = false;
-	QString mError = QString();
-	QString mFirmwareVersion = QString();
-	QString mHardwareId = QString();
-	QString mManufacturer = QString();
-	QString mModel = QString();
-	QString mSerialNumber = QString();
+	QString mError;
+	QString mFirmwareVersion;
+	QString mHardwareId;
+	QString mManufacturer;
+	QString mModel;
+	QString mSerialNumber;
 	qint64 mDateTimeOffset = 0;
-	QUuid mEndpointReference = QUuid();
+	QUuid mEndpointReference;
 	bool mHasMediaService = false;
-	QList<MediaProfile> mMediaProfiles = {};
+	QList<MediaProfile> mMediaProfiles;
 };

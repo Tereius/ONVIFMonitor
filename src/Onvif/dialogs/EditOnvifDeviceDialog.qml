@@ -1,6 +1,7 @@
 import QtQuick
 import QtMultimedia
 import QtQuick.Controls
+import QtQuick.Controls.Material
 import QtQuick.Layouts
 import QuickFuture
 import Onvif
@@ -10,8 +11,7 @@ Rally.Dialog {
 
     id: credentialsDialog
 
-    title: credentialsDialog.deviceId ? qsTr("Edit Device") : qsTr(
-                                            "Add new Device")
+    title: credentialsDialog.deviceId ? qsTr("Edit Device") : qsTr("Add new Device")
 
     onBackButtonClicked: {
 
@@ -23,8 +23,7 @@ Rally.Dialog {
     readonly property string deviceEndpoint: ""
     readonly property bool deviceNameFixed: false
     readonly property bool deviceEndpointFixed: false
-    readonly property bool isNew: !DeviceManager.containsDevice(
-                                      credentialsDialog.deviceId)
+    readonly property bool isNew: !DeviceManager.containsDevice(credentialsDialog.deviceId)
 
     actions: [
         Rally.BusyAction {
@@ -41,9 +40,8 @@ Rally.Dialog {
             id: addAction
             text: credentialsDialog.isNew ? qsTr("Add") : qsTr("Save")
             icon.name: "check"
-            enabled: deviceNameField.acceptableInput
-                     && deviceNameField.text.length > 0
-                     && hostField.acceptableInput && hostField.text.length > 0
+            enabled: deviceNameField.acceptableInput && deviceNameField.text.length > 0 && hostField.acceptableInput
+                     && hostField.text.length > 0
             onTriggered: {
                 priv.editDevice()
             }
@@ -64,8 +62,6 @@ Rally.Dialog {
         anchors.fill: parent
         Keys.onEnterPressed: priv.editDevice()
         Keys.onReturnPressed: priv.editDevice()
-        enableVerticalScrollBar: credentialsDialog.opened
-        contentHeight: columnLayout.implicitHeight
 
         ColumnLayout {
 
@@ -98,6 +94,7 @@ Rally.Dialog {
 
             Rally.GroupBox {
 
+                id: group
                 title: qsTr("Basic settings")
                 icon.name: "cog"
                 Layout.fillWidth: true
@@ -139,11 +136,19 @@ Rally.Dialog {
                         text: qsTr("Credentials")
                     }
 
+                    Label {
+                        visible: !App.osSecretsManager
+                        wrapMode: Text.WordWrap
+                        text: qsTr("The password cannot be stored in the secret store that is managed by the operating system.\nInstead, the password is stored in an obfuscated text file, which is considered insecure.")
+                        color: Material.color(Material.Red)
+                    }
+
                     Rally.TextField {
 
                         id: userField
                         placeholderText: qsTr("User")
                         font.family: "Roboto Mono"
+                        maximumLength: 50
                     }
 
                     Rally.PasswordTextField {
@@ -151,6 +156,7 @@ Rally.Dialog {
                         id: passwordField
                         placeholderText: qsTr("Password")
                         font.family: "Roboto Mono"
+                        maximumLength: 50
                     }
                 }
             }
@@ -162,19 +168,15 @@ Rally.Dialog {
 
         function initDialog() {
 
-            if (credentialsDialog.deviceId && DeviceManager.containsDevice(
-                        credentialsDialog.deviceId)) {
-                const daviceInfo = DeviceManager.getDeviceInfo(
-                                     credentialsDialog.deviceId)
-                deviceNameField.text = DeviceManager.getName(
-                            credentialsDialog.deviceId)
+            if (credentialsDialog.deviceId && DeviceManager.containsDevice(credentialsDialog.deviceId)) {
+                const daviceInfo = DeviceManager.getDeviceInfo(credentialsDialog.deviceId)
+                deviceNameField.text = DeviceManager.getName(credentialsDialog.deviceId)
                 hostField.text = daviceInfo.deviceEndpoint
                 userField.text = daviceInfo.user
                 passwordField.text = daviceInfo.password
 
                 if (!daviceInfo.initialized) {
-                    message.pushMessage(daviceInfo.initializationError,
-                                        "error", qsTr("Initialization error"))
+                    message.pushMessage(daviceInfo.initializationError, "error", qsTr("Initialization error"))
                 }
             }
         }
@@ -186,15 +188,12 @@ Rally.Dialog {
                 // Add device case
                 credentialsDialog.busy = true
                 let future = DeviceManager.addDevice(
-                        hostField.text, userField.text, passwordField.text,
-                        deviceNameField.text,
-                        credentialsDialog.deviceId ? credentialsDialog.deviceId : Onvif.createUuid(
-                                                         ))
+                        hostField.text, userField.text, passwordField.text, deviceNameField.text,
+                        credentialsDialog.deviceId ? credentialsDialog.deviceId : Onvif.createUuid())
                 Future.onFinished(future, function (result) {
 
                     if (!result.isSuccess()) {
-                        message.pushMessage(result.getDetails(), "error",
-                                            qsTr("Initialization error"))
+                        message.pushMessage(result.getDetails(), "error", qsTr("Initialization error"))
                     } else {
                         credentialsDialog.reload()
                     }
@@ -206,18 +205,15 @@ Rally.Dialog {
 
                 // Edit device case
                 credentialsDialog.busy = true
-                DeviceManager.renameDevice(credentialsDialog.deviceId,
-                                           deviceNameField.text)
+                DeviceManager.renameDevice(credentialsDialog.deviceId, deviceNameField.text)
 
-                let future = DeviceManager.setDeviceCredentials(
-                        credentialsDialog.deviceId, userField.text,
-                        passwordField.text)
+                let future = DeviceManager.setDeviceCredentials(credentialsDialog.deviceId, userField.text,
+                                                                passwordField.text)
 
                 Future.onFinished(future, function (result) {
 
                     if (!result.isSuccess()) {
-                        message.pushMessage(result.getDetails(), "error",
-                                            qsTr("Initialization error"))
+                        message.pushMessage(result.getDetails(), "error", qsTr("Initialization error"))
                     } else {
                         message.clear()
                     }

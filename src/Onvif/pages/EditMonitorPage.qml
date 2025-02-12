@@ -1,8 +1,10 @@
 import QtCore
 import QtQuick
+import QtQuick.Controls.Material
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
+import QuickFuture
 import Onvif
 import MaterialRally as Rally
 
@@ -15,15 +17,18 @@ Pane {
 
     ColumnLayout {
 
-        id: columnLayoutPage2
-        width: Math.min(parent.width, 600)
+        id: layout
+        width: Math.min(control.width, 600)
         anchors.horizontalCenter: parent.horizontalCenter
 
         CameraStream {
-
+            id: cameraStream
             profileId: control.mediaProfile.profileId
+            settings: control.settings
             Layout.fillWidth: true
-            implicitHeight: width * videoHeight / videoWidth
+            Layout.preferredHeight: cameraStream.videoHeight
+                                    && cameraStream.videoWidth ? (cameraStream.width * cameraStream.videoHeight
+                                                                  / cameraStream.videoWidth) : (cameraStream.width * 720 / 1280)
         }
 
         Rally.GroupBox {
@@ -55,6 +60,10 @@ Pane {
                         checkable: true
                         display: AbstractButton.IconOnly
                         scale: checked ? -1 : 1
+                        checked: settings.mirrorHorizontal
+                        onToggled: {
+                            settings.mirrorHorizontal = checked
+                        }
                     }
 
                     Button {
@@ -63,17 +72,54 @@ Pane {
                         checkable: true
                         display: AbstractButton.IconOnly
                         scale: checked ? -1 : 1
+                        checked: settings.mirrorVertical
+                        onToggled: {
+                            settings.mirrorVertical = checked
+                        }
                     }
                 }
 
                 Label {
-                    text: qsTr("Rotate")
+                    text: qsTr("Rotation/Zoom")
                 }
 
-                SpinBox {
-                    from: 0
-                    to: 359
-                    editable: true
+                RowLayout {
+
+                    SpinBox {
+                        from: -360
+                        to: 360
+                        editable: true
+                        value: settings.rotation
+                        onValueModified: {
+                            settings.rotation = value
+                        }
+
+                        textFromValue: function (value, locale) {
+                            return value + "°"
+                        }
+
+                        valueFromText: function (text, locale) {
+                            return text.replace("°", "")
+                        }
+                    }
+
+                    SpinBox {
+                        from: 100
+                        to: 500
+                        editable: true
+                        value: settings.zoom * 100.0
+                        onValueModified: {
+                            settings.zoom = value / 100.0
+                        }
+
+                        textFromValue: function (value, locale) {
+                            return value + "%"
+                        }
+
+                        valueFromText: function (text, locale) {
+                            return text.replace("%", "")
+                        }
+                    }
                 }
             }
         }
@@ -102,7 +148,7 @@ Pane {
                 }
 
                 Row {
-                    Dial {
+                    VolumeDial {
                         id: volume
                         value: settings.volume
                         onMoved: {
@@ -115,24 +161,49 @@ Pane {
 
         Rally.GroupBox {
 
+            id: backchannelGroup
+            property bool initializing: false
+            property bool hasError: false
+            property string errorMessage: ""
+
             Layout.fillWidth: true
             title: qsTr("Audio backchannel")
-            icon.name: "bullhorn"
+            icon.name: "microphone"
             enabled: control.mediaProfile.hasBackchannel
             mainAction: Rally.BusyAction {
 
                 id: backchannelStreamSwitch
                 checkable: true
                 checked: settings.enableBackchannel
+                busy: backchannelGroup.initializing
                 onToggled: {
                     settings.enableBackchannel = checked
                     if (checked) {
-                        rtpSource.start(control.mediaProfile.backchannelUrl)
+                        backchannelGroup.initializing = true
+
+                        let future = rtpSource.start(control.mediaProfile.backchannelUrl)
+
+                        Future.onFinished(future, function (result) {
+                            if (result.isFault()) {
+                                backchannelGroup.errorMessage = result.getDetails()
+                                backchannelGroup.hasError = true
+                            } else {
+                                backchannelGroup.errorMessage = ""
+                                backchannelGroup.hasError = false
+                            }
+                            backchannelGroup.initializing = false
+                        }, function () {
+                            backchannelGroup.errorMessage = ""
+                            backchannelGroup.initializing = false
+                            backchannelGroup.hasError = false
+                        })
                     } else {
                         rtpSource.stop()
                     }
                 }
             }
+
+            contentHeight: backchannelGroup.initializing ? 0 : backchannelForm.implicitHeight
 
             MicrophoneRtpSource {
 
@@ -145,100 +216,113 @@ Pane {
                 }
             }
 
-            Rally.FormLayout {
+            ColumnLayout {
 
+                id: backchannelForm
                 width: parent.width
 
-                Label {
-                    text: qsTr("Codec")
-                }
+                Rally.FormLayout {
 
-                Rally.ComboBox {
+                    Layout.fillWidth: true
+                    visible: !backchannelGroup.initializing && !backchannelGroup.hasError
 
-                    id: codecs
-                    currentIndex: 0
-                    textRole: "codec"
-                    Component.onCompleted: {
-                        const codecId = settings.audioCodec
-                        if (codecId.length > 0) {
-                            audioInput.currentIndex = Math.max(audioInput.find(
-                                                                   codecId), 0)
-                        } else {
-                            audioInput.currentIndex = 0
+                    Label {
+                        text: qsTr("Codec")
+                    }
+
+                    Rally.ComboBox {
+
+                        id: codecs
+                        currentIndex: 0
+                        textRole: "codec"
+                        Component.onCompleted: {
+                            const codecId = settings.audioCodec
+                            if (codecId.length > 0) {
+                                audioInput.currentIndex = Math.max(audioInput.find(codecId), 0)
+                            } else {
+                                audioInput.currentIndex = 0
+                            }
+                        }
+                        model: {
+                            let encoder = [{
+                                               "id": "Auto",
+                                               "codec": "Auto"
+                                           }]
+                            const supportedEncoder = rtpSource.supportedEncoder(control.mediaProfile.mediaDescription)
+                            for (var i = 0; i < supportedEncoder.length; i++) {
+                                encoder.push(supportedEncoder[i])
+                            }
+                            return encoder
+                        }
+                        onActivated: {
+                            settings.audioCodec = currentText
                         }
                     }
-                    model: {
-                        let encoder = [{
-                                           "id": "Auto",
-                                           "codec": "Auto"
-                                       }]
-                        const supportedEncoder = rtpSource.supportedEncoder(
-                                                   control.mediaProfile.mediaDescription)
-                        for (var i = 0; i < supportedEncoder.length; i++) {
-                            encoder.push(supportedEncoder[i])
+
+                    Label {
+                        text: qsTr("Audio device")
+                    }
+
+                    AudioDeviceComboBox {
+
+                        id: audioInput
+                        Component.onCompleted: {
+                            const deviceId = settings.audioInputDevice
+                            if (deviceId.length > 0) {
+                                audioInput.currentIndex = Math.max(audioInput.indexOfValue(deviceId), 0)
+                            } else {
+                                audioInput.currentIndex = 0
+                            }
                         }
-                        return encoder
-                    }
-                    onActivated: {
-                        settings.audioCodec = currentText
-                    }
-                }
-
-                Label {
-                    text: qsTr("Audio device")
-                }
-
-                AudioDeviceComboBox {
-
-                    id: audioInput
-                    Component.onCompleted: {
-                        const deviceId = settings.audioInputDevice
-                        if (deviceId.length > 0) {
-                            audioInput.currentIndex = Math.max(
-                                        audioInput.indexOfValue(deviceId), 0)
-                        } else {
-                            audioInput.currentIndex = 0
+                        onActivated: {
+                            settings.audioInputDevice = currentValue.id
                         }
                     }
-                    onActivated: {
-                        settings.audioInputDevice = currentValue.id
+
+                    Label {
+                        text: qsTr("Push to talk")
                     }
-                }
 
-                Label {
-                    text: qsTr("Push to talk")
-                }
-
-                Row {
-                    Switch {
-                        id: pushToTalkSwitch
-                        checked: settings.pushToTalk
-                        onToggled: {
-                            settings.pushToTalk = checked
+                    Row {
+                        Switch {
+                            id: pushToTalkSwitch
+                            checked: settings.pushToTalk
+                            onToggled: {
+                                settings.pushToTalk = checked
+                            }
                         }
                     }
-                }
 
-                Label {
-                    text: qsTr("Sensitivity")
-                }
+                    Label {
+                        text: qsTr("Sensitivity")
+                    }
 
-                Row {
-                    Dial {
-                        id: sensitivityDial
-                        value: settings.micSensitivity
-                        onMoved: {
-                            settings.micSensitivity = value
+                    Row {
+                        VolumeDial {
+                            id: sensitivityDial
+                            value: settings.micSensitivity
+                            onMoved: {
+                                settings.micSensitivity = value
+                            }
                         }
+                    }
+
+                    Rally.Button {
+
+                        id: talkButton
+                        text: qsTr("Test")
+                        icon.name: "microphone"
+                        checkable: !pushToTalkSwitch.checked
                     }
                 }
 
-                Rally.Button {
+                Placeholder {
 
-                    id: talkButton
-                    text: qsTr("Test")
-                    icon.name: "microphone"
-                    checkable: !pushToTalkSwitch.checked
+                    Layout.fillWidth: true
+                    visible: !backchannelGroup.initializing && backchannelGroup.hasError
+                    text: qsTr("Failed to initialize audio backchannel: %1").arg(backchannelGroup.errorMessage)
+                    icon.name: "alert-outline"
+                    icon.color: Material.color(Material.Red)
                 }
             }
         }

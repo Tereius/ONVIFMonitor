@@ -12,7 +12,7 @@ class OnvifDevice : public AbstractDevice {
 
  public:
 	OnvifDevice();
-	~OnvifDevice();
+	~OnvifDevice() override;
 	Result initDevice(const QUrl &rEndpoint, const QString &rUser, const QString &rPassword) override;
 	QUuid getDeviceId() const override;
 	Result pingDevice() const override;

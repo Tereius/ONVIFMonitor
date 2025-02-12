@@ -6,33 +6,101 @@ import Onvif
 
 Control {
 
+    id: control
+
     property var profileId
     property MonitorSettings settings: MonitorSettings {}
+    // Use FillMode enum
+    property int fillMode: FillMode.PreserveAspectFit
 
+    property alias state: player.state
     property alias videoWidth: player.videoWidth
     property alias videoHeight: player.videoHeight
     property alias disableVideo: player.disableVideo
     property alias disableAudio: player.disableAudio
 
-    implicitWidth: videoWidth
-    implicitHeight: videoHeight
+    readonly property bool landscape: videoHeight / Math.max(videoWidth, 1) <= 1
+    readonly property bool portrait: !landscape
+
+    signal firstFrame
+
+    clip: true
+
+    implicitHeight: {
+
+        if (control.videoHeight > 0) {
+            return control.videoHeight
+        }
+        return 0
+    }
+
+    implicitWidth: {
+
+        if (control.videoWidth > 0) {
+            return control.videoWidth
+        }
+        return 0
+    }
+
+    Component.onCompleted: {
+
+        player.firstFrame.connect(() => {
+                                      loader.visible = false
+                                      control.firstFrame()
+                                  })
+    }
 
     onProfileIdChanged: {
 
+        loader.visible = true
         if (profileId) {
-            player.source = DeviceManager.getStreamUrl(
-                        profileId.getDeviceId(), profileId.getProfileToken())
+            player.source = DeviceManager.getStreamUrl(profileId.getDeviceId(), profileId.getProfileToken())
         } else {
             player.source = ""
         }
     }
 
-    MediaPlayer {
+    contentItem: MediaPlayer {
+
         id: player
         source: ""
-        anchors.fill: parent
-        Component.onCompleted: player.play(
-                                   ) // to early, will stopped by setSource()
+
+        volume: settings.volume
+
+        transform: [
+            Scale {
+                origin.x: width / 2
+                origin.y: height / 2
+                xScale: settings.mirrorHorizontal ? -1 : 1
+                yScale: settings.mirrorVertical ? -1 : 1
+            },
+            Rotation {
+                origin.x: width / 2
+                origin.y: height / 2
+                angle: settings.rotation
+            },
+            Scale {
+                origin.x: width / 2
+                origin.y: height / 2
+                xScale: settings.zoom
+                yScale: settings.zoom
+            }
+        ]
+
+        Component.onCompleted: {
+            player.play() // to early, will stopped by setSource()
+        }
+    }
+
+    background: Rectangle {
+
+        color: "black"
+    }
+
+    CameraLoadingIndicator {
+
+        id: loader
+        anchors.fill: control
     }
 
     Loader {
@@ -61,9 +129,8 @@ Control {
                     id: rtpSource
 
                     Component.onCompleted: {
-                        rtpSource.start(DeviceManager.getStreamUrl(
-                                            profileId.getDeviceId(),
-                                            profileId.getProfileToken()))
+                        rtpSource.start(DeviceManager.getStreamUrl(profileId.getDeviceId(),
+                                                                   profileId.getProfileToken()))
                     }
 
                     payloadFormat: MicrophoneRtpSource.RTP_PCMU_8000_1
@@ -93,10 +160,5 @@ Control {
                 Material.background: Material.accent
             }
         }
-    }
-
-    background: Rectangle {
-
-        color: "black"
     }
 }

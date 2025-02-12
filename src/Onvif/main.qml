@@ -6,40 +6,9 @@ import Qt.labs.settings
 import QtQuick.Controls.Material
 import MaterialRally as Rally
 
-Rally.RallyRootPage {
+Rally.RallyApplicationWindow {
 
     id: root
-
-    Label {
-
-        id: sizeLabel
-        padding: 10
-        text: "w: " + root.width + " h: " + root.height
-        anchors.centerIn: root.contentItem
-        z: 1
-
-        Connections {
-            target: root
-            function onWidthChanged() {
-                sizeLabel.visible = true
-                sizeLabelTimer.restart()
-            }
-        }
-
-        Timer {
-            id: sizeLabelTimer
-            interval: 1000
-            onTriggered: {
-                parent.visible = false
-            }
-        }
-
-        background: Rectangle {
-            color: "black"
-            opacity: 0.5
-            radius: 4
-        }
-    }
 
     ListModel {
 
@@ -120,29 +89,22 @@ Rally.RallyRootPage {
         }
     }
 
-    ScrollView {
+    Rally.ScrollView {
 
+        id: scrollView
         anchors.fill: parent
-
-        contentWidth: availableWidth
-        contentHeight: Math.max(view.implicitHeight, availableHeight)
-
-        ScrollBar.vertical.policy: contentHeight
-                                   > availableHeight ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-        ScrollBar.horizontal.interactive: false
 
         SwipeView {
 
             id: view
-            anchors.fill: parent
+            width: parent.width
+            implicitHeight: Math.max(scrollView.availableHeight, currentItem.implicitHeight)
 
             Repeater {
                 model: mainMenuModel
                 Loader {
                     id: loader
-                    active: SwipeView.isCurrentItem || SwipeView.isNextItem
-                            || SwipeView.isPreviousItem
+                    active: SwipeView.isCurrentItem || SwipeView.isNextItem || SwipeView.isPreviousItem
                     asynchronous: true
                     source: Qt.resolvedUrl(qmlSource)
                     visible: status == Loader.Ready

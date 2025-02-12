@@ -1,14 +1,14 @@
 #include "EventsModel.h"
-#include "Roles.h"
+#include "Enums.h"
 
-EventsModel::EventsModel(QObject* pParent /*= nullptr*/) : AbstractListModel(pParent) {}
+EventsModel::EventsModel(QObject *pParent /*= nullptr*/) : AbstractListModel(pParent) {}
 
-int EventsModel::rowCount(const QModelIndex& parent /*= QModelIndex()*/) const {
+int EventsModel::rowCount(const QModelIndex &parent /*= QModelIndex()*/) const {
 
 	return 0;
 }
 
-QVariant EventsModel::data(const QModelIndex& index, int role /*= Qt::DisplayRole*/) const {
+QVariant EventsModel::data(const QModelIndex &index, int role /*= Qt::DisplayRole*/) const {
 
 	return QVariant();
 }
@@ -16,12 +16,12 @@ QVariant EventsModel::data(const QModelIndex& index, int role /*= Qt::DisplayRol
 QHash<int, QByteArray> EventsModel::roleNames() const {
 
 	auto ret = QHash<int, QByteArray>();
-	ret.insert(Roles::EndpointRole, "endpoint");
-	ret.insert(Roles::NameRole, "name");
-	ret.insert(Roles::HostRole, "host");
-	ret.insert(Roles::IdRole, "deviceId");
+	ret.insert(Enums::EndpointRole, "endpoint");
+	ret.insert(Enums::NameRole, "name");
+	ret.insert(Enums::HostRole, "host");
+	ret.insert(Enums::IdRole, "deviceId");
 	ret.insert(Qt::DisplayRole, "display");
-	ret.insert(Roles::InitializedRole, "initialized");
-	ret.insert(Roles::ErrorRole, "error");
+	ret.insert(Enums::InitializedRole, "initialized");
+	ret.insert(Enums::ErrorRole, "error");
 	return ret;
 }

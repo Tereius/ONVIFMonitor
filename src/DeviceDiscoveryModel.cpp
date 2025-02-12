@@ -1,6 +1,6 @@
 #include "DeviceDiscoveryModel.h"
+#include "Enums.h"
 #include "OnvifDiscovery.h"
-#include "Roles.h"
 #include "Util.h"
 #include <QHash>
 #include <QLoggingCategory>

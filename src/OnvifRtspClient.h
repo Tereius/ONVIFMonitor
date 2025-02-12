@@ -3,13 +3,14 @@
 #include "RtspMessage.h"
 #include "RtspStream.h"
 #include <QCryptographicHash>
+#include <QFuture>
 #include <QString>
 #include <QThread>
 #include <QUrl>
+#include <QWaitCondition>
 
 class QEventLoop;
 class QTcpSocket;
-
 
 class OnvifRtspClient : public QObject {
 
@@ -64,4 +65,28 @@ class OnvifRtspClient : public QObject {
 	int mConnectTimeout;
 	int mSendTimeout;
 	int mReceiveTimeout;
+};
+
+class OnvifBackchannelSession : public QThread {
+
+	Q_OBJECT
+
+ public:
+	explicit OnvifBackchannelSession(const QUrl &rtspUrl, QObject *pParent = nullptr);
+	~OnvifBackchannelSession() override;
+	DetailedResult<RtspStream> startSessionBlocking();
+	QFuture<DetailedResult<RtspStream>> startSession();
+	QFuture<void> stop();
+
+ signals:
+	void sessionStarted(DetailedResult<RtspStream>);
+	void sessionStopped();
+
+ protected:
+	void run() override;
+
+ private:
+	QUrl mRtspUrl;
+	QMutex mMutex;
+	QWaitCondition mWait;
 };

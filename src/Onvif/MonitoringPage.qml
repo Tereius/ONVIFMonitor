@@ -37,7 +37,8 @@ SwipePage {
     contentItem: Loader {
 
         anchors.fill: parent
-        sourceComponent: DeviceManager.count > 0 ? (monitorGridModel.monitorCount > 0 ? monitorComponent : placeholderComponentNoMonitor) : placeholderComponent
+        sourceComponent: DeviceManager.count > 0 ? (monitorGridModel.monitorCount
+                                                    > 0 ? monitorComponent : placeholderComponentNoMonitor) : placeholderComponent
     }
 
     Component {
@@ -74,16 +75,11 @@ SwipePage {
                 icon.name: "monitor-off"
                 text: qsTr("Seems like you don't have any monitors yet. You may want to add one.")
                 onClicked: {
-                    const dialog = Rally.Helper.createDialog(
-                                     Qt.resolvedUrl(
-                                         "dialogs/AddMonitorDialog.qml"), {},
-                                     mapToGlobal(x, y).y)
+                    const dialog = Rally.Helper.createDialog(Qt.resolvedUrl("dialogs/AddMonitorDialog.qml"), {},
+                                                             mapToGlobal(x, y).y)
                     dialog.editActionClicked.connect((profileId, settings) => {
-                                                         monitorGridModel.addTile(
-                                                             monitorGridModel.index(
-                                                                 0, 0),
-                                                             profileId.getDeviceId(
-                                                                 ), settings)
+                                                         monitorGridModel.addTile(monitorGridModel.index(0, 0),
+                                                                                  profileId.getDeviceId(), settings)
                                                      })
                 }
             }
@@ -146,8 +142,7 @@ SwipePage {
                                 width: parent.width
                                 columnSpacing: 4
 
-                                property var modelIndex: view.model.modelIndex(
-                                                             index)
+                                property var modelIndex: view.model.modelIndex(index)
                                 Repeater {
 
                                     model: DelegateModel {
@@ -162,8 +157,7 @@ SwipePage {
                                             leftPadding: 4
                                             rightPadding: 4
                                             bottomPadding: 4
-                                            property var deviceInfo: DeviceManager.getDeviceInfo(
-                                                                         deviceId)
+                                            property var deviceInfo: DeviceManager.getDeviceInfo(deviceId)
 
                                             mainAction: Rally.BusyAction {
                                                 text: qsTr("edit")
@@ -171,98 +165,123 @@ SwipePage {
                                                 onTriggered: {
 
                                                     const dialog = Rally.Helper.createDialog(
-                                                                     Qt.resolvedUrl(
-                                                                         "dialogs/EditMonitorDialog.qml"),
-                                                                     {
+                                                                     Qt.resolvedUrl("dialogs/EditMonitorDialog.qml"), {
                                                                          "profileId": model.profile,
                                                                          "settings": model.settings
-                                                                     },
-                                                                     mapToGlobal(
-                                                                         x,
-                                                                         y).y)
-                                                    dialog.editActionClicked.connect(
-                                                                (profileId, settings) => {
-                                                                    monitorGridModel.editTile(
-                                                                        contentModel.rootIndex,
-                                                                        contentModel.modelIndex(
-                                                                            index),
-                                                                        settings)
-                                                                })
+                                                                     }, mapToGlobal(x, y).y)
+                                                    dialog.editActionClicked.connect((profileId, settings) => {
+                                                                                         monitorGridModel.editTile(
+                                                                                             contentModel.rootIndex,
+                                                                                             contentModel.modelIndex(
+                                                                                                 index), settings)
+                                                                                     })
 
-                                                    dialog.deleteActionClicked.connect(
-                                                                (profileId, settings) => {
-                                                                    monitorGridModel.removeTile(
-                                                                        contentModel.rootIndex,
-                                                                        contentModel.modelIndex(
-                                                                            index))
-                                                                })
+                                                    dialog.deleteActionClicked.connect((profileId, settings) => {
+                                                                                           monitorGridModel.removeTile(
+                                                                                               contentModel.rootIndex,
+                                                                                               contentModel.modelIndex(
+                                                                                                   index))
+                                                                                       })
                                                 }
                                             }
 
-                                            title: DeviceManager.getName(
-                                                       deviceId)
+                                            title: DeviceManager.getName(deviceId)
 
-                                            CameraImage {
-                                                id: snapshot
-                                                opacity: 1
-                                                autoReload: true
-                                                autoReloadInterval: 5000
+                                            Item {
+
+                                                id: placeholder
                                                 width: parent.width
-                                                implicitHeight: Math.max(
-                                                                    width * 9 / 16,
-                                                                    width * imageHeight / Math.max(
-                                                                        imageWidth,
-                                                                        1))
-                                                profileId: model.profile
+                                                implicitHeight: Math.max(width * 9 / 16,
+                                                                         width * snapshot.imageHeight / Math.max(
+                                                                             snapshot.imageWidth, 1))
 
-                                                states: [
-                                                    State {
-                                                        name: "normal"
-                                                        ParentChange {
-                                                            target: snapshot
-                                                            parent: tile.contentItem
-                                                            x: 0
-                                                            y: 0
+                                                CameraImage {
+                                                    id: snapshot
+                                                    autoReload: true
+                                                    autoReloadInterval: 5000
+                                                    profileId: model.profile
+                                                    settings: model.settings
+                                                    width: placeholder.width
+                                                    height: placeholder.height
+
+                                                    states: [
+                                                        State {
+                                                            name: "normal"
+                                                            ParentChange {
+                                                                target: snapshot
+                                                                parent: placeholder
+                                                                x: 0
+                                                                y: 0
+                                                                width: placeholder.width
+                                                                height: placeholder.height
+                                                            }
+                                                        },
+                                                        State {
+                                                            name: "fullscreen"
+                                                            ParentChange {
+                                                                target: snapshot
+                                                                parent: swiper
+                                                                x: 0
+                                                                y: swiper.height / 2 - height / 2
+                                                                width: snapshot.landscape ? swiper.width : Math.max(
+                                                                                                swiper.height * 16 / 9,
+                                                                                                swiper.height
+                                                                                                * snapshot.imageWidth / Math.max(
+                                                                                                    snapshot.imageHeight,
+                                                                                                    1))
+                                                                height: snapshot.portrait ? swiper.height : Math.max(
+                                                                                                swiper.width * 9 / 16,
+                                                                                                swiper.width
+                                                                                                * snapshot.imageHeight / Math.max(
+                                                                                                    snapshot.imageWidth,
+                                                                                                    1))
+                                                            }
                                                         }
-                                                    },
-                                                    State {
-                                                        name: "reparented"
-                                                        ParentChange {
-                                                            target: snapshot
-                                                            parent: monitoringPage
-                                                            x: 0
-                                                            y: 0
+                                                    ]
+
+                                                    transitions: Transition {
+                                                        ParentAnimation {
+
+                                                            via: swiper
+
+                                                            NumberAnimation {
+                                                                properties: "x,y, width, height"
+                                                                duration: 200
+                                                                easing.type: Easing.OutQuad
+                                                            }
                                                         }
                                                     }
-                                                ]
 
-                                                transitions: Transition {
-                                                    ParentAnimation {
-                                                        NumberAnimation {
-                                                            properties: "x,y"
-                                                            duration: 200
-                                                        }
-                                                    }
-                                                }
+                                                    property var cameraStream: null
+                                                    property bool fullscreen: false
 
-                                                property var cameraStream: null
+                                                    TapHandler {
 
-                                                TapHandler {
-                                                    onTapped: {
-                                                        if (snapshot.cameraStream) {
-                                                            snapshot.state = "normal"
-                                                            snapshot.cameraStream.destroy()
-                                                        } else {
-                                                            snapshot.cameraStream
-                                                                    = Rally.Helper.createItem(
-                                                                        Qt.resolvedUrl(
-                                                                            "CameraStream.qml"),
-                                                                        snapshot, {
-                                                                            "settings": model.settings,
-                                                                            "profileId": model.profile,
-                                                                            "anchors.fill": snapshot
-                                                                        })
-                                                            snapshot.state = "reparented"
+                                                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                                                        parent: snapshot.state === "fullscreen" ? swiper : snapshot
+
+                                                        onTapped: {
+                                                            if (snapshot.state === "fullscreen") {
+                                                                swiper.color = "transparent"
+                                                                snapshot.cameraStream.z = -1000
+                                                                snapshot.cameraStream.destroy()
+                                                                snapshot.state = "normal"
+                                                            } else {
+                                                                snapshot.cameraStream = Rally.Helper.createItem(
+                                                                            Qt.resolvedUrl("CameraStream.qml"),
+                                                                            snapshot, {
+                                                                                "profileId": model.profile,
+                                                                                "settings": model.settings,
+                                                                                "anchors.fill": snapshot,
+                                                                                "z": -1
+                                                                            })
+
+                                                                snapshot.cameraStream.firstFrame.connect(() => {
+                                                                                                             snapshot.cameraStream.z = 1
+                                                                                                         })
+                                                                snapshot.state = "fullscreen"
+                                                                swiper.color = "black"
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -294,20 +313,32 @@ SwipePage {
         Material.elevation: 3
         Material.background: Material.accent
         onClicked: {
-            const dialog = Rally.Helper.createDialog(
-                             Qt.resolvedUrl("dialogs/AddMonitorDialog.qml"),
-                             {}, mapToGlobal(x, y).y)
+            const dialog = Rally.Helper.createDialog(Qt.resolvedUrl("dialogs/AddMonitorDialog.qml"), {},
+                                                     mapToGlobal(x, y).y)
             dialog.editActionClicked.connect((profileId, settings) => {
-                                                 monitorGridModel.addTile(
-                                                     monitorGridModel.index(0,
-                                                                            0),
-                                                     profileId.getDeviceId(),
-                                                     settings)
+                                                 monitorGridModel.addTile(monitorGridModel.index(0, 0),
+                                                                          profileId.getDeviceId(), settings)
                                              })
         }
+
         Behavior on opacity {
             NumberAnimation {
                 duration: 100
+            }
+        }
+    }
+
+    Rectangle {
+
+        id: swiper
+        z: 1
+        parent: Overlay.overlay
+        anchors.fill: parent
+        color: "transparent"
+
+        Behavior on color {
+            ColorAnimation {
+                duration: 200
             }
         }
     }

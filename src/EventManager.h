@@ -1,6 +1,7 @@
 #pragma once
 #include "EventHandler.h"
 #include "EventSource.h"
+#include "rep_EventManager_source.h"
 #include <QFuture>
 #include <QHash>
 #include <QList>
@@ -9,7 +10,6 @@
 #include <QMetaProperty>
 #include <QObject>
 #include <QRecursiveMutex>
-#include <QRemoteObjectDynamicReplica>
 #include <QSharedPointer>
 #include <QUuid>
 
@@ -17,14 +17,15 @@
 class FutureResult;
 class EventBinding;
 class OnvifPullPoint;
+class DeviceManagerReplica;
 
-class EventManager : public QObject {
+class EventManager : public EventManagerSource {
 
 	Q_OBJECT
 
  public:
 	static EventManager *getInstance();
-	virtual ~EventManager();
+	~EventManager() override;
 	void initialize();
 	template<typename T>
 	static void registerEventHandler();
@@ -43,9 +44,11 @@ class EventManager : public QObject {
 
 
 	Q_INVOKABLE void unbind(const QUuid &rBindingId) {}
+
 	Q_INVOKABLE bool doesBindingNameExist(const QString &rName);
 	Q_INVOKABLE void bindEvents();
 	Q_INVOKABLE void getEventSourceParams() {}
+
 	Q_INVOKABLE FutureResult *getDeviceTopics(const QUuid &rDeviceId);
 
 	const QHash<QUuid, QSharedPointer<EventBinding>> &getEventBindings() const { return mInstalledEventBindings; }
@@ -62,27 +65,25 @@ class EventManager : public QObject {
  private slots:
 	//! (re)initialize a pull point for a device
 	void initPullPoint(const QUuid &rDeviceId);
-	void deviceAdded(const QUuid &rAddedDeviceId);
-	void deviceRemoved(const QUuid &rRemovedDeviceId);
-	void deviceInitialized(const QUuid &rRemovedDeviceId);
-	void deviceChanged(const QUuid &rRemovedDeviceId);
+	void removeDevice(const QUuid &rRemovedDeviceId);
+	void updateDevice(const QUuid &deviceId);
 
  protected:
 	explicit EventManager(QObject *pParent = nullptr);
 
  private:
 	Q_DISABLE_COPY(EventManager);
-
-	void updateDevice(const QUuid &deviceId);
 	void initEvents();
+	void clearDevices();
 
+	static EventMessage toEventMessage(const wsnt__NotificationMessageHolderType *message);
 	static QHash<QString, EventHandlerInfo> mRegisteredEventHandler;
 	static QHash<QString, EventSourceInfo> mRegisteredEventSources;
 	QHash<QUuid, QSharedPointer<EventBinding>> mInstalledEventBindings; // binding id -> binding
 	QHash<QUuid, OnvifPullPoint *> mPullPoints; // device id -> pullpoint
 	QHash<QUuid, QUrl> mEventDevices;
 	QRecursiveMutex mMutex;
-	QRemoteObjectDynamicReplica *mpReplica;
+	DeviceManagerReplica *mpReplica;
 };
 
 template<typename T>

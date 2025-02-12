@@ -1,0 +1,14 @@
+#include <QUuid>
+
+class DeviceManager {
+
+	ENUM Changes {General, Credentials, Host, InitializationState}
+
+	SLOT(QList<QUuid> getDevices())
+	SLOT(QUrl getEventEndpoint(const QUuid &rDeviceId))
+	SLOT(bool isDeviceInitialized(const QUuid &rDeviceId))
+
+	SIGNAL(deviceAdded(const QUuid &deviceId))
+	SIGNAL(deviceRemoved(const QUuid &deviceId))
+	SIGNAL(deviceChanged(const QUuid &deviceId, Changes what))
+}

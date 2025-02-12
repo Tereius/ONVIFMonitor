@@ -2,11 +2,13 @@
 #include "AsyncFuture/asyncfuture.h"
 #include "Device.h"
 #include "DeviceManager.h"
+#include "Enums.h"
 #include "ProfileId.h"
-#include "Roles.h"
 #include "Window.h"
 #include <QFutureWatcher>
 
+
+#define FROM_CACHE
 
 MediaProfilesModel::MediaProfilesModel(QObject *pParent /*= nullptr*/) : AbstractListModel(pParent), mProfiles(), mDeviceId() {}
 
@@ -73,15 +75,23 @@ void MediaProfilesModel::setDeviceId(const QUuid &rDeviceId) {
 	Window::getGlobal()->setModalBusy(true);
 	mDeviceId = rDeviceId;
 
+#ifdef FROM_CACHE
+	const auto deviceInfo = DeviceManager::getInstance()->getDeviceInfo(mDeviceId);
+	beginResetModel();
+	if(deviceInfo.mInitialized) {
+		mProfiles = deviceInfo.mMediaProfiles;
+	} else {
+		mProfiles.clear();
+	}
+	endResetModel();
+#elif
 	auto mediaProfilesFuture = DeviceManager::getInstance()->getMediaProfiles(mDeviceId);
 	AsyncFuture::observe(mediaProfilesFuture)
 	 .subscribe(
 	  [this, mediaProfilesFuture]() {
 		  beginResetModel();
-		  auto result = mediaProfilesFuture.result();
-		  if(result) {
+		  if(auto result = mediaProfilesFuture.result()) {
 			  mProfiles = result.GetResultObject();
-			  sortList();
 		  }
 		  endResetModel();
 	  },
@@ -90,12 +100,7 @@ void MediaProfilesModel::setDeviceId(const QUuid &rDeviceId) {
 		  mProfiles.clear();
 		  endResetModel();
 	  });
+#endif
 
 	emit deviceChanged();
-}
-
-void MediaProfilesModel::sortList() {
-
-	std::sort(mProfiles.begin(), mProfiles.end(),
-	          [](MediaProfile left, MediaProfile right) { return left.getName().compare(right.getName(), Qt::CaseInsensitive); });
 }

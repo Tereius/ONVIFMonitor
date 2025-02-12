@@ -1,13 +1,19 @@
 #include "EventManager.h"
 #include "EventBinding.h"
+#include "EventMessage.h"
 #include "FutureResult.h"
 #include "OnvifPullPoint.h"
+#include "SecretsManager.h"
+#include "Util.h"
 #include "Window.h"
+#include "rep_DeviceManager_replica.h"
 #include <QGlobalStatic>
 #include <QRemoteObjectNode>
 #include <QRemoteObjectPendingCall>
 #include <QSettings>
 #include <QVariant>
+
+#define RO_TIMEOUT 1000
 
 
 class EventManagerrSingleton : public EventManager {};
@@ -20,36 +26,64 @@ EventManager *EventManager::getInstance() {
 }
 
 EventManager::EventManager(QObject *pParent /*= nullptr*/) :
- QObject(pParent), mPullPoints(), mEventDevices(), mMutex(), mpReplica(nullptr) {
+ EventManagerSource(pParent), mPullPoints(), mEventDevices(), mMutex(), mpReplica(nullptr) {
 
+	qRegisterMetaType<EventMessage>();
 	// connect(DeviceManager::getInstance(), SIGNAL(deviceInitialized(const Uuid &)), this, SLOT(initPullPoint(const Uuid &)),
 	//         Qt::QueuedConnection);
 }
 
-EventManager::~EventManager() = default;
+EventManager::~EventManager() {
+
+	clearDevices();
+}
 
 void EventManager::initialize() {
 
-	auto *repNode = new QRemoteObjectNode(this); // create remote object node
-	repNode->setHeartbeatInterval(10000);
-	qInfo() << "connect to remote object" << repNode->connectToNode(QUrl(QStringLiteral("local:replica"))); // connect with remote host node
-	mpReplica = repNode->acquireDynamic("DeviceManager");
-	mpReplica->setParent(this);
-	connect(mpReplica, &QRemoteObjectDynamicReplica::initialized, this, [this]() {
-		connect(mpReplica, SIGNAL(deviceAdded(const QUuid &)), SLOT(deviceAdded(const QUuid &)));
-		connect(mpReplica, SIGNAL(deviceRemoved(const QUuid &)), SLOT(deviceRemoved(const QUuid &)));
-		connect(mpReplica, SIGNAL(deviceInitialized(const QUuid &)), SLOT(deviceInitialized(const QUuid &)));
-		connect(mpReplica, SIGNAL(deviceChanged(const QUuid &)), SLOT(deviceChanged(const QUuid &)));
+	// expose the EventManager
+	auto srcNode = new QRemoteObjectHost(QUrl(QStringLiteral("local:EventManager")), this);
+	qInfo() << "EventManager registered as remote object" << srcNode->enableRemoting(this);
 
-		QTimer::singleShot(0, this, [this]() {
-			QRemoteObjectPendingCall deviceIdsResponse;
-			QMetaObject::invokeMethod(mpReplica, "getDevices", Q_RETURN_ARG(QRemoteObjectPendingCall, deviceIdsResponse));
-			deviceIdsResponse.waitForFinished();
-			for(const auto &deviceId : deviceIdsResponse.returnValue().value<QList<QUuid>>()) {
-				updateDevice(deviceId);
-			}
-		});
-	});
+	// connect to DeviceManager
+	auto *repNode = new QRemoteObjectNode(this); // create remote object node
+	repNode->connectToNode(QUrl(QStringLiteral("local:DeviceManager"))); // connect with remote host node
+	mpReplica = repNode->acquire<DeviceManagerReplica>();
+	mpReplica->setParent(this);
+
+	connect(mpReplica, &DeviceManagerReplica::deviceAdded, this, &EventManager::updateDevice, Qt::QueuedConnection);
+	connect(mpReplica, &DeviceManagerReplica::deviceRemoved, this, &EventManager::removeDevice, Qt::QueuedConnection);
+	connect(
+	 mpReplica, &DeviceManagerReplica::deviceChanged, this,
+	 [this](const QUuid &deviceId, DeviceManagerReplica::Changes what) {
+		 if(what == DeviceManagerReplica::Credentials || what == DeviceManagerReplica::Host) updateDevice(deviceId);
+	 },
+	 Qt::QueuedConnection);
+	connect(mpReplica, &DeviceManagerReplica::stateChanged, this,
+	        [this](QRemoteObjectReplica::State state, QRemoteObjectReplica::State oldState) {
+		        Q_UNUSED(oldState)
+		        if(state == QRemoteObjectReplica::Valid) {
+			        qInfo() << "DeviceManager went online";
+		        } else if(state == QRemoteObjectReplica::Suspect) {
+			        qInfo() << "DeviceManager went offline";
+		        }
+	        });
+
+	connect(
+	 mpReplica, &DeviceManagerReplica::initialized, this,
+	 [this]() {
+		 qDebug() << "About to initialize devices";
+		 auto request = mpReplica->getDevices();
+		 if(request.waitForFinished(RO_TIMEOUT) && request.error() == QRemoteObjectPendingCall::NoError) {
+			 clearDevices();
+			 for(const auto &deviceId : request.returnValue()) {
+				 updateDevice(deviceId);
+			 }
+			 qInfo() << "Devices initialized";
+		 } else {
+			 qWarning() << "Could not initialize devices";
+		 }
+	 },
+	 Qt::QueuedConnection);
 }
 
 QSharedPointer<OnvifPullPoint> EventManager::getPullPoint(QUuid deviceId) const {
@@ -300,33 +334,99 @@ void EventManager::initPullPoint(const QUuid &rDeviceId) {
 	 */
 }
 
-void EventManager::deviceAdded(const QUuid &rAddedDeviceId) {
-
-	updateDevice(rAddedDeviceId);
-}
-
-void EventManager::deviceRemoved(const QUuid &rRemovedDeviceId) {
+void EventManager::removeDevice(const QUuid &rRemovedDeviceId) {
 
 	mEventDevices.remove(rRemovedDeviceId);
-}
-
-void EventManager::deviceInitialized(const QUuid &rRemovedDeviceId) {
-
-	qInfo() << "deviceInitialized";
-}
-
-void EventManager::deviceChanged(const QUuid &rRemovedDeviceId) {
-
-	updateDevice(rRemovedDeviceId);
+	if(auto ppo = mPullPoints.take(rRemovedDeviceId)) {
+		ppo->deleteLater();
+	}
+	QSettings settings;
+	settings.beginGroup("events");
+	settings.beginGroup(rRemovedDeviceId.toString(QUuid::WithoutBraces));
+	settings.remove("");
+	settings.endGroup();
 }
 
 void EventManager::updateDevice(const QUuid &deviceId) {
 
-	QRemoteObjectPendingCall deviceIdsResponse;
-	QMetaObject::invokeMethod(mpReplica, "getEventEndpoint", Q_RETURN_ARG(QRemoteObjectPendingCall, deviceIdsResponse),
-	                          Q_ARG(QUuid, deviceId));
-	deviceIdsResponse.waitForFinished(1000);
-	mEventDevices.insert(deviceId, deviceIdsResponse.returnValue().toUrl());
+	auto request = mpReplica->getEventEndpoint(deviceId);
+	if(request.waitForFinished(RO_TIMEOUT) && request.error() == QRemoteObjectPendingCall::NoError) {
+		auto eventEndpoint = request.returnValue();
+		mEventDevices.insert(deviceId, eventEndpoint);
+		if(auto ppo = mPullPoints.take(deviceId)) {
+			ppo->deleteLater();
+		}
+		if(eventEndpoint.isValid()) {
+			auto credentials = Util::unmergeUsernamePassword(SecretsManager::readSecretSync(deviceId.toString(QUuid::WithoutBraces)));
+			auto ctx = QSharedPointer<SoapCtx>::create();
+			ctx->SetAuth(credentials.first, credentials.second);
+			auto *ppo = new OnvifPullPoint(eventEndpoint, ctx);
+			connect(ppo, &OnvifPullPoint::LostPullPoint, this, [deviceId, this](const SimpleResponse &rCause) {
+				qInfo() << "Lost pullpoint of device" << deviceId.toString(QUuid::WithoutBraces) << rCause;
+				emit lostPullPoint(deviceId);
+			});
+			connect(ppo, &OnvifPullPoint::ResumedPullPoint, this,
+			        [deviceId, this]() { qInfo() << "Resumed pullpoint of device" << deviceId.toString(QUuid::WithoutBraces); });
+			connect(ppo, &OnvifPullPoint::MessageReceived, this, [this, deviceId](const Response<wsnt__NotificationMessageHolderType> &result) {
+				if(result) {
+					if(const auto *message = result.GetResultObject()) {
+						emit messageReceived(deviceId, EventManager::toEventMessage(message));
+					}
+				}
+			});
+			ppo->Start();
+			mPullPoints.insert(deviceId, ppo);
+			QSettings settings;
+			settings.beginGroup("events");
+			settings.beginGroup(deviceId.toString(QUuid::WithoutBraces));
+			settings.setValue("endpoint", request.returnValue().toString());
+			settings.endGroup();
+			qInfo() << "Updated device" << deviceId.toString(QUuid::WithoutBraces);
+		} else {
+			qWarning() << "Invalid event endpoint" << deviceId.toString(QUuid::WithoutBraces);
+		}
+	} else {
+		qWarning() << "Could not update device" << deviceId.toString(QUuid::WithoutBraces);
+	}
+}
+
+void EventManager::clearDevices() {
+
+	QMutableHashIterator<QUuid, OnvifPullPoint *> iter(mPullPoints);
+	while(iter.hasNext()) {
+		auto *ppo = iter.next().value();
+		ppo->deleteLater();
+		iter.remove();
+	}
+	mPullPoints.clear();
+	mEventDevices.clear();
+}
+
+EventMessage EventManager::toEventMessage(const wsnt__NotificationMessageHolderType *message) {
+
+	auto cvt = [](tt__ItemList *list) {
+		QHash<QString, QString> ret;
+		if(list) {
+			for(const auto &entry : list->SimpleItem) {
+				ret.insert(entry.Name, entry.Value);
+			}
+			for(const auto &entry : list->ElementItem) {
+				ret.insert(entry.Name, {});
+			}
+		}
+		return ret;
+	};
+
+	EventMessage msg;
+	if(message->Topic) {
+		msg.topic = *message->Topic;
+	}
+	if(message->Message.Message) {
+		msg.key = cvt(message->Message.Message->Key);
+		msg.source = cvt(message->Message.Message->Source);
+		msg.data = cvt(message->Message.Message->Data);
+	}
+	return msg;
 }
 
 QHash<QString, EventHandlerInfo> EventManager::mRegisteredEventHandler;

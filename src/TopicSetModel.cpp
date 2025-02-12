@@ -1,6 +1,6 @@
 #include "TopicSetModel.h"
 #include "DeviceManager.h"
-#include "Roles.h"
+#include "Enums.h"
 #include "Window.h"
 #include <QtConcurrent>
 

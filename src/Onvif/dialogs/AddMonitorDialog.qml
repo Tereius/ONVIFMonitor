@@ -35,9 +35,8 @@ Rally.Dialog {
         text: qsTr("Add")
         icon.name: "check"
         onTriggered: {
-            monitorDialog.editActionClicked(
-                        secondPageLoader.item.mediaProfile.profileId,
-                        secondPageLoader.item.settings)
+            monitorDialog.editActionClicked(secondPageLoader.item.mediaProfile.profileId,
+                                            secondPageLoader.item.settings)
             monitorDialog.close()
         }
     }
@@ -69,20 +68,28 @@ Rally.Dialog {
 
                     Rally.GroupBox {
 
+                        id: group
                         Layout.fillWidth: true
                         title: name
                         icon.name: "cctv"
 
-                        MediaProfilesListView {
+                        ColumnLayout {
 
-                            deviceId: id
-                            width: parent.width
+                            anchors.fill: parent
+                            anchors.leftMargin: -group.leftPadding
+                            anchors.rightMargin: -group.rightPadding
 
-                            onClicked: index => {
-                                           priv.profileId = model.get(
-                                               index).profileId
-                                           swipeView.incrementCurrentIndex()
-                                       }
+                            MediaProfilesListView {
+
+                                deviceId: id
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+
+                                onClicked: index => {
+                                               priv.profileId = model.get(index).profileId
+                                               swipeView.incrementCurrentIndex()
+                                           }
+                            }
                         }
                     }
                 }
@@ -94,7 +101,6 @@ Rally.Dialog {
 
         id: scrollView
         anchors.fill: parent
-        enableVerticalScrollBar: monitorDialog.opened
 
         SwipeView {
 
@@ -104,7 +110,6 @@ Rally.Dialog {
 
             Loader {
                 active: SwipeView.isCurrentItem || SwipeView.isPreviousItem
-                asynchronous: true
                 sourceComponent: firstPage
                 visible: status == Loader.Ready
             }
@@ -112,14 +117,11 @@ Rally.Dialog {
             Loader {
                 id: secondPageLoader
                 active: SwipeView.isCurrentItem
-                asynchronous: true
                 visible: status == Loader.Ready
                 onActiveChanged: {
                     if (active) {
-                        setSource(Qt.resolvedUrl(
-                                      "../pages/EditMonitorPage.qml"), {
-                                      "mediaProfile": DeviceManager.getMediaProfile(
-                                                          priv.profileId)
+                        setSource(Qt.resolvedUrl("../pages/EditMonitorPage.qml"), {
+                                      "mediaProfile": DeviceManager.getMediaProfile(priv.profileId)
                                   })
                     } else {
                         source = ""

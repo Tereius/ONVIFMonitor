@@ -26,9 +26,8 @@ Rally.Dialog {
             text: qsTr("Delete")
             icon.name: "delete"
             onTriggered: {
-                control.deleteActionClicked(
-                    secondPageLoader.item.mediaProfile.profileId,
-                    secondPageLoader.item.settings)
+                control.deleteActionClicked(secondPageLoader.item.mediaProfile.profileId,
+                                            secondPageLoader.item.settings)
                 control.close()
             }
         },
@@ -38,9 +37,7 @@ Rally.Dialog {
             text: qsTr("Save")
             icon.name: "check"
             onTriggered: {
-                control.editActionClicked(
-                    secondPageLoader.item.mediaProfile.profileId,
-                    secondPageLoader.item.settings)
+                control.editActionClicked(secondPageLoader.item.mediaProfile.profileId, secondPageLoader.item.settings)
                 control.close()
             }
         }
@@ -50,19 +47,16 @@ Rally.Dialog {
 
         id: scrollView
         anchors.fill: parent
-        enableVerticalScrollBar: control.opened
 
         Loader {
+            width: parent.width
             id: secondPageLoader
-            anchors.fill: parent
             active: true
-            asynchronous: true
             visible: status == Loader.Ready
             Component.onCompleted: {
                 if (active) {
                     setSource(Qt.resolvedUrl("../pages/EditMonitorPage.qml"), {
-                                  "mediaProfile": DeviceManager.getMediaProfile(
-                                                      control.profileId),
+                                  "mediaProfile": DeviceManager.getMediaProfile(control.profileId),
                                   "settings": control.settings
                               })
                 } else {

@@ -1,0 +1,7 @@
+#include <soapStub.h>
+#include "EventMessage.h"
+
+class EventManager {
+
+	SIGNAL(messageReceived(const QUuid &deviceId, const EventMessage &message))
+}

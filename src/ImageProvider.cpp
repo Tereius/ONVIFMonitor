@@ -71,6 +71,6 @@ QString AsyncImageResponse::errorString() const {
 
 void AsyncImageResponse::cancel() {
 
-	qWarning() << "cancel Thread:" << QThread::currentThread();
+	qDebug() << "cancel Thread:" << QThread::currentThread();
 	mSnapshotFuture.cancel();
 }

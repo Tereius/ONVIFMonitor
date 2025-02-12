@@ -2,6 +2,7 @@
 #include "App.h"
 #include "RtspMessage.h"
 #include "SessionDescription.h"
+#include "asyncfuture.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QEventLoop>
@@ -18,6 +19,8 @@
 #define MIN_DYNAMIC_PORT 49152
 #define MAX_DYNAMIC_PORT 60999
 
+
+Q_LOGGING_CATEGORY(orc, "OnvifRtspClient")
 
 OnvifRtspClient::OnvifRtspClient(const QUrl &rtspUrl, QObject *pParent /*= nullptr*/) :
  QObject(pParent),
@@ -62,12 +65,25 @@ DetailedResult<MediaDescription> OnvifRtspClient::hasAudioBackchannel() {
 					auto stream = RtspStream(sendonlyMediaDescription);
 					if(!stream.getMediaDescription().getAttributeValues("rtpmap").isEmpty()) {
 						return DetailedResult<MediaDescription>(sendonlyMediaDescription);
+					} else {
+						qCDebug(orc) << "Missing rtpmap entry in media description - no backchannel support";
+						return {Result::FAULT, tr("The device does not provide audio backchannel support")};
 					}
+				} else {
+					qCDebug(orc) << "Missing control entry in sdp - no backchannel support";
+					return {Result::FAULT, tr("The device does not provide audio backchannel support")};
 				}
+			} else {
+				qCDebug(orc) << "Missing sendonly entry in sdp - no backchannel support";
+				return {Result::FAULT, tr("The device does not provide audio backchannel support")};
 			}
+		} else {
+			qCDebug(orc) << "RTSP DESCRIBE failed";
+			return {describeResult, {}};
 		}
+	} else {
+		return {connectResult, {}};
 	}
-	return DetailedResult<MediaDescription>(Result::FAULT, "");
 }
 
 // ffmpeg -re -i '/home/bjoern/Music/Palladium ft. Bianca Varela - Adrift (Radio Edit).m4a' -filter:a "volume=0.03" -ac
@@ -87,7 +103,7 @@ DetailedResult<RtspStream> OnvifRtspClient::startAudioBackchannelStream() {
 
 	mCseq = 1;
 	stop();
-	qDebug() << "About to start RTSP stream";
+	qCDebug(orc) << "About to start RTSP stream";
 	if(auto connectResult = connectHost(mRtspUrl.host(), mRtspUrl.port(DEFAULT_RTSP_PORT))) {
 		auto deferDisconnect = qScopeGuard([this] { disconnectHost(); });
 		auto describeRequest = RtspMessageRequest("DESCRIBE", mRtspUrl.toString());
@@ -130,36 +146,36 @@ DetailedResult<RtspStream> OnvifRtspClient::startAudioBackchannelStream() {
 								playRequest.addField("Session", session);
 								playRequest.addField("Require", ONVIF_AUDIO_BACKCHANNEL_TAG);
 								if(auto playResult = sendRtspMsg(playRequest)) {
-									qInfo() << "Successfully started RTSP stream with session" << session;
+									qCInfo(orc) << "Successfully started RTSP stream with session" << session;
 									deferDisconnect.dismiss(); // somehow we have to keep the tcp connection open
 									mSession = session;
 									return DetailedResult<RtspStream>(stream);
 								} else {
-									qWarning() << "RTSP PLAY failed";
+									qCWarning(orc) << "RTSP PLAY failed";
 									return {playResult, {}};
 								}
 							} else {
-								qWarning() << "Missing RTSP session value";
+								qCWarning(orc) << "Missing RTSP session value";
 								return {Result::FAULT, tr("The device does not provide a audio backchannel session")};
 							}
 						} else {
-							qWarning() << "Missing RTSP session key";
+							qCWarning(orc) << "Missing RTSP session key";
 							return {Result::FAULT, tr("The device does not provide a audio backchannel session")};
 						}
 					} else {
-						qWarning() << "RTSP SETUP failed";
+						qCWarning(orc) << "RTSP SETUP failed";
 						return {setupResult, {}};
 					}
 				} else {
-					qWarning() << "Missing control entry in sdp - no backchannel support";
+					qCWarning(orc) << "Missing control entry in sdp - no backchannel support";
 					return {Result::FAULT, tr("The device does not provide audio backchannel support")};
 				}
 			} else {
-				qWarning() << "Missing sendonly entry in sdp - no backchannel support";
+				qCWarning(orc) << "Missing sendonly entry in sdp - no backchannel support";
 				return {Result::FAULT, tr("The device does not provide audio backchannel support")};
 			}
 		} else {
-			qWarning() << "RTSP DESCRIBE failed";
+			qCWarning(orc) << "RTSP DESCRIBE failed";
 			return {describeResult, {}};
 		}
 	} else {
@@ -170,20 +186,20 @@ DetailedResult<RtspStream> OnvifRtspClient::startAudioBackchannelStream() {
 void OnvifRtspClient::stop() {
 
 	if(!mSession.isEmpty()) {
-		qDebug() << "About to stop RTSP stream with session" << mSession;
+		qCDebug(orc) << "About to stop RTSP stream with session" << mSession;
 		if(auto connectResult = connectHost(mRtspUrl.host(), mRtspUrl.port(DEFAULT_RTSP_PORT))) {
 			auto deferDisconnect = qScopeGuard([this] { disconnectHost(); });
 			auto teardownRequest = RtspMessageRequest("TEARDOWN", mRtspUrl.toString());
 			teardownRequest.addField("Session", mSession);
 			teardownRequest.addField("Require", ONVIF_AUDIO_BACKCHANNEL_TAG);
 			if(auto teardownResult = sendRtspMsg(teardownRequest)) {
-				qDebug() << "Stopped RTSP stream with session" << mSession;
+				qCInfo(orc) << "Stopped RTSP stream with session" << mSession;
 			} else {
-				qWarning() << teardownResult;
+				qCWarning(orc) << teardownResult;
 			}
 			mSession = {};
 		} else {
-			qWarning() << connectResult;
+			qCWarning(orc) << connectResult;
 		}
 	}
 }
@@ -191,13 +207,13 @@ void OnvifRtspClient::stop() {
 Result OnvifRtspClient::connectHost(const QString &host, int port) {
 
 	if(mpSock->state() != QAbstractSocket::ConnectedState) {
-		qDebug() << "About to connect host" << host + ":" + QString::number(port);
+		qCDebug(orc) << "About to connect host" << host + ":" + QString::number(port);
 		Result result;
 		auto connected = false;
 		connect(
 		 mpSock, &QTcpSocket::connected, mpLoop,
 		 [&]() {
-			 qDebug() << "Successfully connected host" << host + ":" + QString::number(port);
+			 qCDebug(orc) << "Successfully connected host" << host + ":" + QString::number(port);
 			 connected = true;
 			 mpLoop->quit();
 		 },
@@ -206,7 +222,7 @@ Result OnvifRtspClient::connectHost(const QString &host, int port) {
 		 mpSock, &QTcpSocket::errorOccurred, mpLoop,
 		 [&](QAbstractSocket::SocketError err) {
 			 Q_UNUSED(err)
-			 qWarning() << "Connecting host failed" << host + ":" + QString::number(port) << mpSock->errorString();
+			 qCWarning(orc) << "Connecting host failed" << host + ":" + QString::number(port) << mpSock->errorString();
 			 result = {Result::FAULT, tr("Connecting host failed: %1").arg(mpSock->errorString())};
 			 mpLoop->quit();
 		 },
@@ -216,7 +232,7 @@ Result OnvifRtspClient::connectHost(const QString &host, int port) {
 		connect(
 		 &timer, &QTimer::timeout, mpLoop,
 		 [&]() {
-			 qWarning() << "Connect timeout" << host + ":" + QString::number(port);
+			 qCWarning(orc) << "Connect timeout" << host + ":" + QString::number(port);
 			 result = {Result::FAULT, tr("Connect timeout occurred")};
 			 mpLoop->quit();
 		 },
@@ -239,13 +255,13 @@ Result OnvifRtspClient::disconnectHost() {
 
 	if(mpSock->state() == QAbstractSocket::ConnectedState) {
 		const auto tmpHost = mpSock->peerAddress();
-		qDebug() << "About to disconnect host" << tmpHost.toString();
+		qCDebug(orc) << "About to disconnect host" << tmpHost.toString();
 		Result result;
 		auto disconnected = false;
 		connect(
 		 mpSock, &QTcpSocket::disconnected, mpLoop,
 		 [&]() {
-			 qDebug() << "Successfully disconnected host" << tmpHost.toString();
+			 qCDebug(orc) << "Successfully disconnected host" << tmpHost.toString();
 			 disconnected = true;
 			 mpLoop->quit();
 		 },
@@ -255,7 +271,7 @@ Result OnvifRtspClient::disconnectHost() {
 		connect(
 		 &timer, &QTimer::timeout, mpLoop,
 		 [&]() {
-			 qWarning() << "Disconnect timeout" << tmpHost.toString();
+			 qCWarning(orc) << "Disconnect timeout" << tmpHost.toString();
 			 result = {Result::FAULT, tr("Disconnect timeout occurred")};
 			 mpLoop->quit();
 		 },
@@ -276,8 +292,8 @@ Result OnvifRtspClient::disconnectHost() {
 
 DetailedResult<RtspMessageResponse> OnvifRtspClient::sendRtspMsg(const RtspMessageRequest &msg, bool retry /*= false*/) {
 
-	qDebug() << "About to send RTSP message" << msg.getMethod() + " " + msg.getUrl() << mpSock->peerAddress().toString()
-	         << (retry ? "again" : "");
+	qCDebug(orc) << "About to send RTSP message" << msg.getMethod() + " " + msg.getUrl() << mpSock->peerAddress().toString()
+	             << (retry ? "again" : "");
 
 	auto result = DetailedResult<RtspMessageResponse>();
 	auto messageFinished = false;
@@ -288,7 +304,7 @@ DetailedResult<RtspMessageResponse> OnvifRtspClient::sendRtspMsg(const RtspMessa
 	 mpSock, &QTcpSocket::errorOccurred, mpLoop,
 	 [&](QAbstractSocket::SocketError err) {
 		 Q_UNUSED(err)
-		 qWarning() << "Sending RTSP message failed" << mpSock->peerAddress().toString() << mpSock->errorString();
+		 qCWarning(orc) << "Sending RTSP message failed" << mpSock->peerAddress().toString() << mpSock->errorString();
 		 result = DetailedResult<RtspMessageResponse>(Result::FAULT, tr("Sending RTSP message failed: %1").arg(mpSock->errorString()));
 		 mpLoop->quit();
 	 },
@@ -321,7 +337,7 @@ DetailedResult<RtspMessageResponse> OnvifRtspClient::sendRtspMsg(const RtspMessa
 	connect(
 	 &receiveTimer, &QTimer::timeout, mpLoop,
 	 [&]() {
-		 qWarning() << "Read timeout occurred" << mpSock->peerAddress().toString();
+		 qCWarning(orc) << "Read timeout occurred" << mpSock->peerAddress().toString();
 		 result = DetailedResult<RtspMessageResponse>(Result::FAULT, tr("Read timeout occurred"));
 		 mpLoop->quit();
 	 },
@@ -331,14 +347,14 @@ DetailedResult<RtspMessageResponse> OnvifRtspClient::sendRtspMsg(const RtspMessa
 	connect(
 	 &sendTimer, &QTimer::timeout, mpLoop,
 	 [&]() {
-		 qWarning() << "Send timeout occurred" << mpSock->peerAddress().toString();
+		 qCWarning(orc) << "Send timeout occurred" << mpSock->peerAddress().toString();
 		 result = DetailedResult<RtspMessageResponse>(Result::FAULT, tr("Send timeout occurred"));
 		 mpLoop->quit();
 	 },
 	 Qt::QueuedConnection);
 	auto data = msg.serialize(mCseq++, mAuth.getAuthHeader(mUser, mPassword, msg.getMethod(), msg.getUrl()));
-	qDebug() << "└"
-	         << QString::fromUtf8(msg.serialize(mCseq, mAuth.getAuthHeader("***********", "***********", msg.getMethod(), msg.getUrl())));
+	qCDebug(orc) << "└"
+	             << QString::fromUtf8(msg.serialize(mCseq, mAuth.getAuthHeader("***********", "***********", msg.getMethod(), msg.getUrl())));
 	auto writtenByte = 0LL;
 	sendTimer.start(mSendTimeout);
 	do {
@@ -346,7 +362,7 @@ DetailedResult<RtspMessageResponse> OnvifRtspClient::sendRtspMsg(const RtspMessa
 		if(written >= 0) {
 			writtenByte += written;
 		} else {
-			qWarning() << "Writing RTSP message failed" << mpSock->peerAddress().toString();
+			qCWarning(orc) << "Writing RTSP message failed" << mpSock->peerAddress().toString();
 			result = DetailedResult<RtspMessageResponse>(Result::FAULT, tr("Writing RTSP message failed"));
 			break;
 		}
@@ -361,26 +377,26 @@ DetailedResult<RtspMessageResponse> OnvifRtspClient::sendRtspMsg(const RtspMessa
 	if(result) {
 		const RtspMessageResponse response(message, payload);
 		if(response.getStatus() == 200) {
-			qDebug() << "Successfully sent message" << mpSock->peerAddress().toString();
+			qCDebug(orc) << "Successfully sent message" << mpSock->peerAddress().toString();
 			if(!payload.isEmpty()) {
-				qDebug() << "├" << QString::fromUtf8(message);
-				qDebug() << "└" << QString::fromUtf8(payload);
+				qCDebug(orc) << "├" << QString::fromUtf8(message);
+				qCDebug(orc) << "└" << QString::fromUtf8(payload);
 			} else {
-				qDebug() << "└" << QString::fromUtf8(message);
+				qCDebug(orc) << "└" << QString::fromUtf8(message);
 			}
 			result = DetailedResult<RtspMessageResponse>(response);
 		} else if(response.getStatus() == 401 && !retry) {
 			// retry
-			qDebug() << "Authentication is required" << mpSock->peerAddress().toString();
+			qCDebug(orc) << "Authentication is required" << mpSock->peerAddress().toString();
 			auto auths = OnvifRtspClient::parseAuthFields(response.getFields("WWW-Authenticate"));
 			if(!auths.empty()) {
 				mAuth = auths.first();
 			} else {
-				qWarning() << "Could not parse authenticate header" << mpSock->peerAddress().toString();
+				qCWarning(orc) << "Could not parse authenticate header" << mpSock->peerAddress().toString();
 			}
 			return sendRtspMsg(msg, true);
 		} else {
-			qWarning() << "RTSP request failed" << response.getStatusMessage();
+			qCWarning(orc) << "RTSP request failed" << response.getStatusMessage();
 			result = DetailedResult<RtspMessageResponse>(Result::FAULT, tr("RTSP request failed: %1").arg(response.getStatusMessage()));
 		}
 	}
@@ -395,7 +411,7 @@ QList<OnvifRtspClient::Auth> OnvifRtspClient::parseAuthFields(const QList<QStrin
 		if(!auth.isNull()) {
 			ret.append(auth);
 		} else {
-			qWarning() << "Got invalid WWW-Authenticate header from server";
+			qCWarning(orc) << "Got invalid WWW-Authenticate header from server";
 		}
 	}
 	std::sort(ret.begin(), ret.end(), [](const auto &one, const auto &two) { return one.prefer() > two.prefer(); });
@@ -476,4 +492,69 @@ int OnvifRtspClient::Auth::prefer() const {
 		}
 	}
 	return ret;
+}
+
+OnvifBackchannelSession::OnvifBackchannelSession(const QUrl &rtspUrl, QObject *pParent) :
+ QThread(pParent), mRtspUrl(rtspUrl), mMutex(), mWait() {
+
+	QThread::setObjectName("OnvifBackchannelSession");
+}
+
+OnvifBackchannelSession::~OnvifBackchannelSession() {
+
+	stop();
+	wait();
+}
+
+DetailedResult<RtspStream> OnvifBackchannelSession::startSessionBlocking() {
+
+	DetailedResult<RtspStream> result;
+	stop();
+	wait();
+	connect(
+	 this, &OnvifBackchannelSession::sessionStarted, this, [&result](DetailedResult<RtspStream> sessionResult) { result = sessionResult; },
+	 Qt::DirectConnection);
+	mMutex.lock();
+	start(LowPriority);
+	mWait.wait(&mMutex);
+	mMutex.unlock();
+	this->disconnect(this);
+	return result;
+}
+
+QFuture<DetailedResult<RtspStream>> OnvifBackchannelSession::startSession() {
+
+	stop();
+	wait();
+	auto observable = AsyncFuture::observe(this, &OnvifBackchannelSession::sessionStarted);
+	start(LowPriority);
+	return observable.future();
+}
+
+QFuture<void> OnvifBackchannelSession::stop() {
+
+	if(isRunning()) {
+		auto future = AsyncFuture::observe(this, &OnvifBackchannelSession::sessionStopped).future();
+		mMutex.lock();
+		mWait.wakeAll();
+		mMutex.unlock();
+		return future;
+	} else {
+		auto deferred = AsyncFuture::deferred<void>();
+		deferred.complete();
+		return deferred.future();
+	}
+}
+
+void OnvifBackchannelSession::run() {
+
+	mMutex.lock();
+	auto client = OnvifRtspClient(mRtspUrl);
+	auto result = client.startAudioBackchannelStream();
+	emit sessionStarted(result);
+	mWait.wakeAll();
+	mWait.wait(&mMutex);
+	client.stop();
+	mMutex.unlock();
+	emit sessionStopped();
 }

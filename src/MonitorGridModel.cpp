@@ -1,6 +1,6 @@
 #include "MonitorGridModel.h"
 #include "DeviceManager.h"
-#include "Roles.h"
+#include "Enums.h"
 #include <QQmlEngine>
 #include <QSettings>
 
@@ -191,9 +191,10 @@ QVariant MonitorGridModel::data(const QModelIndex &index, int role) const {
 					settings.beginGroup("monitoring");
 					settings.beginGroup(pageInfo.mId.toString(QUuid::WithoutBraces));
 					settings.beginGroup(monitorTile.mId.toString(QUuid::WithoutBraces));
-					auto *monitorSettings = new MonitorSettings;
+					auto *monitorSettings = new MonitorSettings();
 					monitorSettings->deserializeSettings(&settings);
-					QQmlEngine::setObjectOwnership(monitorSettings, QJSEngine::JavaScriptOwnership);
+					QQmlEngine::setObjectOwnership(monitorSettings,
+					                               QJSEngine::JavaScriptOwnership); // TODO:  QJSEngine::JavaScriptOwnership may crash
 					ret = QVariant::fromValue(monitorSettings);
 					break;
 				}

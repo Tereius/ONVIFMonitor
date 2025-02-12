@@ -8,42 +8,67 @@
 
 class VideoRendererInternal : public QQuickFramebufferObject::Renderer {
  public:
-	VideoRendererInternal(MediaPlayer *r) { this->r = r; }
+	explicit VideoRendererInternal(MediaPlayer *player) : mpPlayer(player) {}
 
-	void render() override { r->renderVideo(); }
+	void render() override { mpPlayer->renderVideo(); }
 
 	QOpenGLFramebufferObject *createFramebufferObject(const QSize &size) override {
-		r->setVideoSurfaceSize(size.width(), size.height());
+		mpPlayer->setVideoSurfaceSize(size.width(), size.height());
 		return new QOpenGLFramebufferObject(size);
 	}
 
-	MediaPlayer *r;
+	MediaPlayer *mpPlayer;
 };
 
 
 MediaPlayer::MediaPlayer(QQuickItem *parent) :
- QQuickFramebufferObject(parent), internal_player(new mdk::Player()), mVideoSize(0, 0), mVideoDisabled(false), mAudioDisabled(false) {
+ QQuickFramebufferObject(parent),
+ internal_player(new mdk::Player()),
+ mVideoSize(0, 0),
+ mVideoDisabled(false),
+ mAudioDisabled(false),
+ mVolume(1.0),
+ mState(Stopped),
+ mFillMode(Enums::FillMode::Stretch) {
 
 	setMirrorVertically(true);
 	// internal_player->setAudioBackends({""});
-	internal_player->setAspectRatio(mdk::IgnoreAspectRatio);
+	internal_player->setAspectRatio(mdk::KeepAspectRatio);
 	internal_player->setProperty("avio.user_agent", App::getDefaultUserAgent().toStdString());
 	internal_player->setProperty("avformat.fflags", "+nobuffer");
 	internal_player->setProperty("avformat.fflags", "+discardcorrupt");
 	internal_player->setProperty("avformat.avioflags", "direct");
 	internal_player->setProperty("avformat.flags", "+low_delay");
 	internal_player->setProperty("avformat.max_probe_packets", "0");
-	internal_player->setProperty("avformat.analyzeduration", "0");
+	internal_player->setProperty("avformat.analyzeduration", "1");
 	internal_player->setProperty("avformat.probesize", "32");
 	internal_player->setProperty("avformat.fpsprobesize", "0");
 	internal_player->setProperty("avformat.max_delay", "0");
+	internal_player->setBufferRange(0);
 
-	internal_player->onEvent([this](mdk::MediaEvent event) {
-		if(event.category == "decoder.video" && event.detail == "size") {
+	internal_player->onEvent([this](const mdk::MediaEvent &event) {
+		if(event.category == "video" && event.detail == "size") {
 			mVideoSize = QSize(event.video.width, event.video.height);
 			emit videoSizeChanged(mVideoSize);
+		} else if(event.category == "render.video" && event.detail == "1st_frame") {
+			emit firstFrame();
 		}
 		return true;
+	});
+
+	internal_player->onStateChanged([this](mdk::State state) {
+		switch(state) {
+			case mdk::State::Stopped:
+				mState = Stopped;
+				break;
+			case mdk::State::Playing:
+				mState = Playing;
+				break;
+			case mdk::State::Paused:
+				mState = Paused;
+				break;
+		}
+		emit stateChanged(mState);
 	});
 }
 
@@ -56,11 +81,10 @@ QString MediaPlayer::source() {
 	return m_source;
 }
 
-void MediaPlayer::setSource(const QString &s) {
-
-	if(!s.isEmpty()) {
-		internal_player->setMedia(qPrintable(s));
-		m_source = s;
+void MediaPlayer::setSource(const QString &source) {
+	if(!source.isEmpty()) {
+		internal_player->setMedia(qPrintable(source));
+		m_source = source;
 		emit sourceChanged();
 		play();
 	}
@@ -70,9 +94,13 @@ QQuickFramebufferObject::Renderer *MediaPlayer::createRenderer() const {
 	return new VideoRendererInternal(const_cast<MediaPlayer *>(this));
 }
 
+MediaPlayer::PlaybackState MediaPlayer::getState() const {
+	return mState;
+}
+
 void MediaPlayer::play() {
 	internal_player->set(mdk::PlaybackState::Playing);
-	internal_player->setRenderCallback([=](void *) { QMetaObject::invokeMethod(this, "update"); });
+	internal_player->setRenderCallback([this](void *) { QMetaObject::invokeMethod(this, "update"); });
 }
 
 void MediaPlayer::setPlaybackRate(float rate) {
@@ -107,12 +135,45 @@ bool MediaPlayer::getDisableAudio() const {
 	return mAudioDisabled;
 }
 
+qreal MediaPlayer::getVolume() const {
+
+	return mVolume;
+}
+
+void MediaPlayer::setVolume(qreal volume) {
+
+	mVolume = volume;
+	internal_player->setVolume(static_cast<float>(volume));
+	emit volumeChanged();
+}
+
+Enums::FillMode MediaPlayer::getFillMode() const {
+
+	return mFillMode;
+}
+
+void MediaPlayer::setFillMode(Enums::FillMode fillMode) {
+
+	switch(fillMode) {
+		case Enums::FillMode::Stretch:
+			internal_player->setAspectRatio(mdk::IgnoreAspectRatio);
+			break;
+		case Enums::FillMode::PreserveAspectFit:
+			internal_player->setAspectRatio(mdk::KeepAspectRatio);
+			break;
+		case Enums::FillMode::PreserveAspectCrop:
+			internal_player->setAspectRatio(mdk::KeepAspectRatioCrop);
+			break;
+	}
+	mFillMode = fillMode;
+	emit fillModeChanged();
+}
+
 void MediaPlayer::renderVideo() {
 	internal_player->renderVideo();
 }
 
 DetailedResult<QImage> MediaPlayer::getSnapshot(const QUrl &rUrl, const QSize &rSize) {
-
 	const int timeoutMs = 30000;
 
 	auto streamUrl = rUrl;
@@ -136,8 +197,9 @@ DetailedResult<QImage> MediaPlayer::getSnapshot(const QUrl &rUrl, const QSize &r
 	player->onFrame<mdk::VideoFrame>([&decoded, deferred, rSize](mdk::VideoFrame &v, int) {
 		if(decoded) return 0;
 		decoded = true;
-		if(!v || v.timestamp() == mdk::TimestampEOS) { // AOT frame(1st frame, seek end 1st frame) is not valid, but format is valid.
-			                                             // eof frame format is invalid
+		if(!v || v.timestamp() == mdk::TimestampEOS) {
+			// AOT frame(1st frame, seek end 1st frame) is not valid, but format is valid.
+			// eof frame format is invalid
 			deferred->complete(DetailedResult<QImage>(Result::FAULT, QObject::tr("Could not get valid snapshot frame")));
 			return 0;
 		}
@@ -187,7 +249,6 @@ DetailedResult<QImage> MediaPlayer::getSnapshot(const QUrl &rUrl, const QSize &r
 }
 
 DetailedResult<QImage> MediaPlayer::getSnapshot(const StreamUrl &rStreamUrl, const QSize &rSize /*= {}*/) {
-
 	auto streamUrl = rStreamUrl;
 	auto query = QUrlQuery(streamUrl.mUrlWithCredentials);
 	query.addQueryItem("mdkopt", "avformat");

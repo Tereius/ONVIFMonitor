@@ -1,34 +1,29 @@
 import QtQuick
 import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
+import Onvif
 import MaterialRally as Rally
 
-Item {
+Control {
 
     id: conrol
 
     property var profileId
-    //property var fillMode: image.fillMode
-    property bool finished: true //image.status === Image.Ready ? true : false
+    property MonitorSettings settings: MonitorSettings {}
+    // Use FillMode enum
+    property int fillMode: FillMode.PreserveAspectFit
 
+    property bool finished: true
+
+    property int imageWidth: image.implicitWidth
+    property int imageHeight: image.implicitHeight
     property bool autoReload: false
     property alias autoReloadInterval: autoReloadTimer.interval
 
-    property int imageWidth: {
-        let children = imageContainer.children
-        if (children.length > 0) {
-            return children[0].implicitWidth
-        }
-        return 0
-    }
+    readonly property bool landscape: imageHeight / Math.max(imageWidth, 1) <= 1
+    readonly property bool portrait: !landscape
 
-    property int imageHeight: {
-        let children = imageContainer.children
-        if (children.length > 0) {
-            return children[0].implicitHeight
-        }
-        return 0
-    }
+    clip: true
 
     implicitHeight: imageHeight
     implicitWidth: imageWidth
@@ -40,16 +35,20 @@ Item {
 
     function clear() {
 
+        image.source = ""
+    }
+
+
+    /*
+    function clear() {
+
         for (var i = 0; i < imageContainer.children.length; i++) {
             const child = imageContainer.children[i]
             child.visible = false
             child.destroy()
         }
     }
-
-    //height: image.status === Image.Ready ? image.implicitHeight / image.implicitWidth
-    //                                     * width : image.sourceSize.height
-    //                                   / image.sourceSize.width * width
+    */
     onVisibleChanged: {
 
         if (!conrol.visible)
@@ -60,8 +59,73 @@ Item {
 
     onProfileIdChanged: {
 
-        console.info("ProfileId changed")
-        priv.load(profileId)
+        loader.visible = true
+        if (profileId) {
+            priv.load(profileId)
+        } else {
+            image.source = ""
+        }
+    }
+
+    contentItem: Image {
+
+        id: image
+
+        mipmap: true
+        cache: false
+        asynchronous: false
+        retainWhileLoading: true
+        sourceSize.width: 720
+        sourceSize.height: 1280
+        fillMode: {
+            if (conrol.fillMode === FillMode.PreserveAspectFit) {
+                return Image.PreserveAspectFit
+            } else if (conrol.fillMode === FillMode.PreserveAspectCrop) {
+                return Image.PreserveAspectCrop
+            }
+            return Image.Stretch
+        }
+
+        transform: [
+            Scale {
+                origin.x: width / 2
+                origin.y: height / 2
+                xScale: settings.mirrorHorizontal ? -1 : 1
+                yScale: settings.mirrorVertical ? -1 : 1
+            },
+            Rotation {
+                origin.x: width / 2
+                origin.y: height / 2
+                angle: settings.rotation
+            },
+            Scale {
+                origin.x: width / 2
+                origin.y: height / 2
+                xScale: settings.zoom
+                yScale: settings.zoom
+            }
+        ]
+
+        onStatusChanged: {
+            if (image.status === Image.Ready) {
+                loader.isError = false
+                loader.visible = false
+            } else if (image.status === Image.Error) {
+                loader.isError = true
+                loader.visible = true
+            }
+        }
+    }
+
+    background: Rectangle {
+
+        color: "black"
+    }
+
+    CameraLoadingIndicator {
+
+        id: loader
+        anchors.fill: image
     }
 
     Timer {
@@ -70,95 +134,66 @@ Item {
         interval: 10000
         repeat: true
         onTriggered: {
-            //if (image.status !== Image.Loading) {
+
             conrol.refresh()
-            //}
         }
     }
 
-    Item {
-        id: imageContainer
 
-        anchors.fill: parent
-    }
-
+    /*
     Component {
 
         id: imageComponent
 
-        Image {
+        Item {
 
-            id: image
+            property alias status: image.status
+            property alias source: image.source
+            implicitWidth: image.implicitWidth
+            implicitHeight: image.implicitHeight
 
-            anchors.fill: parent
+            Image {
 
-            mipmap: true
-            asynchronous: false
-            cache: false
-            sourceSize.width: 720
-            sourceSize.height: 1280
-
-            Rectangle {
+                id: image
 
                 anchors.fill: parent
 
-                color: palette.base
-
-                visible: image.status === Image.Ready ? false : true
-
-                Icon {
-
-                    id: loadingIcon
-
-                    name: "camera-wireless"
-
-                    width: Math.round(Math.min(parent.width,
-                                               parent.height) / 3.0)
-                    height: width
-
-                    visible: image.status === Image.Loading ? true : false
-
-                    anchors.centerIn: parent
-
-                    SequentialAnimation {
-
-                        running: true
-                        loops: Animation.Infinite
-                        OpacityAnimator {
-
-                            target: loadingIcon
-                            from: 0
-                            to: 1
-                            duration: 1000
-                            easing.type: Easing.InOutSine
-                        }
-
-                        OpacityAnimator {
-
-                            target: loadingIcon
-                            from: 1
-                            to: 0
-                            duration: 1000
-                            easing.type: Easing.InOutSine
-                        }
+                mipmap: true
+                cache: false
+                asynchronous: false
+                sourceSize.width: 720
+                sourceSize.height: 1280
+                fillMode: {
+                    if (conrol.fillMode === FillMode.PreserveAspectFit) {
+                        return Image.PreserveAspectFit
+                    } else if (conrol.fillMode === FillMode.PreserveAspectCrop) {
+                        return Image.PreserveAspectCrop
                     }
+                    return Image.Stretch
                 }
 
-                Icon {
-
-                    id: loadingFailedIcon
-
-                    name: "alert"
-
-                    width: Math.round(Math.min(parent.width,
-                                               parent.height) / 3.0)
-                    height: width
-
-                    visible: image.status === Image.Error ? true : false
-
-                    anchors.centerIn: parent
-                }
+                transform: [
+                    Scale {
+                        origin.x: width / 2
+                        origin.y: height / 2
+                        xScale: settings.mirrorHorizontal ? -1 : 1
+                        yScale: settings.mirrorVertical ? -1 : 1
+                    },
+                    Rotation {
+                        origin.x: width / 2
+                        origin.y: height / 2
+                        angle: settings.rotation
+                    },
+                    Scale {
+                        origin.x: width / 2
+                        origin.y: height / 2
+                        xScale: settings.zoom
+                        yScale: settings.zoom
+                    }
+                ]
             }
+
+
 
             WRoundButton {
 
@@ -176,7 +211,7 @@ Item {
             }
         }
     }
-
+*/
     QtObject {
 
         id: priv
@@ -192,18 +227,28 @@ Item {
                 console.warn("No profile id given")
             }
 
-            return "image://profile/" + profileId.getDeviceId(
-                        ) + "/" + profileId.getProfileToken() + "/" + timestamp
+            return "image://profile/" + profileId.getDeviceId() + "/" + profileId.getProfileToken() + "/" + timestamp
         }
 
         function load(profileId) {
 
-            console.debug("Camera snapshot requested for profile: " + profileId)
+            priv.profileId = profileId
+
+            const imageSource = priv.createImageUrl(profileId)
+
+            image.source = imageSource
+        }
+
+
+        /*
+        function load(profileId) {
+
             priv.profileId = profileId
 
             const imageSource = priv.createImageUrl(profileId)
 
             let image = imageComponent.createObject(imageContainer, {
+                                                        "anchors.fill": imageContainer,
                                                         "source": imageSource,
                                                         "z": -1
                                                     })
@@ -220,6 +265,6 @@ Item {
                     }
                 }
             })
-        }
+        }*/
     }
 }

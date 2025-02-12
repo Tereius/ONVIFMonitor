@@ -1,3 +1,4 @@
+#pragma once
 #include <QObject>
 #include <QtQmlIntegration>
 
@@ -37,10 +38,20 @@ enum Roles {
 	EventHandlerPropertiesRole
 };
 
+enum FillMode { Stretch = 0, PreserveAspectFit, PreserveAspectCrop };
+
 Q_ENUM_NS(Roles)
+Q_ENUM_NS(FillMode)
 } // namespace Enums
 
 class Roles : public QObject {
+
+	Q_OBJECT
+	QML_ELEMENT
+	QML_EXTENDED_NAMESPACE(Enums)
+};
+
+class FillMode : public QObject {
 
 	Q_OBJECT
 	QML_ELEMENT

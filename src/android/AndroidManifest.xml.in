@@ -56,10 +56,9 @@
 
            <meta-data
                    android:name="android.app.lib_name"
-                   android:value="-- %%INSERT_APP_LIB_NAME%% --"/>
+                   android:value="ONVIFMonitorService"/>
 
            <meta-data android:name="android.app.background_running" android:value="true"/>
-           <meta-data android:name="android.app.arguments" android:value="-service"/>
        </service>
 
     </application>

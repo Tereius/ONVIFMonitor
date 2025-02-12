@@ -3,7 +3,7 @@
 
 import json, os
 from conan import ConanFile
-from conan.tools.cmake import CMake, CMakeToolchain
+from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
 from conan.tools.files import copy
 from conan.tools.build import cross_building
 from conan.tools.env import VirtualBuildEnv
@@ -26,15 +26,14 @@ class ONVIFMonitorConan(ConanFile):
     homepage = jsonInfo["homepage"]
     url = jsonInfo["repository"]
     # ---Requirements---
-    requires = ["qt/6.6.1@%s/stable" % user,
-                "libonvif/3.0.0@%s/snapshot" % user,
-                "openssl/3.2.0@%s/stable" % user,
-                "materialrally/[~1]@%s/snapshot" % user,
-                "qtappbase/[~1]@%s/snapshot" % user,
-                "mdk_sdk/0.23.1@%s/stable" % user,
-                "ffmpeg/6.0"
+    requires = ["qt/6.8.2@de.privatehive/stable",
+                "libonvif/3.0.1@de.privatehive/stable",
+                "materialrally/[~1]@de.privatehive/snapshot",
+                "qtappbase/1.5.0@de.privatehive/snapshot",
+                "mdk-sdk/0.30.1@de.privatehive/stable",
+                "openssl/3.0.15@de.privatehive/stable"
                 ]
-    tool_requires = ["cmake/3.21.7", "ninja/1.11.1"]
+    tool_requires = ["cmake/[>=3.21.7]", "ninja/[>=1.11.1]"]
     # ---Sources---
     exports = ["info.json", "LICENSE"]
     exports_sources = ["info.json", "*.txt", "src/*", "resources/*", "CMake/*"]
@@ -45,34 +44,6 @@ class ONVIFMonitorConan(ConanFile):
         "libonvif/*:openssl": True,
         "qtappbase/*:qml": True,
         "qtappbase/*:secretsManager": True,
-        "ffmpeg/*:shared": True,
-        "ffmpeg/*:with_asm": False,
-        "ffmpeg/*:with_sdl": False,
-        "ffmpeg/*:with_ssl": False,
-        "ffmpeg/*:with_xcb": False,
-        "ffmpeg/*:with_lzma": False,
-        "ffmpeg/*:with_opus": False,
-        "ffmpeg/*:with_zlib": False,
-        "ffmpeg/*:swresample": True,
-        "ffmpeg/*:with_bzip2": False,
-        "ffmpeg/*:with_pulse": False,
-        "ffmpeg/*:with_vaapi": False,
-        "ffmpeg/*:with_vdpau": False,
-        "ffmpeg/*:with_libvpx": False,
-        "ffmpeg/*:with_vorbis": False,
-        "ffmpeg/*:with_vulkan": False,
-        "ffmpeg/*:with_zeromq": False,
-        "ffmpeg/*:with_libalsa": False,
-        "ffmpeg/*:with_libwebp": False,
-        "ffmpeg/*:with_libx264": False,
-        "ffmpeg/*:with_libx265": False,
-        "ffmpeg/*:with_freetype": False,
-        "ffmpeg/*:with_libiconv": False,
-        "ffmpeg/*:with_openh264": False,
-        "ffmpeg/*:with_openjpeg": False,
-        "ffmpeg/*:with_programs": False,
-        "ffmpeg/*:with_libfdk_aac": False,
-        "ffmpeg/*:with_libmp3lame": False,
         "qt/*:GUI": True,
         "qt/*:opengl": "desktop",
         "qt/*:openssl": True,
@@ -84,14 +55,16 @@ class ONVIFMonitorConan(ConanFile):
         "qt/*:qttranslations": True,
         "qt/*:qtmultimedia": True,
         "qt/*:qtremoteobjects": True,
-        "qt/*:qt5compat": True}
+        "qt/*:qt5compat": True,
+        "qt/*:quick2style": "material"}
     # ---Build---
     generators = []
     # ---Folders---
     no_copy_source = False
 
     def generate(self):
-        ms = VirtualBuildEnv(self)
+        VirtualBuildEnv(self).generate()
+        CMakeDeps(self).generate()
         tc = CMakeToolchain(self, generator="Ninja")
         qml_import_path = []
         for require, dependency in self.dependencies.items():
@@ -102,7 +75,10 @@ class ONVIFMonitorConan(ConanFile):
         qml_import_path.append("${QT_QML_OUTPUT_DIRECTORY}")
         tc.variables["QML_IMPORT_PATH"] = ";".join(qml_import_path)
         tc.generate()
-        ms.generate()
+
+    def configure(self):
+        if self.settings.os == "Linux":
+            self.options["qt"].dbus = True
 
     def build(self):
         cmake = CMake(self)

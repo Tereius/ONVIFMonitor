@@ -1,10 +1,11 @@
 #include "DeviceManager.h"
 #include "DeviceInfo.h"
 #include "OnvifDevice.h"
-#include "Secret.h"
 #include "SecretsManager.h"
+#include "Util.h"
 #include "Window.h"
 #include "asyncfuture.h"
+#include "rep_EventManager_replica.h"
 #include <QDebug>
 #include <QFuture>
 #include <QGlobalStatic>
@@ -23,7 +24,8 @@ DeviceManager *DeviceManager::getInstance() {
 	return instance;
 }
 
-DeviceManager::DeviceManager(QObject *pParent /*= nullptr*/) : QObject(pParent), mDevices(), mMutex(), mTimer() {
+DeviceManager::DeviceManager(QObject *pParent /*= nullptr*/) :
+ DeviceManagerSource(pParent), mDevices(), mMutex(), mTimer(), mpReplica(nullptr) {
 
 	mTimer.setTimerType(Qt::VeryCoarseTimer);
 	mTimer.setInterval(6 * 1000);
@@ -40,11 +42,40 @@ void DeviceManager::initialize() {
 	static bool initialized = false;
 	if(!initialized) {
 
-		auto srcNode = new QRemoteObjectHost(QUrl(QStringLiteral("local:replica")), this);
-		qInfo() << "registered as remote object" << srcNode->enableRemoting(this, "DeviceManager");
+		// connect to EventManager
+		auto *repNode = new QRemoteObjectNode(this); // create remote object node
+		repNode->connectToNode(QUrl(QStringLiteral("local:EventManager"))); // connect with remote host node
+		mpReplica = repNode->acquire<EventManagerReplica>();
+		mpReplica->setParent(this);
+
+		connect(
+		 mpReplica, &EventManagerReplica::messageReceived, this,
+		 [this](const QUuid &deviceId, const EventMessage &msg) {
+			 qInfo() << "got message" << msg;
+			 emit messageReceived(deviceId, msg);
+		 },
+		 Qt::QueuedConnection);
+
+		connect(mpReplica, &EventManagerReplica::stateChanged, this,
+		        [this](QRemoteObjectReplica::State state, QRemoteObjectReplica::State oldState) {
+			        Q_UNUSED(oldState)
+			        if(state == QRemoteObjectReplica::Valid) {
+				        qInfo() << "EventManager went online";
+			        } else if(state == QRemoteObjectReplica::Suspect) {
+				        qInfo() << "EventManager went offline";
+			        }
+			        emit eventManagerConnected();
+		        });
+
+		connect(
+		 mpReplica, &EventManagerReplica::initialized, this, [this]() { qDebug() << "About to initialize events"; }, Qt::QueuedConnection);
 
 		initDevices();
 		initialized = true;
+
+		// expose the DeviceManager
+		auto srcNode = new QRemoteObjectHost(QUrl(QStringLiteral("local:DeviceManager")), this);
+		qInfo() << "DeviceManager registered as remote object" << srcNode->enableRemoting(this);
 	}
 }
 
@@ -177,15 +208,15 @@ QFuture<DetailedResult<QUuid>> DeviceManager::addDevice(const QUrl &rEndpoint, c
 					 settings.setValue("id", rDeviceId.toString(QUuid::WithoutBraces));
 					 settings.setValue("endpoint", rEndpoint.toString());
 					 settings.setValue("name", rDeviceName);
-					 settings.setValue("user", rUsername);
 					 settings.endGroup();
 					 mMutex.lock();
 					 mDevices.insert(rDeviceId, deviceEntry);
 					 mAliasIds.insert(device->getDeviceId(), rDeviceId);
 					 mMutex.unlock();
-					 return AsyncFuture::observe(writePassword(rDeviceId.toString(QUuid::WithoutBraces), rPassword))
+					 return AsyncFuture::observe(writeCredentials(rDeviceId.toString(QUuid::WithoutBraces), rUsername, rPassword))
 					  .subscribe([this, rDeviceId]() {
 						  emit deviceAdded(rDeviceId);
+						  emit deviceChanged(rDeviceId, InitializationState);
 						  return DetailedResult<QUuid>(rDeviceId);
 					  })
 					  .future();
@@ -208,42 +239,45 @@ QFuture<DetailedResult<QUuid>> DeviceManager::addDevice(const QUrl &rEndpoint, c
 	}
 }
 
-QFuture<void> DeviceManager::writePassword(const QString &alias, const QString &rPassword) {
+QFuture<void> DeviceManager::writeCredentials(const QString &alias, const QString &rUser, const QString &rPassword) {
 
 	auto *defer = new AsyncFuture::Deferred<void>();
 	SecretsManager::writeSecret(
-	 alias, rPassword,
-	 [defer]() {
+	 alias, Util::mergeUsernamePassword(rUser, rPassword),
+	 [defer](bool fallback) {
+		 Q_UNUSED(fallback)
 		 defer->complete();
-		 delete defer;
 	 },
 	 this);
+
+	defer->subscribe([defer]() { delete defer; }, [defer]() { delete defer; });
+
 	return defer->future();
 }
 
-QFuture<QString> DeviceManager::readPassword(const QString &alias) {
+QFuture<QPair<QString, QString>> DeviceManager::readCredentials(const QString &alias) {
 
-	auto *defer = new AsyncFuture::Deferred<QString>();
+	auto *defer = new AsyncFuture::Deferred<QPair<QString, QString>>();
 	SecretsManager::readSecret(
 	 alias,
-	 [defer](QString password) {
-		 defer->complete(password);
-		 delete defer;
+	 [defer](QString secret, bool fallback) {
+		 Q_UNUSED(fallback)
+		 defer->complete(Util::unmergeUsernamePassword(secret));
 	 },
 	 this);
+
+	defer->subscribe([defer]() { delete defer; }, [defer]() { delete defer; });
+
 	return defer->future();
 }
 
 QFuture<void> DeviceManager::deletePassword(const QString &alias) {
 
 	auto *defer = new AsyncFuture::Deferred<void>();
-	SecretsManager::deleteSecret(
-	 alias,
-	 [defer]() {
-		 defer->complete();
-		 delete defer;
-	 },
-	 this);
+	SecretsManager::deleteSecret(alias, [defer]() { defer->complete(); }, this);
+
+	defer->subscribe([defer]() { delete defer; }, [defer]() { delete defer; });
+
 	return defer->future();
 }
 
@@ -272,7 +306,7 @@ void DeviceManager::renameDevice(const QUuid &rDeviceId, const QString &rDeviceN
 		settings.beginGroup(id.toString(QUuid::WithoutBraces));
 		settings.setValue("name", rDeviceName);
 		mMutex.unlock();
-		emit deviceChanged(id);
+		emit deviceChanged(id, General);
 	} else {
 		mMutex.unlock();
 	}
@@ -287,7 +321,8 @@ QString DeviceManager::getName(const QUuid &rDeviceId) {
 
 QUrl DeviceManager::getEventEndpoint(const QUuid &rDeviceId) {
 
-	return getDeviceInfo(rDeviceId).mEventEndpoint;
+	const auto url = getDeviceInfo(rDeviceId);
+	return url.mEventEndpoint;
 }
 
 QFuture<Result> DeviceManager::setDeviceCredentials(const QUuid &rDeviceId, const QString &rUsername, const QString &rPassword,
@@ -302,24 +337,22 @@ QFuture<Result> DeviceManager::setDeviceCredentials(const QUuid &rDeviceId, cons
 		device.mInitialized = false;
 		const auto deviceEntry = mDevices.value(id);
 		mMutex.unlock();
-		emit deviceChanged(id);
-		if(save) {
-			QSettings settings;
-			settings.beginGroup("devices");
-			settings.beginGroup(id.toString(QUuid::WithoutBraces));
-			settings.setValue("user", rUsername);
-		}
-		return AsyncFuture::observe(writePassword(id.toString(QUuid::WithoutBraces), rPassword))
+		emit deviceChanged(id, InitializationState);
+		return AsyncFuture::observe(writeCredentials(id.toString(QUuid::WithoutBraces), rUsername, rPassword))
 		 .subscribe([this, deviceEntry, id]() {
+			 emit deviceChanged(id, Credentials);
 			 auto initFuture = initDevice(deviceEntry.mDevice, deviceEntry.mEndpoint, deviceEntry.mUsername, deviceEntry.mPassword);
 			 AsyncFuture::observe(initFuture).subscribe([this, initFuture, id]() {
+				 auto isInitialized = initFuture.result();
 				 mMutex.lock();
-				 if(initFuture.result() && mDevices.contains(id)) {
+				 if(isInitialized && mDevices.contains(id)) {
 					 auto &device = mDevices[id];
 					 device.mInitialized = true;
 				 }
 				 mMutex.unlock();
-				 emit deviceChanged(id);
+				 if(isInitialized) {
+					 emit deviceChanged(id, InitializationState);
+				 }
 			 });
 			 return initFuture;
 		 })
@@ -402,6 +435,14 @@ int DeviceManager::getDevicesCount() {
 	return count;
 }
 
+bool DeviceManager::isEventManagerConnected() {
+
+	if(mpReplica) {
+		return mpReplica->state() == QRemoteObjectReplica::Valid;
+	}
+	return false;
+}
+
 QSharedPointer<AbstractDevice> DeviceManager::getDevice(const QUuid &rDeviceId) {
 
 	mMutex.lock();
@@ -441,7 +482,7 @@ void DeviceManager::checkDevices() {
 					}
 					mMutex.unlock();
 					if(changed) {
-						emit deviceChanged(deviceId);
+						emit deviceChanged(deviceId, InitializationState);
 					}
 				});
 			} else {
@@ -463,7 +504,7 @@ void DeviceManager::checkDevices() {
 					}
 					mMutex.unlock();
 					if(changed) {
-						emit deviceChanged(deviceId);
+						emit deviceChanged(deviceId, InitializationState);
 					}
 				});
 			}
@@ -482,12 +523,11 @@ void DeviceManager::initDevices() {
 		QUuid deviceId = QUuid(settings.value("id").toString());
 		QUrl deviceEndpoint = settings.value("endpoint").toUrl();
 		QString deviceName = settings.value("name").toString();
-		QString username = settings.value("user").toString();
 		settings.endGroup();
 		auto deviceEntry = Device();
 		deviceEntry.mEndpoint = deviceEndpoint;
 		deviceEntry.mDeviceName = deviceName;
-		deviceEntry.mUsername = username;
+		deviceEntry.mUsername = "";
 		deviceEntry.mPassword = "";
 		deviceEntry.mDevice = QSharedPointer<OnvifDevice>::create();
 		deviceEntry.mInitialized = false;
@@ -495,16 +535,16 @@ void DeviceManager::initDevices() {
 			mMutex.lock();
 			mDevices.insert(deviceId, deviceEntry);
 			mMutex.unlock();
-			emit deviceAdded(deviceId);
-			AsyncFuture::observe(readPassword(deviceId.toString(QUuid::WithoutBraces)))
-			 .subscribe([this, deviceEntry, deviceId](QString password) {
+			AsyncFuture::observe(readCredentials(deviceId.toString(QUuid::WithoutBraces)))
+			 .subscribe([this, deviceEntry, deviceId](QPair<QString, QString> credentials) {
 				 mMutex.lock();
 				 if(mDevices.contains(deviceId)) {
-					 mDevices[deviceId].mPassword = password;
+					 mDevices[deviceId].mUsername = credentials.first;
+					 mDevices[deviceId].mPassword = credentials.second;
 				 }
 				 mMutex.unlock();
-				 emit deviceChanged(deviceId);
-				 auto initFuture = initDevice(deviceEntry.mDevice, deviceEntry.mEndpoint, deviceEntry.mUsername, password);
+				 emit deviceAdded(deviceId);
+				 auto initFuture = initDevice(deviceEntry.mDevice, deviceEntry.mEndpoint, credentials.first, credentials.second);
 				 AsyncFuture::observe(initFuture).subscribe([this, initFuture, deviceEntry, deviceId]() {
 					 mMutex.lock();
 					 if(initFuture.result() && mDevices.contains(deviceId)) {
@@ -513,7 +553,7 @@ void DeviceManager::initDevices() {
 						 mAliasIds.insert(device.mDevice->getDeviceId(), deviceId);
 					 }
 					 mMutex.unlock();
-					 emit deviceChanged(deviceId);
+					 emit deviceChanged(deviceId, InitializationState);
 				 });
 			 });
 		} else {

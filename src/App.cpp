@@ -5,6 +5,7 @@
 #include "DeviceManager.h"
 #include "DeviceProbe.h"
 #include "DiscoveryMatch.h"
+#include "Enums.h"
 #include "Error.h"
 #include "IconImageProvider.h"
 #include "ImageProvider.h"
@@ -18,7 +19,7 @@
 #include "QtApplicationBase.h"
 #include "QuickFuture/quickfuture.h"
 #include "Result.h"
-#include "Roles.h"
+#include "SecretsManager.h"
 #include "SortFilterProxyModel.h"
 #include "Window.h"
 #include "info.h"
@@ -41,8 +42,11 @@
 #endif
 
 Q_DECLARE_METATYPE(DetailedResult<QUrl>)
+
 Q_DECLARE_METATYPE(QFuture<DetailedResult<QUrl>>)
+
 Q_DECLARE_METATYPE(DetailedResult<QUuid>)
+
 Q_DECLARE_METATYPE(QFuture<DetailedResult<QUuid>>)
 
 App::App() = default;
@@ -58,6 +62,12 @@ int App::start(int &argc, char **argv) {
 
 	QtApplicationBase<QApplication> app(argc, argv);
 
+	// always make sure that the fallbackSettings is equal to the one in BackgroundService. App and Service have to access the same secret
+	// store
+	SecretsManager::setNamespace(QString("%1.%2").arg(QCoreApplication::organizationDomain(), INFO_PROJECTNAME));
+	SecretsManager::setFallbackSettings(
+	 std::make_unique<QSettings>(QSettings::IniFormat, QSettings::UserScope, QCoreApplication::organizationName(), "Secrets"));
+
 	QIcon::setThemeName("onvif");
 
 	App::registerMetatypes();
@@ -66,6 +76,7 @@ int App::start(int &argc, char **argv) {
 	// auto devicesModel = new DevicesModel(deviceManager);
 
 	AdvancedQmlApplicationEngine qmlEngine;
+
 	App::registerQmlTypes();
 	QIcon::setThemeName("material");
 
@@ -88,21 +99,40 @@ int App::start(int &argc, char **argv) {
 	if(QFile::exists(qmlMainFile)) {
 		qInfo() << "QML hot reloading enabled";
 		qmlEngine.setHotReload(true);
-		qmlEngine.loadRootItem(qmlMainFile);
+		qmlEngine.loadRootItem(qmlMainFile, false);
 	} else {
 		qmlEngine.setHotReload(false);
-		qmlEngine.loadRootItem("qrc:/qt/qml/Onvif/Onvif/main.qml");
+		qmlEngine.loadRootItem("qrc:/qt/qml/Onvif/Onvif/main.qml", false);
 	}
 #else
 	qmlEngine.setHotReload(false);
-	qmlEngine.loadRootItem("qrc:/qt/qml/Onvif/Onvif/main.qml");
+	qmlEngine.loadRootItem("qrc:/qt/qml/Onvif/Onvif/main.qml", false);
 #endif
-	DeviceManager::getInstance()->initialize();
-	return app.exec();
+
+	initSecretsManager();
+	App::initBackgroundService();
+
+	// By writing a dummy secret we know if we can use the OS secrets manager or if we use the fallback settings file
+	// If we use the OS secrets manager it will also be unlocked
+	auto dummySecret = QString("probe_%1").arg(INFO_PROJECTID);
+	SecretsManager::writeSecret(
+	 dummySecret, QString::number(INFO_PROJECTID),
+	 [this, dummySecret](bool fallback) {
+		 mOsSecretsManager = !fallback;
+		 emit hasOsSecretsManagerChanged(mOsSecretsManager);
+		 SecretsManager::deleteSecret(dummySecret, []() {}, this);
+
+		 // Initialize the DeviceManager after we know we can successfully read secrets
+		 DeviceManager::getInstance()->initialize();
+	 },
+	 this);
+
+	return app.start();
 }
 
 void App::registerMetatypes() {
 
+	// qRegisterMetaType<DetailedResult<RtspStream>>();
 	qRegisterMetaType<MediaProfile>();
 	qRegisterMetaType<DiscoveryMatch>();
 	qRegisterMetaType<ProfileId>();
@@ -173,23 +203,63 @@ void App::registerQmlTypes() {
 
 QString App::getDefaultUserAgent() {
 
-	static auto userAgent = QString("%1/%2.%3.%4 (%5; %6)")
+	static auto userAgent = QString("%1/%2 (%5; %6)")
 	                         .arg(INFO_PROJECTNAME)
-	                         .arg(INFO_VERSION_MAJOR)
-	                         .arg(INFO_VERSION_MINOR)
-	                         .arg(INFO_VERSION_PATCH)
-	                         .arg(QSysInfo::prettyProductName())
-	                         .arg(QSysInfo::currentCpuArchitecture());
+	                         .arg(INFO_VERSIONSTRING)
+	                         .arg(QSysInfo::prettyProductName(), QSysInfo::currentCpuArchitecture());
 	return userAgent;
+}
+
+void App::enableBackgroundService(bool enable) {
+
+	if(enable) {
+		App::startBackgroundService();
+	} else {
+		App::stopBackgroundService();
+	}
+	QSettings settings;
+	settings.beginGroup("backgroundService");
+	settings.setValue("enabled", enable);
+	emit backgroundServiceEnableChanged(enable);
+}
+
+bool App::isBackgroundServiceEnabled() {
+
+	QSettings settings;
+	settings.beginGroup("backgroundService");
+	return settings.value("enabled", false).toBool();
+}
+
+bool App::hasOsSecretsManager() const {
+
+	return mOsSecretsManager;
+}
+
+void App::initSecretsManager() {}
+
+void App::initBackgroundService() {
+
+	QSettings settings;
+	settings.beginGroup("backgroundService");
+	const auto enable = settings.value("enabled", false).toBool();
+	if(enable) {
+		App::startBackgroundService();
+	}
 }
 
 void App::startBackgroundService() {
 
 #ifdef Q_OS_ANDROID
-	auto activity = QJniObject(QNativeInterface::QAndroidApplication::context());
-	QAndroidIntent serviceIntent(activity.object(), "com/github/tereius/onvifmonitor/ForegroundService");
-	QJniObject result = activity.callObjectMethod("startForegroundService", "(Landroid/content/Intent;)Landroid/content/ComponentName;",
-	                                              serviceIntent.handle().object());
+	auto requestResult = QtAndroidPrivate::requestPermission("android.permission.POST_NOTIFICATIONS");
+	requestResult.waitForFinished();
+	if(requestResult.result() == QtAndroidPrivate::Authorized) {
+		auto activity = QJniObject(QNativeInterface::QAndroidApplication::context());
+		QAndroidIntent serviceIntent(activity.object(), "com/github/tereius/onvifmonitor/ForegroundService");
+		QJniObject result = activity.callObjectMethod("startForegroundService", "(Landroid/content/Intent;)Landroid/content/ComponentName;",
+		                                              serviceIntent.handle().object());
+	} else {
+		qWarning() << "Failed to start background service: missing POST_NOTIFICATIONS permission";
+	}
 #endif
 }
 
@@ -203,3 +273,5 @@ void App::stopBackgroundService() {
 	                                              serviceIntent.handle().object());
 #endif
 }
+
+bool App::mOsSecretsManager = true;

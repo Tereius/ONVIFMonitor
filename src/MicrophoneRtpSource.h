@@ -7,11 +7,12 @@
 #include <QAudioSource>
 #include <QByteArray>
 #include <QFuture>
+#include <QObject>
+#include <QQmlEngine>
 #include <QThread>
 #include <QUrl>
-#include <QtQmlIntegration>
 extern "C" {
-#include <libavutil/samplefmt.h>
+#include "libavutil/samplefmt.h"
 }
 
 
@@ -53,16 +54,17 @@ class EncoderSettings {
 class MicrophoneRtpSource : public QThread {
 
 	Q_OBJECT
+	QML_ELEMENT
 	Q_PROPERTY(QAudioInput *audioInput READ getAudioInput WRITE setAudioInput)
 	Q_PROPERTY(EncoderSettings::RtpPayload payloadFormat READ getPayloadFormat WRITE setPayloadFormat NOTIFY payloadFormatChanged)
-	QML_ELEMENT
 
  public:
 	explicit MicrophoneRtpSource(QObject *parent = nullptr);
 	~MicrophoneRtpSource() override;
 
-	// Start sending microphone audio stream to the rtp sink. Call from main thread
-	Q_INVOKABLE void start(const QUrl &rtpSink);
+	// Start sending microphone audio stream to the rtp sink. Call from main thread. Future will be resolved as soon as the backchannel
+	// connection is established or connecting failed.
+	Q_INVOKABLE QFuture<Result> start(const QUrl &rtpSink);
 	// Stop sending microphone audio stream to the rtp sink
 	Q_INVOKABLE void stop();
 
@@ -84,6 +86,7 @@ class MicrophoneRtpSource : public QThread {
 	void run() override;
 
  private:
+	Q_DISABLE_COPY(MicrophoneRtpSource)
 	void prepareRun();
 	double calcVolume();
 	static qint64 readToFrame(QIODevice *ioDev, AVFrame *frame);
@@ -102,5 +105,5 @@ class MicrophoneRtpSource : public QThread {
 	QAtomicInt mVolume;
 	QAtomicInt mMute;
 	QIODevice *mpBuffer;
-	Result mResult;
+	AsyncFuture::Deferred<Result> mResult;
 };

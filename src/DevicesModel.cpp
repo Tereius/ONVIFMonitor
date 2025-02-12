@@ -1,7 +1,7 @@
 #include "DevicesModel.h"
 #include "DeviceDiscoveryModel.h"
 #include "DeviceManager.h"
-#include "Roles.h"
+#include "Enums.h"
 #include "Util.h"
 #include <algorithm>
 
@@ -133,7 +133,8 @@ void DevicesModel::init() {
 
 		connect(
 		 mpManager, &DeviceManager::deviceChanged, this,
-		 [this](const QUuid &rDeviceId) {
+		 [this](const QUuid &rDeviceId, DeviceManager::Changes what) {
+			 Q_UNUSED(what)
 			 auto foundIndex = -1;
 			 for(auto i = 0; i < mDevices.size(); ++i) {
 				 if(mDevices.at(i) == rDeviceId) {

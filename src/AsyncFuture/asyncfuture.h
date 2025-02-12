@@ -5,11 +5,13 @@
 #include <QFutureWatcher>
 #include <QMetaMethod>
 #include <QMutex>
+#include <QObject>
 #include <QPointer>
 #include <QRegularExpression>
 #include <QThread>
 #include <QVariant>
 #include <functional>
+#include <type_traits>
 
 #define ASYNCFUTURE_ERROR_OBSERVE_VOID_WITH_ARGUMENT "Observe a QFuture<void> but your callback contains an input argument"
 #define ASYNCFUTURE_ERROR_CALLBACK_NO_MORE_ONE_ARGUMENT "Callback function should not take more than 1 argument"
@@ -395,8 +397,6 @@ namespace Private {
 	template<typename T>
 	class DeferredFuture : public QObject, public QFutureInterface<T> {
 	 public:
-		~DeferredFuture() { cancel(); }
-
 		template<typename ANY>
 		void track(QFuture<ANY> future) {
 			QPointer<DeferredFuture<T>> thiz = this;
@@ -427,9 +427,13 @@ namespace Private {
 
 			QObject::connect(watcher, &QFutureWatcher<ANY>::started, this, [=]() { thiz->reportStarted(); });
 
-			QObject::connect(watcher, &QFutureWatcher<ANY>::paused, this, [=]() { thiz->setSuspended(true); });
+#if QT_VERSION >= 0x060000
+			QObject::connect(watcher, &QFutureWatcher<ANY>::suspending, this, [=]() { thiz->future().toggleSuspended(); });
+#elif QT_VERSION >= 0x050000
+			QObject::connect(watcher, &QFutureWatcher<ANY>::paused, this, [=]() { thiz->future().togglePaused(); });
+#endif
 
-			QObject::connect(watcher, &QFutureWatcher<ANY>::resumed, this, [=]() { thiz->setSuspended(false); });
+			QObject::connect(watcher, &QFutureWatcher<ANY>::resumed, this, [=]() { thiz->future().resume(); });
 
 			watcher->setFuture(future);
 
@@ -440,9 +444,15 @@ namespace Private {
 				QFutureInterface<T>::reportStarted();
 			}
 
+#if QT_VERSION >= 0x060000
+			if(future.isSuspended()) {
+				QFutureInterface<T>::setSuspended(true);
+			}
+#elif QT_VERSION >= 0x050000
 			if(future.isPaused()) {
 				QFutureInterface<T>::setPaused(true);
 			}
+#endif
 		}
 
 		bool isFinished() const { return QFutureInterface<T>::isFinished(); }
@@ -485,48 +495,32 @@ namespace Private {
 		}
 
 		void complete(QFuture<T> future) {
-			incWeakRefCount();
-			auto onFinished = [=]() {
-				this->completeByFinishedFuture<T>(future);
-				this->decWeakRefCount();
-			};
+			auto strongRef = this->weakRef.toStrongRef();
+			auto onFinished = [strongRef, future]() { strongRef->template completeByFinishedFuture<T>(future); };
 
-			auto onCanceled = [=]() {
-				this->cancel();
-				this->decWeakRefCount();
-			};
+			auto onCanceled = [strongRef]() { strongRef->cancel(); };
 
-			watch(
-			 future, this, nullptr, onFinished, onCanceled, [](int) {}, [](int, int) {});
+			watch(future, this, nullptr, onFinished, onCanceled, [](int) {}, [](int, int) {});
 
-			auto pushCancel = [=]() {
+			auto pushCancel = [future]() {
 				auto tmpFuture = future;
 				tmpFuture.cancel();
 			};
 
 			// Pushes cancel to child futures in the chain
-			watch(
-			 this->future(), this, nullptr, []() {}, pushCancel, [](int) {}, [](int, int) {});
+			watch(this->future(), this, nullptr, []() {}, pushCancel, [](int) {}, [](int, int) {});
 
 			track(future);
 		}
 
 		template<typename ANY>
 		void complete(QFuture<QFuture<ANY>> future) {
-			incWeakRefCount();
+			auto strongRef = this->weakRef.toStrongRef();
+			auto onFinished = [strongRef, future]() { strongRef->complete(future.result()); };
 
-			auto onFinished = [=]() {
-				complete(future.result());
-				this->decWeakRefCount();
-			};
+			auto onCanceled = [strongRef]() { strongRef->cancel(); };
 
-			auto onCanceled = [=]() {
-				this->cancel();
-				this->decWeakRefCount();
-			};
-
-			watch(
-			 future, this, nullptr, onFinished, onCanceled, [](int) {}, [](int, int) {});
+			watch(future, this, nullptr, onFinished, onCanceled, [](int) {}, [](int, int) {});
 			// It don't track for the first level of future
 		}
 
@@ -540,79 +534,34 @@ namespace Private {
 
 		template<typename Member>
 		void cancel(const QObject *sender, Member member) {
-			incWeakRefCount();
-			QObject::connect(sender, member, this, [=]() {
-				this->cancel();
-				decWeakRefCount();
+			// Used internally for linking to the context object.
+			// weakRef is used because we don't want the long lived context object to keep
+			// deferred alive.
+			auto weakRef_ = this->weakRef;
+			QObject::connect(sender, member, this, [weakRef_]() {
+				auto self = weakRef_.toStrongRef();
+				if(!self.isNull()) {
+					self->cancel();
+				}
 			});
 		}
 
 		template<typename ANY>
 		void cancel(QFuture<ANY> future) {
-			incWeakRefCount();
-			auto onFinished = [=]() {
-				cancel();
-				decWeakRefCount();
-			};
+			auto strongRef = this->weakRef.toStrongRef();
+			auto onFinished = [strongRef]() { strongRef->cancel(); };
 
-			auto onCanceled = [=]() { decWeakRefCount(); };
-
-			watch(
-			 future, this, nullptr, onFinished, onCanceled, [](int) {}, [](int, int) {});
-		}
-
-		void incWeakRefCount() {
-			mutex.lock();
-			refCount++;
-			mutex.unlock();
-		}
-
-		void decWeakRefCount() {
-			int count;
-
-			mutex.lock();
-			refCount--;
-			count = refCount;
-			mutex.unlock();
-
-			if(count <= 0) {
-				if(!isFinished()) {
-					cancel();
-				}
-			}
-
-			if(strongRefCount == 0 && isFinished()) {
-				// This prevents deletion this on a seperate thread
-				if(thread() != QThread::currentThread()) {
-					QMetaObject::invokeMethod(this, "deleteLater");
-				} else {
-					delete this;
-				}
-			}
-		}
-
-		void incStrongRef() {
-			mutex.lock();
-			strongRefCount++;
-			mutex.unlock();
-		}
-
-		void decStrongRef() {
-			mutex.lock();
-			strongRefCount--;
-			mutex.unlock();
+			watch(future, this, nullptr, onFinished, []() {}, [](int) {}, [](int, int) {});
 		}
 
 		/// Create a DeferredFugture instance and manage by a shared pointer
 		static QSharedPointer<DeferredFuture<T>> create() {
-
 			auto deleter = [](DeferredFuture<T> *object) {
-				object->decStrongRef();
-				object->decWeakRefCount();
+				object->cancel();
+				object->deleteLater();
 			};
-
 			QSharedPointer<DeferredFuture<T>> ptr(new DeferredFuture<T>(), deleter);
-			ptr->incStrongRef();
+			ptr->weakRef = ptr.toWeakRef();
 			return ptr;
 		}
 
@@ -625,8 +574,12 @@ namespace Private {
 
 		template<typename R>
 		void reportResult(QList<R> &value) {
-			for(int i = 0; i < value.size(); i++) {
-				QFutureInterface<T>::reportResult(value[i], i);
+			if constexpr(std::is_same_v<QList<R>, T>) {
+				QFutureInterface<T>::reportResult(&value, -1); // Use -1 when T is QList
+			} else {
+				for(int i = 0; i < value.size(); ++i) {
+					QFutureInterface<T>::reportResult(value[i], i);
+				}
 			}
 		}
 
@@ -651,19 +604,14 @@ namespace Private {
 		}
 
 	 protected:
-		DeferredFuture(QObject *parent = nullptr) :
-		 QObject(parent), QFutureInterface<T>(QFutureInterface<T>::Running), refCount(1), strongRefCount(0) {
+		DeferredFuture(QObject *parent = nullptr) : QObject(parent), QFutureInterface<T>(QFutureInterface<T>::Running) {
 			moveToThread(QCoreApplication::instance()->thread());
 		}
 
 		QMutex mutex;
 
 	 private:
-		// A reference count system. If it is dropped to zero, it will cancel this object
-		int refCount;
-
-		// Unless it is zero, this object will not be destroyed.
-		int strongRefCount;
+		QWeakPointer<DeferredFuture<T>> weakRef;
 
 		class Progress {
 		 public:
@@ -695,7 +643,9 @@ namespace Private {
 		void updateProgressRanges() {
 			int newMax = parentProgress.range() + watchProgress.range();
 			if(QFutureInterface<T>::progressMaximum() != newMax) {
-				QFutureInterface<T>::setProgressRange(0, newMax);
+				const auto oldProgress = QFutureInterface<T>::progressValue();
+				QFutureInterface<T>::setProgressRange(0, newMax); // This set the progress back to 0
+				QFutureInterface<T>::setProgressValue(oldProgress);
 			}
 		}
 
@@ -759,8 +709,6 @@ namespace Private {
 				return;
 			}
 
-			incWeakRefCount();
-
 			mutex.lock();
 			int index = count++;
 
@@ -774,14 +722,14 @@ namespace Private {
 			}
 			info->value = future.progressValue();
 
-			auto progressFunc = [=](int progressValue) {
+			auto progressFunc = [this, info](int progressValue) {
 				mutex.lock();
 				info->value = progressValue;
 				updateProgress();
 				mutex.unlock();
 			};
 
-			auto progressRangeFunc = [=](int min, int max) {
+			auto progressRangeFunc = [this, info](int min, int max) {
 				Q_UNUSED(min);
 				mutex.lock();
 				if(max > 0) {
@@ -794,30 +742,20 @@ namespace Private {
 			QFutureInterface<void>::setProgressRange(0, progressMaximum() + info->max);
 			mutex.unlock();
 
+
+			auto strongRef = this->weakRef.toStrongRef();
 			Private::watch(
-			 future, this, 0,
-			 [=]() {
-				 completeFutureAt(index);
-				 decWeakRefCount();
-			 },
-			 [=]() {
-				 cancelFutureAt(index);
-				 decWeakRefCount();
-			 },
-			 progressFunc, progressRangeFunc);
+			 future, this, 0, [strongRef, index]() { strongRef->completeFutureAt(index); },
+			 [strongRef, index]() { strongRef->cancelFutureAt(index); }, progressFunc, progressRangeFunc);
 		}
 
 		static QSharedPointer<CombinedFuture> create(bool settleAllMode) {
-
 			auto deleter = [](CombinedFuture *object) {
-				// Regardless of the no. of instance of QSharedPointer<CombinedFuture>,
-				// it only increase the reference by one.
-				object->decStrongRef();
-				object->decWeakRefCount();
+				object->cancel();
+				object->deleteLater();
 			};
-
 			QSharedPointer<CombinedFuture> ptr(new CombinedFuture(settleAllMode), deleter);
-			ptr->incStrongRef();
+			ptr->weakRef = ptr.toWeakRef();
 			return ptr;
 		}
 
@@ -832,6 +770,7 @@ namespace Private {
 			QFuture<void> childFuture;
 		};
 
+		QWeakPointer<CombinedFuture> weakRef;
 		int settledCount;
 		int count;
 		bool anyCanceled;
@@ -1012,7 +951,11 @@ namespace Private {
 						if(type.id() == QMetaType::QVariant) {
 							v = *reinterpret_cast<QVariant *>(_a[1]);
 						} else {
+#if QT_VERSION >= 0x060000
 							v = QVariant(type, _a[1]);
+#elif QT_VERSION >= 0x050000
+							v = QVariant(type.id(), _a[1]);
+#endif
 						}
 					}
 					callback(v);
@@ -1025,34 +968,62 @@ namespace Private {
 	/* call() : Run functor(future):void */
 
 	template<typename Functor, typename T>
-	typename std::enable_if<is_callable<Functor, T>::value, void>::type callIgnoreReturn(Functor &functor, QFuture<T> &future) {
-		functor(future.result());
+	using CallerRetType = decltype(std::declval<Functor>()(std::declval<T>()));
+
+
+	template<typename Future>
+	struct is_qfuture : std::false_type {};
+	template<typename T>
+	struct is_qfuture<QFuture<T>> : std::true_type {};
+
+	// Case 1: Functor takes QFuture<T>
+	template<typename Functor, typename T>
+	auto callIgnoreReturn(Functor &functor, QFuture<T> value)
+	 -> std::enable_if_t<std::is_invocable_v<Functor, QFuture<T>>, CallerRetType<Functor, QFuture<T>>> {
+		functor(value);
 	}
 
+// Case 2: Functor takes T directly
+#if QT_VERSION >= 0x060000
 	template<typename Functor, typename T>
-	typename std::enable_if<!is_callable<Functor, T>::value, void>::type callIgnoreReturn(Functor &functor, QFuture<T> &future) {
-		Q_UNUSED(functor);
-		Q_UNUSED(future);
-		/* Unlike clang, VC 2017 may not instantiate this function if another
-		 * static_assert is triggered.
-		 */
-		static_assert(False<T>::value, ASYNCFUTURE_ERROR_ARGUMENT_MISMATCHED);
+	auto callIgnoreReturn(Functor &functor, QFuture<T> value)
+	 -> std::enable_if_t<std::is_invocable_v<Functor, T>, CallerRetType<Functor, T>> {
+		functor(value.result());
+	}
+#endif
+
+	// Case 3: Unsupported
+	template<typename Functor, typename T>
+	auto callIgnoreReturn(Functor &functor, QFuture<T> value)
+	 -> std::enable_if_t<!std::is_invocable_v<Functor, QFuture<T>> && !std::is_invocable_v<Functor, T>, void> {
+		static_assert(sizeof(Functor) == 0,
+		              "The callback function is not callable. The input argument doesn't match with the observing QFuture type");
 	}
 
+	// Case 1: Functor takes QFuture<T>
 	template<typename Functor, typename T>
-	typename std::enable_if<is_callable<Functor, T>::value, RetType<Functor>>::type call(Functor &functor, QFuture<T> &future) {
-		return functor(future.result());
+	auto call(Functor &functor, QFuture<T> value)
+	 -> std::enable_if_t<std::is_invocable_v<Functor, QFuture<T>>, CallerRetType<Functor, QFuture<T>>> {
+		return functor(value);
 	}
 
+// Case 2: Functor takes T directly
+#if QT_VERSION >= 0x060000
 	template<typename Functor, typename T>
-	typename std::enable_if<!is_callable<Functor, T>::value, RetType<Functor>>::type call(Functor &functor, QFuture<T> &future) {
-		Q_UNUSED(functor);
-		Q_UNUSED(future);
-		static_assert(False<T>::value, ASYNCFUTURE_ERROR_ARGUMENT_MISMATCHED);
+	auto call(Functor &functor, QFuture<T> value) -> std::enable_if_t<std::is_invocable_v<Functor, T>, CallerRetType<Functor, T>> {
+		return functor(value.result());
+	}
+#endif
+
+	// Case 3: Unsupported
+	template<typename Functor, typename T>
+	auto call(Functor &functor, QFuture<T> value)
+	 -> std::enable_if_t<!std::is_invocable_v<Functor, QFuture<T>> && !std::is_invocable_v<Functor, T>, void> {
+		static_assert(sizeof(Functor) == 0,
+		              "The callback function is not callable. The input argument doesn't match with the observing QFuture type");
 	}
 
 	/* eval() : Evaluate the expression - "return functor(future)" that may have a void return type */
-
 	template<typename Functor, typename T>
 	typename std::enable_if<ret_type_is_void<Functor>::value && arg_count_is_zero<Functor>::value, Value<RetType<Functor>>>::type
 	eval(Functor functor, QFuture<T> future) {
@@ -1569,15 +1540,35 @@ template<typename T>
 QFuture<T> completed(const T &val) {
 	QFutureInterface<T> fi;
 	fi.setProgressRange(0, 1);
+	fi.setProgressValue(1);
 	fi.reportFinished(&val);
 	return QFuture<T>(&fi);
 }
+
+template<typename T>
+QFuture<QList<T>> completedWithList(const QList<T> &val) {
+	QFutureInterface<QList<T>> fi;
+	fi.setProgressRange(0, 1);
+	fi.setProgressValue(1);
+	fi.reportFinished(&val);
+	return QFuture<QList<T>>(&fi);
+}
+
+// template <typename T>
+// QFuture<QVector<T>> completedWithVector(const QVector<T> &val) {
+//     QFutureInterface<QVector<T>> fi;
+//     fi.setProgressRange(0, 1);
+//     fi.setProgressValue(1);
+//     fi.reportFinished(&val);
+//     return QFuture<QVector<T>>(&fi);
+// }
 
 template<typename T>
 QFuture<T> completed(const QList<T> &val) {
 	QFutureInterface<T> fi;
 	if(!val.isEmpty()) {
 		fi.setProgressRange(0, val.size());
+		fi.setProgressValue(val.size());
 		fi.reportResults(val.toVector());
 	}
 	fi.reportFinished();

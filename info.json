@@ -1,23 +1,23 @@
 {
-    "version": {
-        "major": 1,
-        "minor": 0,
-        "patch": 0,
-        "snapshot": true
-    },
-    "projectName": "ONVIFmonitor",
-    "projectDescription": "ONVIF client app",
-    "projectId": 1697485504,
-    "vendor": "Björn Stresing",
-    "contact": "bjoern.stresing@gmx.de",
-    "domain": "com.github.tereius",
-    "copyrightYear": "2020",
-    "repository": "https://github.com/Tereius/ONVIFMonitor",
-    "topics": [
-        "Qt",
-        "QML",
-        "ONVIF"
-    ],
-    "homepage": "https://github.com/Tereius/ONVIFMonitor",
-    "license": "GPLv3"
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0,
+    "snapshot": true
+  },
+  "projectName": "ONVIFmonitor",
+  "projectDescription": "ONVIF client app",
+  "projectId": 1697485504,
+  "vendor": "Björn Stresing",
+  "contact": "bjoern.stresing@gmx.de",
+  "domain": "com.github.tereius",
+  "copyrightYear": "2020",
+  "repository": "https://github.com/Tereius/ONVIFMonitor",
+  "topics": [
+    "Qt",
+    "QML",
+    "ONVIF"
+  ],
+  "homepage": "https://github.com/Tereius/ONVIFMonitor",
+  "license": "GPLv3"
 }

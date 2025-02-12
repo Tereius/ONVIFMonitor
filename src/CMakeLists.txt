@@ -7,23 +7,11 @@ find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Gui Qml Widgets Svg Quick C
 find_package(MaterialRally REQUIRED)
 find_package(QtAppBase REQUIRED)
 find_package(QtAppBaseQml REQUIRED)
+find_package(OpenSSL REQUIRED) # needed by libONVIF cmake config file
 find_package(libONVIF REQUIRED)
-find_package(MDK REQUIRED)
+find_package(mdk-sdk REQUIRED)
 
-find_library(libswresample_PATH NAMES swresample PATH_SUFFIXES "lib")
-find_library(libavdevice_PATH NAMES avdevice PATH_SUFFIXES "lib")
-find_library(libavfilter_PATH NAMES avfilter PATH_SUFFIXES "lib")
-find_library(libavcodec_PATH NAMES avcodec PATH_SUFFIXES "lib")
-find_library(libavformat_PATH NAMES avformat PATH_SUFFIXES "lib")
-find_library(libswscale_PATH NAMES swscale PATH_SUFFIXES "lib")
-find_library(libavutil_PATH NAMES avutil PATH_SUFFIXES "lib")
-find_library(libpostproc_PATH NAMES postproc PATH_SUFFIXES "lib")
-find_path(libav_include_PATH libavformat/avformat.h)
-
-find_library(OpenSSL_cryptro_PATH NAMES libeay libeay32 libcrypto libcrypto32 eay crypto libcryptod PATH_SUFFIXES "lib")
-find_library(OpenSSL_ssl_PATH NAMES ssleay ssleay32 libssl libssl32 eay ssl libssld PATH_SUFFIXES "lib")
-
-include_directories("${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" "${libav_include_PATH}")
+include_directories("${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_definitions(-DNOMINMAX)
@@ -51,8 +39,6 @@ qt_add_executable(ONVIFMonitor
         AbstractDevice.cpp
         Result.h
         Result.cpp
-        Cryptography.h
-        Cryptography.cpp
         EventService.h
         EventService.cpp
         MediaService.h
@@ -89,10 +75,18 @@ qt_add_executable(ONVIFMonitor
         RtspStream.h
         Serializable.h
         Serializable.cpp
+        EventsModel.h
+        EventsModel.cpp
+        EventMessage.h
+        EventMessage.cpp
 )
+
+qt_add_repc_sources(ONVIFMonitor DeviceManager.rep)
+qt_add_repc_replicas(ONVIFMonitor EventManager.rep)
 
 qt_add_executable(ONVIFMonitorService
         mainService.cpp
+        Util.h
         BackgroundService.h
         BackgroundService.cpp
         EventManager.h
@@ -107,7 +101,14 @@ qt_add_executable(ONVIFMonitorService
         ProfileId.cpp
         Result.h
         Result.cpp
+        EventMessage.h
+        EventMessage.cpp
 )
+
+add_dependencies(ONVIFMonitor ONVIFMonitorService)
+
+qt_add_repc_sources(ONVIFMonitorService EventManager.rep)
+qt_add_repc_replicas(ONVIFMonitorService DeviceManager.rep)
 
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
@@ -131,8 +132,7 @@ qt_add_qml_module(ONVIFMonitor
         MonitorGridModel.cpp
         PropertyInfo.h
         PropertyInfo.cpp
-        Roles.h
-        Roles.cpp
+        Enums.h
         Onvif.h
         Onvif.cpp
         MicrophoneRtpSource.h
@@ -140,11 +140,14 @@ qt_add_qml_module(ONVIFMonitor
 
         QML_FILES
         Onvif/pages/EditMonitorPage.qml
+        Onvif/pages/MonitoringSwipePage.qml
         Onvif/controls/Placeholder.qml
+        Onvif/controls/VolumeDial.qml
+        Onvif/controls/CameraLoadingIndicator.qml
         Onvif/dialogs/AddMonitorDialog.qml
         Onvif/dialogs/EditMonitorDialog.qml
         Onvif/MediaProfilesListView.qml
-        Onvif/AudioDeviceComboBox.qml
+        Onvif/controls/AudioDeviceComboBox.qml
         Onvif/AboutPage.qml
         Onvif/BusyCombobox.qml
         Onvif/BusyPopup.qml
@@ -203,7 +206,9 @@ qt_add_qml_module(TilesGrid
 
 #target_compile_features(ONVIFMonitor PUBLIC cxx_strong_enums cxx_auto_type cxx_nullptr cxx_long_long_type cxx_explicit_conversions)
 target_link_libraries(ONVIFMonitor
-        PRIVATE mdk
+        PRIVATE mdk-sdk::mdk-sdk
+        PRIVATE MDK::mdk
+        PRIVATE MDK::ffmpeg
         PRIVATE QtAppBase
         PRIVATE TilesGrid
         PRIVATE quickfutureqmlplugin
@@ -226,14 +231,6 @@ target_link_libraries(ONVIFMonitor
         PRIVATE Qt6::QuickControls2
         PRIVATE Qt6::QuickTemplates2
         PRIVATE Qt6::RemoteObjects
-        PRIVATE ${libswresample_PATH}
-        PRIVATE ${libavdevice_PATH}
-        PRIVATE ${libavfilter_PATH}
-        PRIVATE ${libavcodec_PATH}
-        PRIVATE ${libavformat_PATH}
-        PRIVATE ${libswscale_PATH}
-        PRIVATE ${libavutil_PATH}
-        PRIVATE ${libpostproc_PATH}
 )
 
 target_link_libraries(ONVIFMonitorService
@@ -252,6 +249,7 @@ target_link_libraries(ONVIFMonitorService
 )
 
 if (ANDROID)
+    set_property(TARGET ONVIFMonitorService PROPERTY _qt_is_android_executable FALSE) # hidden option to skip apk target creation
     target_link_libraries(ONVIFMonitor PRIVATE Qt6::CorePrivate)
     target_link_libraries(ONVIFMonitorService PRIVATE Qt6::CorePrivate)
 endif ()
@@ -265,6 +263,7 @@ add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
         delete
         content-save
         alert
+        alert-outline
         harddisk
         harddisk-remove
         lock-smart
@@ -286,9 +285,9 @@ add_material_icon_theme_resource(ONVIFMonitor THEME_NAME material ICONS
         flip-horizontal
         flip-vertical
         pencil # edit button
+        eye
+        eye-off
 )
-
-qt_reps_from_headers(ONVIFMonitor DeviceManager.h)
 
 function(extractSoName PATH soname)
     execute_process(COMMAND ${CMAKE_OBJDUMP} -p ${PATH} COMMAND grep SONAME OUTPUT_VARIABLE objdump_data OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -296,38 +295,19 @@ function(extractSoName PATH soname)
     set(${soname} "${CMAKE_MATCH_1}" PARENT_SCOPE)
 endfunction()
 
-extractSoName("${libswresample_PATH}" libswresample_NAME)
-extractSoName("${libavdevice_PATH}" libavdevice_NAME)
-extractSoName("${libavfilter_PATH}" libavfilter_NAME)
-extractSoName("${libavcodec_PATH}" libavcodec_NAME)
-extractSoName("${libavformat_PATH}" libavformat_NAME)
-extractSoName("${libswscale_PATH}" libswscale_NAME)
-extractSoName("${libavutil_PATH}" libavutil_NAME)
-
-target_compile_definitions(ONVIFMonitor PRIVATE LIB_SWRESAMPLE_NAME="${libswresample_NAME}")
-target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVDEVICE_NAME="${libavdevice_NAME}")
-target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVFILTER_NAME="${libavfilter_NAME}")
-target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVCODEC_NAME="${libavcodec_NAME}")
-target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVFORMAT_NAME="${libavformat_NAME}")
-target_compile_definitions(ONVIFMonitor PRIVATE LIB_SWSCALE_NAME="${libswscale_NAME}")
-target_compile_definitions(ONVIFMonitor PRIVATE LIB_AVUTIL_NAME="${libavutil_NAME}")
-
 set_target_properties(ONVIFMonitor PROPERTIES QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/android")
 
-set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libswresample_PATH}")
-set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavdevice_PATH}")
-set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavfilter_PATH}")
-set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavcodec_PATH}")
-set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavformat_PATH}")
-set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libswscale_PATH}")
-set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libavutil_PATH}")
-set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${libpostproc_PATH}")
+set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${CMAKE_CURRENT_BINARY_DIR}/libONVIFMonitorService_${ANDROID_ABI}.so")
 
-set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${OpenSSL_cryptro_PATH}")
-set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${OpenSSL_ssl_PATH}")
+#set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${OpenSSL_cryptro_PATH}")
+#set_property(TARGET ONVIFMonitor APPEND PROPERTY QT_ANDROID_EXTRA_LIBS "${OpenSSL_ssl_PATH}")
 
 target_link_qml_module(ONVIFMonitor PRIVATE MaterialRally)
 target_link_qml_module(ONVIFMonitor PRIVATE QtAppBaseQml)
+
+register_icon(ONVIFMonitor
+        48x48 "${CMAKE_SOURCE_DIR}/resources/icons/ONVIFmonitor48.png"
+)
 
 # add the install target
 install_app(ONVIFMonitor)
